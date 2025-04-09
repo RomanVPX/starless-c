@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
     // bool success = run_tracer(&config, output_image); // Call the main tracing function here
 
     // --- 4. Post Processing (Placeholder) ---
-     printf("Applying post-processing (placeholder)...\n");
-     // apply_postprocessing(&config, output_image);
+    printf("Applying post-processing (placeholder)...\n");
+    // apply_postprocessing(&config, output_image);
 
 
     // --- 5. Save Image (Placeholder) ---
