@@ -25,7 +25,7 @@ ColorRGB blend_colors(ColorRGB background, double bg_alpha, ColorRGB foreground,
     ColorRGB term1 = color_mul_scalar(foreground, fg_alpha);
     ColorRGB term2 = color_mul_scalar(background, (1.0 - fg_alpha) * bg_alpha); // bg_alpha only relevant if background itself is transparent
     // The Python version seems to assume background alpha is 1 implicitly for the blend step, let's replicate:
-     ColorRGB term2_python_like = color_mul_scalar(background, 1.0 * (1.0 - fg_alpha));
+    // ColorRGB term2_python_like = color_mul_scalar(background, 1.0 * (1.0 - fg_alpha));
     // Let's stick to the python logic for now: ca + cb * (balpha*(1.-aalpha))[:,np.newaxis]
     // Where ca=foreground, cb=background, aalpha=fg_alpha, balpha=bg_alpha
     // It seems balpha was used as the *opacity* of the background color, not its own alpha channel.
