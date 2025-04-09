@@ -22,6 +22,6 @@ Upvector=0.,1.,0.
 [materials]
 
 Horizongrid=0
-Disktexture=texture
-Skytexture=texture
+Disktexture=textures/adisk.jpg
+Skytexture=textures/bgedit.jpg
 Skydiskratio=0.3

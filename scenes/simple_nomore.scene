@@ -20,8 +20,8 @@ Upvector=-0.,1.,0.
 [materials]
 
 Horizongrid=0
-Disktexture=none
-Skytexture=texture
+Disktexture=textures/adisk.jpg
+Skytexture=textures/bgedit.jpg
 Skydiskratio=5.0
 Fogdo=0
 Fogmult=0.2
