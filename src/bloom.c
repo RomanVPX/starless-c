@@ -1,0 +1,203 @@
+#include "bloom.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h> // For memset
+
+// --- Airy Disk Function ---
+// Approximates (2*J1(x)/x)^2
+// Handles the limit at x=0 where the value should be 1.0
+static double airy_disk_func(double x) {
+    if (fabs(x) < 1e-9) { // Handle x close to 0
+        return 1.0;
+    }
+    // Ensure math.h provides j1 or _j1 depending on the system
+    // On POSIX/Linux/macOS, j1 should be available.
+    // On Windows with MSVC, it might be _j1.
+    #if defined(_WIN32) && !defined(__CYGWIN__)
+        double bessel_j1 = _j1(x);
+    #else
+        double bessel_j1 = j1(x);
+    #endif
+    double val = 2.0 * bessel_j1 / x;
+    return val * val;
+}
+
+// --- Generate Kernel ---
+Kernel* generate_airy_kernel(const double scale[3], int size) {
+    if (size < 0) {
+        fprintf(stderr, "Error: Kernel size cannot be negative.\n");
+        return NULL;
+    }
+
+    Kernel* k = (Kernel*)malloc(sizeof(Kernel));
+    if (!k) {
+        fprintf(stderr, "Error: Failed to allocate memory for Kernel struct.\n");
+        return NULL;
+    }
+
+    k->size = size;
+    k->width = 2 * size + 1;
+    k->height = 2 * size + 1;
+    k->data = (ColorRGB*)malloc(k->width * k->height * sizeof(ColorRGB));
+    if (!k->data) {
+        fprintf(stderr, "Error: Failed to allocate memory for kernel data (%dx%d).\n", k->width, k->height);
+        free(k);
+        return NULL;
+    }
+    memset(k->data, 0, k->width * k->height * sizeof(ColorRGB)); // Initialize
+
+    double sum[3] = {0.0, 0.0, 0.0}; // For normalization
+
+    for (int j = -size; j <= size; ++j) { // y loop
+        for (int i = -size; i <= size; ++i) { // x loop
+            double x = (double)i;
+            double y = (double)j;
+            double r = sqrt(x*x + y*y);
+
+            // Add small epsilon like Python code to avoid r=0 if needed,
+            // although airy_disk_func handles it. Let's keep it for consistency.
+            r += 1e-9;
+
+            int kernel_idx = (j + size) * k->width + (i + size); // Index in kernel data array
+
+            for (int c = 0; c < 3; ++c) { // RGB channels
+                double scaled_r = r / scale[c];
+                double val = airy_disk_func(scaled_r);
+                k->data[kernel_idx].r = (c == 0) ? val : k->data[kernel_idx].r;
+                k->data[kernel_idx].g = (c == 1) ? val : k->data[kernel_idx].g;
+                k->data[kernel_idx].b = (c == 2) ? val : k->data[kernel_idx].b;
+
+                // Accumulate sum for normalization
+                if (c == 0) sum[0] += val;
+                if (c == 1) sum[1] += val;
+                if (c == 2) sum[2] += val;
+            }
+        }
+    }
+
+    // --- Normalize Kernel ---
+    // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
+    for (int c = 0; c < 3; ++c) {
+        if (fabs(sum[c]) < 1e-9) {
+             fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
+             // Optional: Set kernel to an identity for this channel? Or leave as is?
+             // Let's leave it as calculated, convolution will just yield zero.
+             sum[c] = 1.0; // Avoid division by zero, result will be unnormalized (likely all zero anyway)
+        }
+    }
+
+    for (int idx = 0; idx < k->width * k->height; ++idx) {
+        k->data[idx].r /= sum[0];
+        k->data[idx].g /= sum[1];
+        k->data[idx].b /= sum[2];
+    }
+
+    printf("Generated %dx%d Airy kernel.\n", k->width, k->height);
+    return k;
+}
+
+// --- Free Kernel ---
+void free_kernel(Kernel* k) {
+    if (k) {
+        free(k->data);
+        free(k);
+    }
+}
+
+
+// --- Symmetric Boundary Handling Helper ---
+// Given image dimensions (W, H) and requested coords (x, y),
+// return the valid coords (sx, sy) using symmetric reflection.
+// Scipy 'symm': reflect about the *center* of the edge pixel.
+// x_reflected = -x - 1 for x < 0
+// x_reflected = 2*W - x - 1 for x >= W
+static void get_symmetric_coords(int W, int H, int x, int y, int* sx, int* sy) {
+    // Handle X coordinate
+    if (x < 0) {
+        *sx = -x - 1;
+    } else if (x >= W) {
+        *sx = 2 * W - x - 1;
+    } else {
+        *sx = x;
+    }
+    // Clamp just in case reflection logic goes wrong (shouldn't happen with correct logic)
+    *sx = fmax(0, fmin(W - 1, *sx));
+
+
+    // Handle Y coordinate
+     if (y < 0) {
+        *sy = -y - 1;
+    } else if (y >= H) {
+        *sy = 2 * H - y - 1;
+    } else {
+        *sy = y;
+    }
+    *sy = fmax(0, fmin(H - 1, *sy));
+}
+
+
+// --- 2D Convolution (Direct Method) ---
+bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel *k) {
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+        fprintf(stderr, "Error: NULL pointer passed to convolve2d_rgb.\n");
+        return false;
+    }
+    if (src->width != dst->width || src->height != dst->height) {
+        fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
+        return false;
+    }
+
+    int W = src->width;
+    int H = src->height;
+    int k_size = k->size; // Kernel radius
+    int k_width = k->width;
+
+    // Iterate over each pixel in the destination/source image
+    // Use OpenMP for parallelization if desired (add compiler flags like -fopenmp)
+    // #pragma omp parallel for schedule(dynamic) collapse(2) // Example parallelization
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+
+            ColorRGB accumulator = {0.0, 0.0, 0.0};
+
+            // Apply the kernel centered at (x, y)
+            for (int ky = -k_size; ky <= k_size; ++ky) {
+                for (int kx = -k_size; kx <= k_size; ++kx) {
+                    // Calculate the corresponding source image coordinates
+                    int src_x_raw = x - kx; // Kernel is flipped for convolution vs correlation
+                    int src_y_raw = y - ky;
+
+                    // Apply symmetric boundary conditions
+                    int src_x, src_y;
+                    get_symmetric_coords(W, H, src_x_raw, src_y_raw, &src_x, &src_y);
+
+                    // Get kernel value (kernel coords are relative to center)
+                    int kernel_idx = (ky + k_size) * k_width + (kx + k_size);
+                    ColorRGB kernel_val = k->data[kernel_idx];
+
+                    // Get source pixel value
+                    int src_idx = src_y * W + src_x;
+                    ColorRGB src_val = src->pixels[src_idx];
+
+                    // Accumulate: C = C + S * K
+                    accumulator.r += src_val.r * kernel_val.r;
+                    accumulator.g += src_val.g * kernel_val.g;
+                    accumulator.b += src_val.b * kernel_val.b;
+                }
+            }
+
+            // Store the result in the destination image
+            int dst_idx = y * W + x;
+            dst->pixels[dst_idx] = accumulator;
+        }
+         // Optional: Progress indicator
+         if (y % 10 == 0) {
+            // printf("Convolution progress: %d / %d rows\n", y, H);
+            // fflush(stdout); // Ensure it prints immediately
+         }
+    }
+
+    printf("Convolution finished.\n");
+    return true;
+}
