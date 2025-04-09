@@ -3,6 +3,7 @@
 #include "config.h"
 #include "tracer.h"
 #include "image.h"
+#include "blackbody.h"
 
 // Forward declarations for functions we'll define later
 // bool run_tracer(Config *config, ImageF *output_image); // Example
@@ -19,6 +20,16 @@ int main(int argc, char *argv[]) {
          fprintf(stderr, "Failed to load configuration.\n");
          return EXIT_FAILURE;
      }
+
+    // --- 1b. Load Global Resources (like color ramp) ---
+    // Assuming ramp path is fixed or determined during config load
+    const char* ramp_path = "data/colourtemp.jpg"; // Make this configurable?
+    printf("Loading color temperature ramp from %s...\n", ramp_path);
+    if (!load_color_ramp(ramp_path)) {
+         fprintf(stderr, "Failed to load essential color ramp.\n");
+         free_config_textures(&config);
+         return EXIT_FAILURE;
+    }
 
     // --- 2. Create Output Image Buffer ---
     printf("Creating output image buffer (%dx%d)...\n", config.resolution[0], config.resolution[1]);
@@ -45,7 +56,8 @@ int main(int argc, char *argv[]) {
     // --- 6. Cleanup ---
     printf("Cleaning up resources...\n");
     free_imagef(output_image);
-    free_config_textures(&config); // Free textures loaded in config
+    free_config_textures(&config); // Free scene textures
+    free_color_ramp();            // <-- Free the color ramp
 
     printf("Black Hole Tracer - Finished Successfully (Placeholder).\n");
     return EXIT_SUCCESS;
