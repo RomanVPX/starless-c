@@ -13,28 +13,6 @@
 #include "color.h"
 
 
-// --- Placeholder for run_tracer ---
-bool run_tracer(Config *config, ImageF *output_image);
-
-// Dummy implementation (replace with real one later in tracer.c)
-bool run_tracer(Config *config, ImageF *output_image) {
-    printf("--- Dummy run_tracer called ---\n");
-    if (!config || !output_image || !output_image->pixels) return false;
-    // Fill image with a simple gradient or color for testing postproc
-    int W = output_image->width;
-    int H = output_image->height;
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-             double u = (double)x / W;
-             double v = (double)y / H;
-             output_image->pixels[y * W + x] = (ColorRGB){u, v, 0.5}; // Example gradient
-        }
-    }
-    printf("--- Dummy run_tracer finished ---\n");
-    return true;
-}
-
-
 int main(int argc, char *argv[]) {
     printf("Black Hole Tracer (C Version) - Starting...\n");
 
@@ -73,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     // --- 3. Run Ray Tracer ---
     printf("Running ray tracer...\n");
-    bool trace_success = run_tracer(&config, output_image); // Now calls the dummy function
+    bool trace_success = run_tracer(&config, output_image);
     if (!trace_success) {
         fprintf(stderr, "Ray tracing failed.\n");
         free_imagef(output_image);
