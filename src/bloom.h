@@ -5,32 +5,47 @@
 #include "color.h" // For ColorRGB
 #include <stdbool.h>
 
-// Structure to hold a convolution kernel
+// --- 2D Kernel (for Airy) ---
 typedef struct {
     int size;        // Kernel is (2*size+1) x (2*size+1)
     int width;       // width = 2*size+1
     int height;      // height = 2*size+1
     ColorRGB *data;  // Kernel data (RGB), size width*height
-} Kernel;
+} Kernel2D; // Renamed for clarity
 
-// Function to generate the Airy disk kernel
-// scale: 3-element array for RGB scaling factors
-// size: Determines kernel dimensions (2*size+1)
-Kernel* generate_airy_kernel(const double scale[3], int size);
+Kernel2D* generate_airy_kernel(const double scale[3], int size);
+void free_kernel2d(Kernel2D* k); // Renamed
+bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k); // Renamed
 
-// Function to free the kernel memory
-void free_kernel(Kernel* k);
+// --- 1D Kernel (for Gaussian) ---
+typedef struct {
+    int size;       // Kernel has (2*size+1) elements
+    int length;     // length = 2*size+1
+    double *data;   // Kernel data (single array, applies to all RGB channels)
+} Kernel1D;
 
-// Function to perform 2D convolution on an ImageF
-// Applies kernel k to input image src, stores result in dst.
-// Assumes src and dst are already allocated and have the same dimensions.
-// Uses symmetric boundary handling ('symm' from scipy).
-bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel *k);
+// Function to generate a 1D Gaussian kernel
+// sigma: Standard deviation of the Gaussian
+// size: Determines kernel length (2*size+1). If <=0, calculated based on sigma.
+Kernel1D* generate_gaussian_kernel_1d(double sigma, int size);
+
+// Function to free the 1D kernel memory
+void free_kernel1d(Kernel1D* k);
+
+// Function to perform 1D horizontal convolution on an ImageF
+// Applies kernel k horizontally to input image src, stores result in dst.
+// Assumes src and dst are allocated and have the same dimensions.
+// Uses symmetric boundary handling.
+bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
+
+// Function to perform 1D vertical convolution on an ImageF
+// Applies kernel k vertically to input image src, stores result in dst.
+// Assumes src and dst are allocated and have the same dimensions.
+// Uses symmetric boundary handling.
+bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
+
 
 // --- Bessel J1 function ---
-// We need this for the Airy disk. C99/POSIX should provide it in math.h
-// If not, we'd need to implement or find an alternative.
 #include <math.h>
-// double j1(double x); // Should be declared in math.h
 
 #endif // BLOOM_H

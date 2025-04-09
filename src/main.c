@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
         printf("  Kernel Scales (R,G,B): %f, %f, %f\n", kernel_scale[0], kernel_scale[1], kernel_scale[2]);
 
 
-        Kernel* airy_kernel = generate_airy_kernel(kernel_scale, kernel_size_radius);
+        Kernel2D* airy_kernel = generate_airy_kernel(kernel_scale, kernel_size_radius);
         if (airy_kernel) {
             printf("  Convolving image with Airy kernel (%dx%d)...\n", airy_kernel->width, airy_kernel->height);
             // Use W and H which are now defined in this scope
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Warning: Airy convolution failed.\n");
                 memcpy(next_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
             }
-            free_kernel(airy_kernel);
+            free_kernel2d(airy_kernel);
 
             ImageF *tmp = current_image;
             current_image = next_image;
@@ -177,28 +177,46 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // --- 4c. Gaussian Blur (Placeholder) ---
+    // --- 4c. Gaussian Blur ---
     if (config.blur_do) {
-         printf("Applying Gaussian Blur (placeholder)...\n");
-         // If implementing blur, copy current_image to next_image or apply in place if possible
-         // For now, just ensure buffers are consistent
-        if (current_image != next_image) { // This case shouldn't happen if bloom ran correctly, but good safety
-            memcpy(next_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
-            ImageF *tmp = current_image;
-            current_image = next_image;
-            next_image = tmp;
+        printf("Applying Gaussian Blur...\n");
+        // Sigma calculation based on Python: int(0.05*RESOLUTION[0])
+        // Using W (width) which corresponds to RESOLUTION[0]
+        double sigma = fmax(0.5, 0.05 * (double)W); // Ensure sigma is positive
+        printf("  Gaussian Sigma: %.2f\n", sigma);
+
+        // Generate the 1D kernel
+        Kernel1D* gauss_kernel = generate_gaussian_kernel_1d(sigma, 0); // Let function calculate size
+        if (gauss_kernel) {
+            // Pass 1: Horizontal (current_image -> next_image)
+            printf("  Applying horizontal Gaussian pass...\n");
+            if (!convolve1d_h_rgb(current_image, next_image, gauss_kernel)) {
+                fprintf(stderr, "Warning: Horizontal Gaussian convolution failed.\n");
+                // Copy data if failed? The dst buffer might be partially written.
+                // Safer to just proceed, result might be wrong.
+            }
+
+            // Pass 2: Vertical (next_image -> current_image)
+            // The result of H pass is in next_image, use that as source.
+            // Write the final result back to current_image (which points to original output_image or previous step's result)
+            printf("  Applying vertical Gaussian pass...\n");
+            if (!convolve1d_v_rgb(next_image, current_image, gauss_kernel)) {
+                 fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
+            }
+
+            // The final blurred result is now in current_image.
+            // The buffer pointed to by next_image (postproc_buffer or original) contains the intermediate horizontal blur.
+            // No buffer swap is needed here because we wrote the final result to current_image.
+
+            free_kernel1d(gauss_kernel);
         } else {
-            // If blur modifies in place, current_image remains correct.
-            // If blur needs separate buffers, copy output_image (or previous step) -> postproc_buffer
-            // and then perform blur postproc_buffer -> output_image (or vice versa).
-            // Let's assume blur would use the swap buffers:
-            printf("  (Blur would use swap buffers: current -> next)\n");
-            // Example: gaussian_blur(current_image, next_image, sigma);
-            // ImageF *tmp = current_image; current_image = next_image; next_image = tmp; // Swap after blur
+            fprintf(stderr, "Warning: Failed to generate Gaussian kernel. Skipping blur.\n");
+            // If skipping, no buffer swap needed, current_image still holds previous step's result.
         }
+
     } else {
         printf("Skipping Gaussian Blur.\n");
-        // Ensure final image buffer is correct; no swap needed if blur skipped.
+        // No buffer changes needed if skipping.
     }
 
     // --- 4d. Normalization ---
