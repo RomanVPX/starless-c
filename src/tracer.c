@@ -92,6 +92,18 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
     int W = cfg->resolution[0];
     int H = cfg->resolution[1];
 
+    bool log_this_pixel = (px == 1300 && py == 950);
+
+    // --- Debugging Output ---
+    if (log_this_pixel) {
+        printf("\n--- Logging for pixel (%d, %d) of (%d, %d) ---\n", px, py, W, H);
+        printf("--- Disk texture mode: %u\n", cfg->disk_texture_mode);
+        printf("--- Disk inner radius: %f\n", cfg->disk_inner_radius);
+        printf("--- Disk outer radius: %f\n", cfg->disk_outer_radius);
+        printf("--- Redshift: %f\n", cfg->redshift);
+        printf("--- Disk multiplier: %f\n", cfg->disk_multiplier);
+    }
+
     // 1. Calculate initial view vector (like Python code)
     // Screen coordinates [-0.5, 0.5] for x, scaled for y
     double screen_x = ((double)px / W) - 0.5;
@@ -128,7 +140,6 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
     Vec3d initial_momentum = vec3d_cross(ray.pos, ray.vel);
     ray.h2 = vec3d_norm_sqr(initial_momentum);
 
-
     // 3. Integration Loop
     Vec3d old_pos = ray.pos;
     double old_pos_sqr = vec3d_norm_sqr(old_pos);
@@ -149,6 +160,12 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
         // --- Event Horizon Check ---
         // Check if crossed from r > 1 to r <= 1
         if (old_pos_sqr > 1.0 && current_pos_sqr <= 1.0) {
+
+            if (log_this_pixel) {
+                printf("--- Iter %d: EVENT HORIZON HIT! Overwriting color.\n", it);
+                printf("--- Previous color was: (%.3f,%.3f,%.3f a=%.3f)\n", ray.color.r, ray.color.g, ray.color.b, ray.alpha);
+            }
+
             // Simple: just stop and set color to black or grid
             ColorRGB horizon_color = COLOR_BLACK;
             if (cfg->horizon_grid) {
@@ -202,23 +219,49 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                              if (phi_check) disk_color = (ColorRGB){1.0, 1.0, 0.0}; // Yellow
                              else disk_color = (ColorRGB){0.0, 0.0, 1.0};           // Blue
                              disk_alpha = 1.0;
-                             break;
+                            break;
                         }
                         case DT_SOLID:
-                             disk_color = (ColorRGB){1.0, 1.0, 0.98};
-                             disk_alpha = 1.0;
-                             break;
+                            disk_color = (ColorRGB){1.0, 1.0, 0.98};
+                            disk_alpha = 1.0;
+                            break;
                         case DT_TEXTURE:
                             if (cfg->disk_texture) {
                                 double phi = atan2(col_point.x, col_point.z);
                                 double r = sqrt(col_point_sqr);
                                 double u = fmod(phi + 2.0 * M_PI, 2.0 * M_PI) / (2.0 * M_PI); // Normalize phi to [0, 1]
                                 double v = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius); // Normalize radius
-                                disk_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in);
+
+                                // Perform lookup FIRST
+                                ColorRGB looked_up_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in);
+                                disk_color = looked_up_color;
+
                                 // Python alpha was: diskmask * np.clip(sqrnorm(diskcolor)/3.0,0.0,1.0)
                                 double color_norm_sq = vec3d_norm_sqr(*(Vec3d*)&disk_color); // Treat ColorRGB as Vec3d for norm_sqr
                                 disk_alpha = fmax(0.0, fmin(1.0, color_norm_sq / 3.0));
-                            } else { disk_alpha = 0.0; } // No texture loaded
+
+
+                                // --- Add Detailed Logging (for one specific pixel) ---
+                                // Example: Log for pixel near center-left, which should be bright
+                                // printf("Pixel (%d, %d) Disk Hit (Texture Mode):\n", px, py);
+
+                                if (log_this_pixel) {
+                                    printf("--- Mode=DT_TEXTURE\n");
+                                    printf("--- Collision Point: (%.3f, %.3f, %.3f)\n", col_point.x, col_point.y, col_point.z);
+                                    printf("--- phi=%.4f, r=%.4f\n", phi, r);
+                                    printf("--- UV=(%.4f, %.4f)\n", u, v);
+                                    printf("--- Looked up color (linear): (%.3f, %.3f, %.3f)\n", disk_color.r, disk_color.g, disk_color.b);
+                                    printf("--- Color norm^2=%.4f\n", color_norm_sq);
+                                    printf("--- Resulting disk_alpha=%.4f\n", disk_alpha);
+                               }
+                               // --- End Logging ---
+
+                            } else { // No texture loaded
+                                disk_alpha = 0.0;
+                                if (log_this_pixel) { // Log even if texture missing
+                                    printf("--- Iter %d: Disk texture not loaded!\n", it);
+                                }
+                            }
                             break;
                         case DT_BLACKBODY: {
                             // Temperature calculation
@@ -267,18 +310,34 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                             disk_color = color_clamp(disk_color, 0.0, 100.0); // Clamp color intensity before blend?
                             break;
                         }
-                         case DT_NONE: default: break; // Should not happen due to outer check
+                        case DT_NONE: default: break; // Should not happen due to outer check
                     }
 
                     // Blend disk color
+                    if (log_this_pixel) {
+                        printf("--- Blending: Old (%.3f,%.3f,%.3f a=%.3f) + Disk (%.3f,%.3f,%.3f a=%.3f)\n",
+                                ray.color.r, ray.color.g, ray.color.b, ray.alpha,
+                                disk_color.r, disk_color.g, disk_color.b, disk_alpha);
+                    }
+
                     ray.color = blend_colors(ray.color, ray.alpha, disk_color, disk_alpha);
                     ray.alpha = blend_alpha(ray.alpha, disk_alpha);
                     // Should the ray stop? Assume disk is semi-transparent based on alpha.
                     // If disk_alpha == 1.0, we could set ray.active = false;
-                }
-            }
-        }
 
+                    if (log_this_pixel) {
+                        printf("--- Result: (%.3f,%.3f,%.3f a=%.3f)\n", ray.color.r, ray.color.g, ray.color.b, ray.alpha);
+                    }
+
+                    if (ray.alpha > 0.85) { // Threshold adjustable
+                        if (log_this_pixel) {
+                           printf("--- Iter %d: Ray considered stopped by opaque disk hit (alpha=%.3f).\n", it, ray.alpha);
+                        }
+                        ray.active = false;
+                    }
+                } // end if within bounds
+            } // end if t_cross valid
+        } // end if plane crossed
 
         // --- Fog ---
         if (cfg->fog_do && (it % cfg->fog_skip == 0)) {
@@ -299,8 +358,15 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
         // Check if ray has escaped to infinity (optional, maybe just let it hit max iterations)
         // if (current_pos_sqr > some_large_radius_sqr) { ray.active = false; }
 
+        if (log_this_pixel && !ray.active) {
+            printf("--- Iter %d: Ray deactivated.\n", it);
+         }
+
     } // End integration loop
 
+    if (log_this_pixel) {
+        printf("--- Loop finished. Accumulated color: (%.3f,%.3f,%.3f a=%.3f)\n",ray.color.r, ray.color.g, ray.color.b, ray.alpha);
+    }
 
     // 5. Background / Sky Color
     if (ray.alpha < 0.9999) { // If ray didn't hit something opaque
@@ -346,6 +412,10 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
         ray.color = blend_colors(bg_color, 1.0, ray.color, ray.alpha);
         // Final alpha is now effectively 1.0 after blending with opaque background
         ray.alpha = 1.0; // Or blend_alpha(1.0, ray.alpha) which should yield 1.0
+    }
+
+    if (log_this_pixel) {
+        printf("--- Final pixel color: (%.3f,%.3f,%.3f)\n", ray.color.r, ray.color.g, ray.color.b);
     }
 
     // Return final pixel color (should be fully opaque now)
