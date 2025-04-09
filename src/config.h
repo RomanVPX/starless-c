@@ -59,6 +59,7 @@ typedef struct {
 
     // Internal/Derived
     Vec3d view_matrix[3]; // [0]=left, [1]=up, [2]=front
+    bool *internal_override_res_ptr; // Internal pointer used during INI parsing
 
 } Config;
 

@@ -8,7 +8,8 @@ SRCDIR = src
 
 # Source files
 SRCS = $(SRCDIR)/main.c $(SRCDIR)/tracer.c $(SRCDIR)/vector.c $(SRCDIR)/color.c \
-       $(SRCDIR)/blackbody.c $(SRCDIR)/bloom.c $(SRCDIR)/image.c $(SRCDIR)/config.c
+       $(SRCDIR)/blackbody.c $(SRCDIR)/bloom.c $(SRCDIR)/image.c $(SRCDIR)/config.c \
+	   $(SRCDIR)/ini.c
 
 # Object files
 OBJS = $(SRCS:.c=.o)
