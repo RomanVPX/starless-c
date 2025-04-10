@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
 
     // --- 1. Load Configuration (Placeholder) ---
     // We'll replace this with actual loading soon
-    printf("Loading configuration (placeholder)...\n");
+    printf("Loading configuration...\n");
     if (!load_config(argc, argv, &config)) {
          fprintf(stderr, "Failed to load configuration.\n");
          return EXIT_FAILURE;
@@ -60,20 +60,26 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    // --- 4. Post Processing ---
+    printf("Applying post-processing...\n");
+
+    // --- Create Post-Processing Buffers ---
+    size_t buffer_size = (size_t)W * H * sizeof(ColorRGB); // Calculate size once
+
     // Create a temporary image buffer for intermediate results if needed
-    printf("Creating post-processing buffer (%dx%d)...\n", W, H);
-    ImageF* postproc_buffer = create_imagef(W, H);
-    if (!postproc_buffer) {
-        fprintf(stderr, "Failed to create post-processing buffer.\n");
+    printf("Creating post-processing buffers (%dx%d)...\n", W, H);
+    ImageF* postproc_buffer = create_imagef(W, H); // Temporary work buffer
+    ImageF* pre_bloom_copy = create_imagef(W, H);  // Buffer to hold state before bloom (source for blur)
+
+    if (!postproc_buffer || !pre_bloom_copy) {
+        fprintf(stderr, "Failed to create post-processing buffers.\n");
         free_imagef(output_image);
+        free_imagef(postproc_buffer); // Free whichever was allocated
+        free_imagef(pre_bloom_copy);
         free_config_textures(&config);
         free_color_ramp();
         return EXIT_FAILURE;
     }
-
-    // --- 4. Post Processing (Placeholder) ---
-    printf("Applying post-processing (placeholder)...\n");
-    // apply_postprocessing(&config, output_image);
 
     // --- 4a. Gain ---
     printf("Applying gain: %f\n", config.gain);
@@ -81,35 +87,34 @@ int main(int argc, char *argv[]) {
         output_image->pixels[i] = color_mul_scalar(output_image->pixels[i], config.gain);
     }
 
-    ImageF *current_image = output_image; // Start with the traced image
-    ImageF *next_image = postproc_buffer; // Use buffer for next step
+    // --- Store pre-bloom state for Gaussian blur source ---
+    printf("Storing pre-bloom image state...\n");
+    memcpy(pre_bloom_copy->pixels, output_image->pixels, buffer_size);
+
+    // Setup buffer pointers for subsequent steps
+    ImageF *current_image = output_image;      // Starts with post-gain image
+    ImageF *next_image = postproc_buffer;      // Temp buffer for output of next step
 
     // --- 4b. Airy Bloom ---
+    // Reads from current_image, writes to next_image
     if (config.airy_bloom) {
         printf("Applying Airy Bloom...\n");
         double spectrum[3] = {1.0, 0.86, 0.61};
-        // Use atan2(1.0, 1.0/config.tan_fov) if tan_fov is tan(angle/2)?
-        // Or just atan(config.tan_fov) if it's directly the tan value needed?
-        // Python code uses np.arctan(TANFOV) - this is likely an error there,
-        // as TANFOV is already a tangent-like value (1.5). atan(1.5) is ~0.98 rad (~56 deg).
-        // If TANFOV was meant to be FoV in radians, then the formula makes sense.
-        // Let's assume TANFOV=1.5 *is* the FoV in radians for now, matching Python's atan use.
-        double fov_rad = config.tan_fov; // Assume config.tan_fov is FoV in radians
+        double fov_rad = config.tan_fov; // tangent of field of view
         // Check for zero FoV to prevent division by zero
          if (fabs(fov_rad) < 1e-6) {
             fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
             fov_rad = 1.5; // Use a default value
         }
-        double rad_scale = 0.00019825 * (double)W / fov_rad; // Use W (width) consistent with Python RESOLUTION[0]
-        rad_scale *= config.airy_radius;
+        // the float constant is 1.22 * 650nm / (4 mm), the typical diffractive resolution
+        // of the human eye for red light. It's in radians, so we rescale using field of view.
+        double rad_scale = 0.00019825 * (double)W / atan(fov_rad); // Use W (width) consistent with Python RESOLUTION[0]
+        rad_scale *= config.airy_radius; // Apply user-defined radius scaling
 
-        double kernel_scale[3];
-        kernel_scale[0] = rad_scale * spectrum[0];
-        kernel_scale[1] = rad_scale * spectrum[1];
-        kernel_scale[2] = rad_scale * spectrum[2];
+        double kernel_scale[3] = {rad_scale * spectrum[0], rad_scale * spectrum[1], rad_scale * spectrum[2]};
 
         double max_intensity = 0.0;
-        for (int i = 0; i < W * H; ++i) { // Use W * H
+        for (int i = 0; i < W * H; ++i) {
              max_intensity = fmax(max_intensity, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
         }
 
@@ -121,81 +126,98 @@ int main(int argc, char *argv[]) {
         printf("  Calculated Kernel Radius (size): %d\n", kernel_size_radius);
         printf("  Kernel Scales (R,G,B): %f, %f, %f\n", kernel_scale[0], kernel_scale[1], kernel_scale[2]);
 
-
         Kernel2D* airy_kernel = generate_airy_kernel(kernel_scale, kernel_size_radius);
         if (airy_kernel) {
             printf("  Convolving image with Airy kernel (%dx%d)...\n", airy_kernel->width, airy_kernel->height);
             // Use W and H which are now defined in this scope
             if (!convolve2d_rgb(current_image, next_image, airy_kernel)) {
                 fprintf(stderr, "Warning: Airy convolution failed.\n");
-                memcpy(next_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
+                memcpy(next_image->pixels, current_image->pixels, buffer_size); // Use W, H, cast size
             }
             free_kernel2d(airy_kernel);
 
+             // Swap buffers: result is now in current_image, next_image is free
             ImageF *tmp = current_image;
             current_image = next_image;
             next_image = tmp;
-
         } else {
             fprintf(stderr, "Warning: Failed to generate Airy kernel. Skipping bloom.\n");
-            if (current_image != next_image) {
-                memcpy(next_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
-                ImageF *tmp = current_image;
-                current_image = next_image;
-                next_image = tmp;
-            }
+            printf("  (Post-bloom result remains in current_image buffer)\n");
         }
     } else {
         printf("Skipping Airy Bloom.\n");
-        if (current_image != next_image) {
-            memcpy(next_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
-            ImageF *tmp = current_image;
-            current_image = next_image;
-            next_image = tmp;
-        }
     }
+
+    // At this point, current_image holds the "post-bloom" result ('colour_pb' in Python)
+    // next_image points to a free buffer (either output_image or postproc_buffer)
+    // pre_bloom_copy holds the source for the Gaussian blur ('total_colour_buffer_preproc' after gain)
 
     // --- 4c. Gaussian Blur ---
     if (config.blur_do) {
         printf("Applying Gaussian Blur...\n");
         // Sigma calculation based on Python: int(0.05*RESOLUTION[0])
-        // Using W (width) which corresponds to RESOLUTION[0]
         double sigma = fmax(0.5, 0.05 * (double)W); // Ensure sigma is positive
         printf("  Gaussian Sigma: %.2f\n", sigma);
-
-        // Generate the 1D kernel
-        Kernel1D* gauss_kernel = generate_gaussian_kernel_1d(sigma, 0); // Let function calculate size
+        // Kernel size is determined by sigma, but we can set a max size if needed
+        Kernel1D* gauss_kernel = generate_gaussian_kernel_1d(sigma, 0);
         if (gauss_kernel) {
-            // Pass 1: Horizontal (current_image -> next_image)
-            printf("  Applying horizontal Gaussian pass...\n");
-            if (!convolve1d_h_rgb(current_image, next_image, gauss_kernel)) {
+            // --- Third Buffer Plan Implementation ---
+            // Buffers: A=output_image, B=pre_bloom_copy, C=postproc_buffer
+            // State before this block:
+            //   current_image points to buffer holding S1 (post-bloom result).
+            //   next_image points to a free buffer.
+            //   pre_bloom_copy (B) holds S0 (post-gain result), used as SOURCE for H pass.
+            ImageF* blur_source = pre_bloom_copy; // B = S0
+            ImageF* h_pass_dest = next_image;     // Use the currently free buffer for H(B)
+            ImageF* v_pass_dest = pre_bloom_copy; // Reuse B for the final blur result S2 = V(H(B))
+
+            // Pass 1: Horizontal (blur_source -> h_pass_dest)
+            // Input: B=S0. Output: next_image = H(B).
+            printf("  Applying horizontal Gaussian pass (Source: pre_bloom_copy, Dest: next_image)...\n");
+            if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel)) {
                 fprintf(stderr, "Warning: Horizontal Gaussian convolution failed.\n");
-                // Copy data if failed? The dst buffer might be partially written.
-                // Safer to just proceed, result might be wrong.
+                // If H pass fails, V pass input will be wrong, so maybe skip rest?
+                // For now, continue, result will be incorrect.
             }
 
-            // Pass 2: Vertical (next_image -> current_image)
-            // The result of H pass is in next_image, use that as source.
-            // Write the final result back to current_image (which points to original output_image or previous step's result)
-            printf("  Applying vertical Gaussian pass...\n");
-            if (!convolve1d_v_rgb(next_image, current_image, gauss_kernel)) {
-                 fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
+            // Pass 2: Vertical (h_pass_dest -> v_pass_dest)
+            // Input: next_image = H(B). Output: B = V(H(B)) = S2.
+            printf("  Applying vertical Gaussian pass (Source: next_image, Dest: pre_bloom_copy)...\n");
+            if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel)) {
+                fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
+                // If V pass fails, additive step input will be wrong.
             }
 
-            // The final blurred result is now in current_image.
-            // The buffer pointed to by next_image (postproc_buffer or original) contains the intermediate horizontal blur.
-            // No buffer swap is needed here because we wrote the final result to current_image.
+            // Now:
+            // current_image holds S1 (post-bloom result).
+            // pre_bloom_copy (v_pass_dest / B) holds S2 (final blur result).
+            // next_image (h_pass_dest) holds H(B) (intermediate, no longer needed).
+
+            ImageF* blurred_image_final = v_pass_dest; // S2 is in pre_bloom_copy buffer
+
+            // Additive Step: current_image = current_image + 0.2 * blurred_image_final
+            // Input: current_image (S1), blurred_image_final (S2). Output: current_image = S1 + 0.2*S2
+            printf("  Adding 0.2 * blurred image to post-bloom result...\n");
+            for (int i = 0; i < W * H; ++i) {
+                ColorRGB blur_contrib = color_mul_scalar(blurred_image_final->pixels[i], 0.2);
+                current_image->pixels[i] = color_add(current_image->pixels[i], blur_contrib);
+            }
+
+            // The final result (post-bloom + 0.2*blur) is in current_image.
+            // next_image holds the blur result (no longer needed directly).
 
             free_kernel1d(gauss_kernel);
         } else {
             fprintf(stderr, "Warning: Failed to generate Gaussian kernel. Skipping blur.\n");
-            // If skipping, no buffer swap needed, current_image still holds previous step's result.
+            // If skipping, current_image still holds the post-bloom result.
         }
 
     } else {
         printf("Skipping Gaussian Blur.\n");
-        // No buffer changes needed if skipping.
+        // No changes to current_image or next_image needed.
     }
+
+    // At this point, current_image holds the final result before normalization.
 
     // --- 4d. Normalization ---
      if (config.normalize > 0) {
@@ -222,11 +244,11 @@ int main(int argc, char *argv[]) {
         final_image = output_image;
         printf("Final image is in original buffer.\n");
     } else {
-        // This means the last operation wrote to postproc_buffer (which is next_image pointer here)
-        // Copy the result from postproc_buffer back to the main output_image buffer
-        printf("Final image is in postproc buffer. Copying back...\n");
-        memcpy(output_image->pixels, current_image->pixels, (size_t)W * H * sizeof(ColorRGB)); // Use W, H, cast size
-        final_image = output_image;
+        // current_image must be postproc_buffer
+        final_image = postproc_buffer; // Point to the buffer holding the result
+        printf("Final image is in postproc buffer. Copying back to output_image for consistency before saving...\n");
+        memcpy(output_image->pixels, final_image->pixels, buffer_size); // Copy result to output_image
+        final_image = output_image; // Now final result is definitively in output_image
     }
 
     // --- 5. Save Image ---
@@ -271,8 +293,9 @@ int main(int argc, char *argv[]) {
 
     // --- 6. Cleanup ---
     printf("Cleaning up resources...\n");
-    free_imagef(postproc_buffer);
-    free_imagef(output_image); // Moved here, free final image buffer
+    free_imagef(postproc_buffer);  // Free the temporary buffer
+    free_imagef(pre_bloom_copy);   // Free the pre-bloom copy buffer
+    free_imagef(output_image);     // Free the main image buffer
     free_config_textures(&config);
     free_color_ramp();
 

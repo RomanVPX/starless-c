@@ -329,12 +329,22 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                         printf("--- Result: (%.3f,%.3f,%.3f a=%.3f)\n", ray.color.r, ray.color.g, ray.color.b, ray.alpha);
                     }
 
-                    if (ray.alpha > 0.85) { // Threshold adjustable
+                    bool stop_ray = false;
+                    if (cfg->disk_texture_mode == DT_SOLID || cfg->disk_texture_mode == DT_GRID) {
+                        stop_ray = true; // These modes are fully opaque
+                    } else if (disk_alpha >= 0.8) { // Stop if calculated alpha is very high
+                        stop_ray = true;
+                    }
+                    // Maybe also check combined alpha: if (ray.alpha >= 0.999) stop_ray = true;
+
+                    if (stop_ray) {
                         if (log_this_pixel) {
-                           printf("--- Iter %d: Ray considered stopped by opaque disk hit (alpha=%.3f).\n", it, ray.alpha);
+                           printf("--- Iter %d: Ray stopped by opaque disk hit (mode=%d, disk_alpha=%.3f, ray_alpha=%.3f).\n",
+                                   it, cfg->disk_texture_mode, disk_alpha, ray.alpha);
                         }
                         ray.active = false;
                     }
+
                 } // end if within bounds
             } // end if t_cross valid
         } // end if plane crossed
