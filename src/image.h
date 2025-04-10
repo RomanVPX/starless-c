@@ -25,6 +25,9 @@ void free_imagef(ImageF *img);
 Texture* load_texture(const char *filename);
 void free_texture(Texture *tex);
 
+// Texture Resizing
+Texture* resize_texture(const Texture* input_tex, float scale_factor);
+
 // Texture Lookup (using nearest neighbor for now, like Python code)
 ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in);
 

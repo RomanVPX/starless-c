@@ -6,6 +6,7 @@
 #include <unistd.h> // For access() to check file existence
 #include <ctype.h>  // For isdigit, isspace
 #include "ini.h"
+#include "image.h"
 
 // --- Function Prototypes ---
 bool string_to_bool(const char* str);
@@ -17,7 +18,6 @@ void compute_derived_config(Config *cfg); // Also good practice to prototype sta
 // --- Helper function definitions ---
 // Definition for: parse_vec3d
 bool parse_vec3d(const char* str, Vec3d *vec) {
-    // ... (keep implementation the same)
     if (!str || !vec) return false;
     double x, y, z;
     if (sscanf(str, "%lf,%lf,%lf", &x, &y, &z) == 3) {
@@ -31,7 +31,6 @@ bool parse_vec3d(const char* str, Vec3d *vec) {
 
 // Definition for: parse_int_list
 bool parse_int_list(const char* str, int* arr, int expected_count) {
-     // ... (keep implementation the same)
     if (!str || !arr || expected_count <= 0) return false;
     char* str_copy = strdup(str); // Work on a copy as strtok modifies it
     if (!str_copy) return false;
@@ -70,7 +69,6 @@ bool parse_int_list(const char* str, int* arr, int expected_count) {
 
 // Definition for: string_to_bool
 bool string_to_bool(const char* str) {
-    // ... (keep implementation the same)
     if (!str) return false;
      // Use strcasecmp if available (needs <strings.h> usually, but often included by string.h on POSIX)
     #ifdef _WIN32
@@ -88,7 +86,6 @@ bool string_to_bool(const char* str) {
 
 // Definition for: parse_resolution
 bool parse_resolution(const char* res_str, int resolution[2]) {
-    // ... (keep implementation the same)
      if (!res_str) return false;
     // Find the 'x' separator
     const char* x_pos = strchr(res_str, 'x');
@@ -294,7 +291,7 @@ bool load_config(int argc, char *argv[], Config *cfg) {
             printf("  Found --no-display: (Ignoring, display not implemented).\n");
         } else if (strcmp(argv[i], "--no-shuffle") == 0) {
             printf("  Found --no-shuffle: (Note: Shuffling not implemented yet).\n");
-    } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--no-bs") == 0) {
+        } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--no-bs") == 0) {
             printf("  Found -o/--no-bs: (Ignoring related display/graph flags).\n");
         } else if (strncmp(argv[i], "-c", 2) == 0 && strlen(argv[i]) > 2 && isdigit((unsigned char)argv[i][2])) { // Cast to unsigned char
             long csize = strtol(argv[i] + 2, NULL, 10);
@@ -348,7 +345,9 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     cfg->internal_override_res_ptr = NULL;
     printf("Finished parsing INI file.\n");
 
+    // --- Load Textures Based on Config ---
     printf("Loading textures based on configuration...\n");
+    Texture *original_sky_texture = NULL; // Temporary pointer
     if (cfg->disk_texture_mode == DT_TEXTURE) {
         if (cfg->disk_texture_path && strlen(cfg->disk_texture_path) > 0) {
             printf("  Loading disk texture: %s\n", cfg->disk_texture_path);
@@ -363,14 +362,42 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     if (cfg->sky_texture_mode == ST_TEXTURE) {
         if (cfg->sky_texture_path && strlen(cfg->sky_texture_path) > 0) {
             printf("  Loading sky texture: %s\n", cfg->sky_texture_path);
-            cfg->sky_texture = load_texture(cfg->sky_texture_path);
-            if (!cfg->sky_texture) {
+            original_sky_texture = load_texture(cfg->sky_texture_path); // Load into temp var
+            if (!original_sky_texture) {
                 fprintf(stderr, "Warning: Failed to load sky texture '%s'. Check path and file.\n", cfg->sky_texture_path);
+                // Fallback?
+                // cfg->sky_texture_mode = ST_NONE;
             }
         } else {
-             fprintf(stderr, "Warning: Skytexture mode is TEXTURE, but no valid path was found or stored in config.\n");
+            fprintf(stderr, "Warning: Skytexture mode is TEXTURE, but no valid path ('%s') found in config.\n", cfg->sky_texture_path);
+            // Fallback
+            // cfg->sky_texture_mode = ST_NONE;
         }
     }
+
+    // --- Apply Sky Texture Resizing (if HiFi and texture loaded) ---
+    if (!cfg->lofi && original_sky_texture) {
+        printf("HiFi mode: Attempting to resize sky texture by 2.0x...\n");
+        // Use the resize function from image.c
+        cfg->sky_texture = resize_texture(original_sky_texture, 2.0f); // Assign resized to final config pointer
+
+        if (cfg->sky_texture) {
+                printf("  Sky texture resized successfully.\n");
+                free_texture(original_sky_texture); // Free the original small texture
+                original_sky_texture = NULL; // Avoid double free
+        } else {
+                fprintf(stderr, "Warning: Sky texture resizing failed. Using original texture.\n");
+                cfg->sky_texture = original_sky_texture; // Resizing failed, assign original to final pointer
+                original_sky_texture = NULL; // Avoid double free later
+        }
+    } else {
+        // If LoFi or no original texture, just use the original (if any)
+        cfg->sky_texture = original_sky_texture;
+        original_sky_texture = NULL; // Avoid double free
+    }
+    // At this point, cfg->sky_texture points to the potentially resized texture,
+    // or the original one, or NULL. original_sky_texture is NULL.
+
     // --- Compute Derived Values ---
     printf("Computing derived configuration values...\n");
     compute_derived_config(cfg);
@@ -388,8 +415,8 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
     // Optional: Print more final config values for debugging
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
-     if(cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
-     if(cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
+    if(cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
+    if(cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
 
     return true;
 }
