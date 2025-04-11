@@ -213,12 +213,12 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                     // Determine color/alpha based on disk mode
                     switch(cfg->disk_texture_mode) {
                         case DT_GRID: {
-                             double phi = atan2(col_point.x, col_point.z);
-                             // Python: np.mod(phi,0.52359) < 0.261799
-                             bool phi_check = fmod(phi + 100*M_PI, 0.52359) < 0.261799;
-                             if (phi_check) disk_color = (ColorRGB){1.0, 1.0, 0.0}; // Yellow
-                             else disk_color = (ColorRGB){0.0, 0.0, 1.0};           // Blue
-                             disk_alpha = 1.0;
+                            double phi = atan2(col_point.x, col_point.z);
+                            // Python: np.mod(phi,0.52359) < 0.261799
+                            bool phi_check = fmod(phi + 100*M_PI, 0.52359) < 0.261799;
+                            if (phi_check) disk_color = (ColorRGB){1.0, 1.0, 0.0}; // Yellow
+                            else disk_color = (ColorRGB){0.0, 0.0, 1.0};           // Blue
+                            disk_alpha = 1.0;
                             break;
                         }
                         case DT_SOLID:
