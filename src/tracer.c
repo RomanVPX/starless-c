@@ -234,14 +234,26 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 temp /= fmax(0.1, total_opz); // Correct temperature
             }
 
-            double intensity = bb_intensity(temp);
+            // double intensity = bb_intensity(temp);
             ColorRGB bb_col = bb_color_from_temp(temp);
-            disk_color = cfg->disk_intensity_do ? color_mul_scalar(bb_col, cfg->disk_multiplier * intensity) : bb_col;
 
+            // --- Apply multiplier ---
+            if (cfg->disk_intensity_do) {
+                // Multiply the color (which includes relative intensity) by the overall multiplier
+                disk_color = color_mul_scalar(bb_col, cfg->disk_multiplier);
+            } else {
+                // If intensity factor is disabled, maybe just use the color normalized to 1?
+                // Or still use bb_col as is? Let's assume we use bb_col as is for now.
+                disk_color = bb_col;
+            }
+
+            // --- Alpha calculation ---
             double isco_taper = fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR));
             double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
             disk_alpha = isco_taper * outer_taper;
-            disk_color = color_clamp(disk_color, 0.0, BBODY_MAX_CLAMP_VALUE); // Clamp before blend?
+
+            // Optional: Clamp final color value before blend?
+            // disk_color = color_clamp(disk_color, 0.0, BBODY_MAX_CLAMP_VALUE);
 
             if (disk_alpha >= 0.95) { // Stop if alpha is very high
                 stop_ray = true;

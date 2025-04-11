@@ -21,18 +21,19 @@ int main(int argc, char *argv[]) {
     // --- 1. Load Configuration ---
     printf("Loading configuration...\n");
     if (!load_config(argc, argv, &config)) {
-         fprintf(stderr, "Failed to load configuration.\n");
-         return EXIT_FAILURE;
-     }
+        fprintf(stderr, "Failed to load configuration.\n");
+        return EXIT_FAILURE;
+    }
 
-    // --- 1b. Load Global Resources (like color ramp) ---
-    // Assuming ramp path is fixed or determined during config load
-    const char* ramp_path = "data/colourtemp.jpg"; // Make this configurable?
-    printf("Loading color temperature ramp from %s...\n", ramp_path);
-    if (!load_color_ramp(ramp_path)) {
-         fprintf(stderr, "Failed to load essential color ramp.\n");
-         free_config_textures(&config);
-         return EXIT_FAILURE;
+    // --- 1b. Load Global Resources (Blackbody Ramp) ---
+    // Define ramp path and number of samples (must match generated file!)
+    const char* ramp_filename = "blackbody_ramp/blackbody_ramp_1000_30000K_2048_linear_srgb_normalized.ramp";
+    int ramp_samples = 2048; // CHECK SAMPLE COUNT!
+    printf("Loading blackbody color ramp from %s...\n", ramp_filename);
+    if (!load_blackbody_ramp_from_file(ramp_filename, ramp_samples)) { // Call new function
+        fprintf(stderr, "Failed to load essential blackbody ramp.\n");
+        free_config_textures(&config);
+        return EXIT_FAILURE;
     }
 
     // --- 2. Create Output Image Buffer ---
@@ -41,7 +42,7 @@ int main(int argc, char *argv[]) {
     if (!output_image) {
         fprintf(stderr, "Failed to create output image buffer.\n");
         free_config_textures(&config);
-        free_color_ramp();
+        free_blackbody_ramp();
         return EXIT_FAILURE;
     }
     // Define W and H *after* output_image is created
@@ -55,7 +56,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Ray tracing failed.\n");
         free_imagef(output_image);
         free_config_textures(&config);
-        free_color_ramp();
+        free_blackbody_ramp();
         return EXIT_FAILURE;
     }
 
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
         free_imagef(postproc_buffer); // Free whichever was allocated
         free_imagef(pre_bloom_copy);
         free_config_textures(&config);
-        free_color_ramp();
+        free_blackbody_ramp();
         return EXIT_FAILURE;
     }
 
@@ -296,7 +297,7 @@ int main(int argc, char *argv[]) {
     free_imagef(pre_bloom_copy);   // Free the pre-bloom copy buffer
     free_imagef(output_image);     // Free the main image buffer
     free_config_textures(&config);
-    free_color_ramp();
+    free_blackbody_ramp();
 
     printf("Black Hole Tracer - Finished Successfully.\n");
     return EXIT_SUCCESS;

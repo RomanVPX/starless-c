@@ -1,109 +1,155 @@
 #include "blackbody.h"
+#include "color.h" // Already included via blackbody.h
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h> // For NULL
+#include <stdlib.h> // For malloc, free, NULL
+#include <string.h> // For fgets
 
-// Define the global pointer for the ramp texture
-Texture *color_temp_ramp = NULL;
-
+// --- Module Constants ---
 // Constant from Python code: 3/4 * log(3)
-const double LOGSHIFT = 0.823959216501;
-// Constant for intensity calculation: 29622.4 K (related to hc / (lambda_peak * k_B))?
-const double INTENSITY_TEMP_CONST = 29622.4;
+static const double LOGSHIFT = 0.823959216501;
+// Constant for OLD intensity calculation: 29622.4 K
+// static const double INTENSITY_TEMP_CONST = 29622.4; // No longer needed if using normalized ramp directly
 
-bool load_color_ramp(const char *filename) {
-    if (color_temp_ramp != NULL) {
-        fprintf(stderr, "Warning: Color ramp already loaded. Freeing existing one.\n");
-        free_color_ramp();
+// Temperature range mapped by the ramp (MUST match the generated .ramp file)
+static const double RAMP_TEMP_MIN = 1000.0;
+static const double RAMP_TEMP_MAX = 30000.0;
+
+// --- Static Global Variables for Ramp Data ---
+static ColorRGB *g_blackbody_ramp_data = NULL; // Pointer to allocated ramp data
+static int g_blackbody_ramp_size = 0;       // Number of samples loaded
+
+// --- Function Implementations ---
+
+bool load_blackbody_ramp_from_file(const char *filename, int expected_samples) {
+    if (g_blackbody_ramp_data != NULL) {
+        fprintf(stderr, "Warning: Blackbody ramp already loaded. Freeing existing one first.\n");
+        free_blackbody_ramp();
     }
-    // Use the image loading function. Assume sRGB state doesn't matter here as we use raw values.
-    color_temp_ramp = load_texture(filename);
-    if (!color_temp_ramp) {
-        fprintf(stderr, "Error: Failed to load color temperature ramp '%s'\n", filename);
+    if (expected_samples <= 0) {
+        fprintf(stderr, "Error: expected_samples must be positive (%d provided).\n", expected_samples);
         return false;
     }
-    // Check if it's a 1D ramp (height should be 1 or small)
-    if (color_temp_ramp->height != 1) {
-         fprintf(stderr, "Warning: Color temperature ramp '%s' has height %d (expected 1).\n",
-                 filename, color_temp_ramp->height);
-                 // Proceeding anyway, assuming we only read the first row.
+
+    printf("Loading blackbody ramp from '%s' (%d samples expected)... ", filename, expected_samples);
+    fflush(stdout); // Ensure message prints before potential long load
+
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening ramp file");
+        return false;
     }
 
-    printf("Loaded color temperature ramp: %s (%d pixels wide)\n", filename, color_temp_ramp->width);
+    // Allocate memory
+    g_blackbody_ramp_data = (ColorRGB *)malloc(expected_samples * sizeof(ColorRGB));
+    if (!g_blackbody_ramp_data) {
+        fprintf(stderr, "Error: Failed to allocate memory for blackbody ramp (%d samples).\n", expected_samples);
+        fclose(file);
+        return false;
+    }
+
+    char line_buffer[256];
+    int samples_read = 0;
+    while (samples_read < expected_samples && fgets(line_buffer, sizeof(line_buffer), file)) {
+        if (sscanf(line_buffer, "%lf %lf %lf",
+                   &g_blackbody_ramp_data[samples_read].r,
+                   &g_blackbody_ramp_data[samples_read].g,
+                   &g_blackbody_ramp_data[samples_read].b) == 3)
+        {
+            samples_read++;
+        } else {
+            fprintf(stderr, "\nWarning: Failed to parse line %d in ramp file: '%s'. Skipping.\n", samples_read + 1, line_buffer);
+            // Optionally, could be made a fatal error
+        }
+    }
+
+    fclose(file);
+
+    if (samples_read != expected_samples) {
+        fprintf(stderr, "\nError: Read %d samples, but expected %d from file '%s'.\n", samples_read, expected_samples, filename);
+        free_blackbody_ramp(); // Free partially allocated/read data
+        return false;
+    }
+
+    g_blackbody_ramp_size = samples_read;
+    printf("OK (%d samples loaded).\n", g_blackbody_ramp_size);
     return true;
 }
 
-void free_color_ramp(void) {
-    if (color_temp_ramp) {
-        free_texture(color_temp_ramp);
-        color_temp_ramp = NULL;
-        printf("Freed color temperature ramp.\n");
+void free_blackbody_ramp(void) {
+    if (g_blackbody_ramp_data) {
+        free(g_blackbody_ramp_data);
+        g_blackbody_ramp_data = NULL;
+        g_blackbody_ramp_size = 0;
+        printf("Freed blackbody ramp data.\n");
     }
 }
 
-// Calculate log temperature T(R) = T_isco * (R / R_isco)^(-3/4)
-// log(T(R)) = log(T_isco) - 3/4 * log(R/R_isco)
-// Assuming R_isco = 3 (where logshift comes from?), then
-// log(T(R)) = log(T_isco) - 3/4 * (log(R) - log(3))
-// log(T(R)) = log(T_isco) + 3/4*log(3) - 3/4 * log(R)
-// log(T(R)) = log(T_isco) + LOGSHIFT - 3/8 * log(R^2)
 double bb_log_temperature(double sqr_radius, double log_T0_isco) {
-    // Ensure sqr_radius is positive to avoid log domain error
-    if (sqr_radius <= 0) return -INFINITY; // Or some very low temp indicator
-
+    if (sqr_radius <= 0) return -INFINITY;
     double A = log_T0_isco + LOGSHIFT;
     return A - 0.375 * log(sqr_radius);
-    // Note: Python code uses base 10 log implicitly via `np.log`? Check numpy docs.
-    // `np.log` is natural log (base e). Okay.
 }
 
-// Intensity ~ 1 / (exp(const / T) - 1)
-// Approximates integral of Planck's law over visible spectrum peak?
+// Intensity calculation is likely NO LONGER NEEDED if using normalized ramp
+// Keep it commented out or remove if definitely unused.
+/*
 double bb_intensity(double temperature) {
-    // Clamp temperature to avoid division by zero or negative temps
-    temperature = fmax(1.0, temperature); // Prevent T=0 or T<0 issues
+    temperature = fmax(1.0, temperature);
     double exp_term = exp(INTENSITY_TEMP_CONST / temperature);
-    // Avoid potential overflow if exp_term is huge or division by zero if exp_term is 1
     if (isinf(exp_term) || exp_term <= 1.0) {
-        return 0.0; // Effectively zero intensity for very low T or errors
+        return 0.0;
     }
     return 1.0 / (exp_term - 1.0);
 }
+*/
 
-// Lookup color from the ramp based on temperature
+// Gets linear color from the loaded ramp data
 ColorRGB bb_color_from_temp(double temperature) {
-    if (!color_temp_ramp || !color_temp_ramp->data) {
-        fprintf(stderr, "Error: Color ramp not loaded for bb_color_from_temp lookup.\n");
+    if (!g_blackbody_ramp_data || g_blackbody_ramp_size == 0) {
+        // fprintf(stderr, "Warning: Blackbody ramp not loaded, returning black for temp %.1fK.\n", temperature);
+        // Printing this every time might spam the console, only print once or use logs.
         return COLOR_BLACK;
     }
 
-    int ramp_size = color_temp_ramp->width;
-    // Map temperature range (approx 1000K to 30000K from Python?) to ramp index [0, ramp_size-1]
-    // Python: (T-1000)/29000. * rampsz
-    double normalized_temp = (temperature - 1000.0) / 29000.0;
+    // Map temperature to normalized value [0, 1] within the ramp's range
+    double temp_range = RAMP_TEMP_MAX - RAMP_TEMP_MIN;
+    if (temp_range <= 0) return COLOR_BLACK; // Avoid division by zero
 
-    // Clamp normalized temp to [0, 1] range before scaling
+    double normalized_temp = (temperature - RAMP_TEMP_MIN) / temp_range;
+
+    // Clamp normalized temp to [0, 1] range
     normalized_temp = fmax(0.0, fmin(1.0, normalized_temp));
 
-    // Calculate index, ensuring it stays within bounds
-    int index = (int)(normalized_temp * (ramp_size - 1.0001)); // Match Python's index calc
-    index = fmax(0, fmin(ramp_size - 1, index)); // Clamp index just in case
+    // Calculate index using nearest neighbor (simple lookup)
+    // Subtract a tiny epsilon before casting to int to mimic Python's clip/astype behavior better
+    // This prevents normalized_temp = 1.0 mapping to index = ramp_size
+    int index = (int)(normalized_temp * (g_blackbody_ramp_size - 1e-9));
 
-    // Calculate memory offset in the texture data buffer
-    // Assumes height is 1 (or we only care about the first row)
-    // Assumes 3 channels (RGB)
-    int offset = index * 3; // 3 bytes per pixel (RGB)
+    // Clamp index just in case of floating point weirdness
+    index = fmax(0, fmin(g_blackbody_ramp_size - 1, index));
 
-    // Read RGB values and normalize to [0, 1]
-    ColorRGB color;
-    color.r = color_temp_ramp->data[offset + 0] / 255.0;
-    color.g = color_temp_ramp->data[offset + 1] / 255.0;
-    color.b = color_temp_ramp->data[offset + 2] / 255.0;
+    // Return the pre-calculated linear color from the ramp
+    return g_blackbody_ramp_data[index];
 
-    // Note: Python loads ramp as uint8/255. Does it convert sRGB->Linear?
-    // The Python code doesn't show srgb->linear conversion for the ramp specifically.
-    // Let's assume the ramp JPG is already effectively linear or the distortion is acceptable.
-    // If colors look wrong, we might need to apply srgb_to_linear here.
+    // --- Optional: Linear Interpolation ---
+    // For smoother gradients, especially with fewer samples. With 2048, might be overkill.
+    /*
+    double float_index = normalized_temp * (g_blackbody_ramp_size - 1.0);
+    int index0 = (int)float_index;
+    int index1 = fmin(g_blackbody_ramp_size - 1, index0 + 1); // Ensure index1 is valid
+    double lerp_factor = float_index - index0;
 
-    return color;
+    ColorRGB color0 = g_blackbody_ramp_data[index0];
+    ColorRGB color1 = g_blackbody_ramp_data[index1];
+
+    // Interpolate each component
+    ColorRGB result;
+    result.r = color0.r + (color1.r - color0.r) * lerp_factor;
+    result.g = color0.g + (color1.g - color0.g) * lerp_factor;
+    result.b = color0.b + (color1.b - color0.b) * lerp_factor;
+    return result;
+    */
+    // --- End Optional Interpolation ---
 }
+
