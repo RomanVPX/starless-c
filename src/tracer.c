@@ -482,7 +482,6 @@ static void* trace_pixel_range(void* thread_arg) {
     const Config *cfg = data->config;
     ImageF *image = data->image;
     int W = image->width;
-    int H = image->height;
 
     printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
     clock_t start_time = clock(); // Simple timing per thread

@@ -1,5 +1,5 @@
 # Compiler and flags
-CC = /usr/bin/gcc
+CC = clang
 CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native # -g for debugging, -O3 for release
 LDFLAGS = -lm -lpthread
 

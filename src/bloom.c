@@ -329,7 +329,6 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
     int W = src->width;
     int H = src->height;
     int k_size = k->size;
-    int k_length = k->length;
 
     // #pragma omp parallel for schedule(dynamic) // Can parallelize outer loop
     for (int y = 0; y < H; ++y) {

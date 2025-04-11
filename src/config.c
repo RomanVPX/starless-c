@@ -13,7 +13,7 @@ bool string_to_bool(const char* str);
 bool parse_resolution(const char* res_str, int resolution[2]);
 bool parse_vec3d(const char* str, Vec3d *vec);
 bool parse_int_list(const char* str, int* arr, int expected_count);
-void compute_derived_config(Config *cfg); // Also good practice to prototype static/local functions if needed
+void compute_derived_config(Config *cfg);
 
 // --- Helper function definitions ---
 // Definition for: parse_vec3d
@@ -442,7 +442,7 @@ void free_config_textures(Config *cfg) {
         cfg->disk_texture = NULL;
     }
     if (cfg->sky_texture) {
-         printf("Freeing sky texture...\n");
+        printf("Freeing sky texture...\n");
         free_texture(cfg->sky_texture);
         cfg->sky_texture = NULL;
     }
@@ -452,7 +452,7 @@ void free_config_textures(Config *cfg) {
         cfg->disk_texture_path = NULL;
     }
      if (cfg->sky_texture_path) {
-         printf("Freeing sky texture path string...\n");
+        printf("Freeing sky texture path string...\n");
         free((void*)cfg->sky_texture_path);
         cfg->sky_texture_path = NULL;
     }
