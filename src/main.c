@@ -26,11 +26,8 @@ int main(int argc, char *argv[]) {
     }
 
     // --- 1b. Load Global Resources (Blackbody Ramp) ---
-    // Define ramp path and number of samples (must match generated file!)
-    const char* ramp_filename = "blackbody_ramp/blackbody_ramp_1000_30000K_2048_linear_srgb_normalized.ramp";
-    int ramp_samples = 2048; // CHECK SAMPLE COUNT!
-    printf("Loading blackbody color ramp from %s...\n", ramp_filename);
-    if (!load_blackbody_ramp_from_file(ramp_filename, ramp_samples)) { // Call new function
+    printf("Loading blackbody color ramp from %s...\n", config.blackbody_ramp_path);
+    if (!load_blackbody_ramp_from_file(config.blackbody_ramp_path, 0)) { // 0 = auto-detect samples
         fprintf(stderr, "Failed to load essential blackbody ramp.\n");
         free_config_textures(&config);
         return EXIT_FAILURE;

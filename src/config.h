@@ -54,6 +54,7 @@ typedef struct {
     bool srgb_in;
 
     // Blackbody Disk Specific
+    char* blackbody_ramp_path;
     double disk_multiplier;
     bool disk_intensity_do;
     double redshift;

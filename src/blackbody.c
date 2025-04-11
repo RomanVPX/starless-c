@@ -21,18 +21,48 @@ static int g_blackbody_ramp_size = 0;       // Number of samples loaded
 
 // --- Function Implementations ---
 
+static int count_ramp_samples(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        return -1;
+    }
+
+    int count = 0;
+    char line[256];
+    double r, g, b;
+
+    while (fgets(line, sizeof(line), file)) {
+        // Skip empty lines or comment lines
+        if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') {
+            continue;
+        }
+
+        // Only count lines that can be parsed as 3 floats
+        if (sscanf(line, "%lf %lf %lf", &r, &g, &b) == 3) {
+            count++;
+        }
+    }
+
+    fclose(file);
+    return count;
+}
+
 bool load_blackbody_ramp_from_file(const char *filename, int expected_samples) {
     if (g_blackbody_ramp_data != NULL) {
         fprintf(stderr, "Warning: Blackbody ramp already loaded. Freeing existing one first.\n");
         free_blackbody_ramp();
     }
     if (expected_samples <= 0) {
-        fprintf(stderr, "Error: expected_samples must be positive (%d provided).\n", expected_samples);
-        return false;
+        expected_samples = count_ramp_samples(filename);
+        if (expected_samples <= 0) {
+            fprintf(stderr, "Error: Failed to determine sample count in '%s' or file is empty/invalid.\n", filename);
+            return false;
+        }
+        printf("Auto-detected %d samples in blackbody ramp file.\n", expected_samples);
     }
 
-    printf("Loading blackbody ramp from '%s' (%d samples expected)... ", filename, expected_samples);
-    fflush(stdout); // Ensure message prints before potential long load
+    printf("Loading blackbody ramp from '%s' (%d samples)... ", filename, expected_samples);
+    fflush(stdout);
 
     FILE *file = fopen(filename, "r");
     if (!file) {

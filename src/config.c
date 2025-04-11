@@ -191,7 +191,6 @@ static int scene_ini_callback(void* user, const char* section, const char* name,
                 cfg->disk_texture_mode = DT_BLACKBODY;
             }
             else if (strcasecmp(value, "texture") == 0) {
-                // New option: use default texture path
                 cfg->disk_texture_mode = DT_TEXTURE;
                 cfg->disk_texture_path = strdup(DEFAULT_DISK_TEXTURE_PATH);
                 if (!cfg->disk_texture_path) {
@@ -280,6 +279,22 @@ static int scene_ini_callback(void* user, const char* section, const char* name,
         else if (strcmp(name, "sRGBIn") == 0) {
             cfg->srgb_in = string_to_bool(value);
         }
+
+        else if (strcmp(name, "Blackbodyramp") == 0) {
+            // Free old path if any
+            free((void*)cfg->blackbody_ramp_path);
+
+            if (value && strlen(value) > 0) {
+                cfg->blackbody_ramp_path = strdup(value);
+                if (!cfg->blackbody_ramp_path) {
+                    fprintf(stderr, "Error: Memory allocation failed for blackbody ramp path\n");
+                    return 0;
+                }
+            } else {
+                cfg->blackbody_ramp_path = NULL; // Will be set to default later
+            }
+        }
+
         else if (strcmp(name, "Diskmultiplier") == 0) {
             cfg->disk_multiplier = atof(value);
         }
@@ -334,6 +349,7 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     cfg->srgb_out = DEFAULT_SRGB_OUT;
     cfg->srgb_in = DEFAULT_SRGB_IN;
 
+    cfg->blackbody_ramp_path = NULL;
     cfg->disk_multiplier = DEFAULT_DISK_MULTIPLIER;
     cfg->disk_intensity_do = DEFAULT_DISK_INTENSITY_DO;
     cfg->redshift = DEFAULT_REDSHIFT;
@@ -460,6 +476,15 @@ bool load_config(int argc, char *argv[], Config *cfg) {
         original_sky_texture = NULL;
     }
 
+    if (cfg->blackbody_ramp_path == NULL) {
+        cfg->blackbody_ramp_path = strdup(DEFAULT_BLACKBODY_RAMP_PATH);
+        if (!cfg->blackbody_ramp_path) {
+            fprintf(stderr, "Error: Failed to allocate memory for default blackbody ramp path\n");
+            free_config_textures(cfg);
+            return false;
+        }
+    }
+
     // Compute derived values
     printf("Computing derived configuration values...\n");
     compute_derived_config(cfg);
@@ -477,8 +502,8 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     printf("Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
     printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
-    if(cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
-    if(cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
+    if (cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
+    if (cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
 
     return true;
 }
@@ -520,5 +545,11 @@ void free_config_textures(Config *cfg) {
         printf("Freeing sky texture path string...\n");
         free((void*)cfg->sky_texture_path);
         cfg->sky_texture_path = NULL;
+    }
+
+    if (cfg->blackbody_ramp_path) {
+        printf("Freeing blackbody ramp path string...\n");
+        free((void*)cfg->blackbody_ramp_path);
+        cfg->blackbody_ramp_path = NULL;
     }
 }

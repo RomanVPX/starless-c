@@ -45,6 +45,7 @@
 #define DEFAULT_SRGB_IN true
 
 // Blackbody Disk Specific
+#define DEFAULT_BLACKBODY_RAMP_PATH "blackbody_ramp/blackbody_ramp_1000_30000K_2048_linear_srgb_normalized.ramp"
 #define DEFAULT_DISK_MULTIPLIER 100.0
 #define DEFAULT_DISK_INTENSITY_DO true
 #define DEFAULT_REDSHIFT 1.0
