@@ -173,11 +173,12 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                 // Simple approximation: use old_pos for angles
                 // Need more robust interpolation later if grid is important
                 double phi = atan2(old_pos.x, old_pos.z);
+                double altitude = asin(fmax(-1.0, fmin(1.0, old_pos.y / sqrt(fmax(1e-9, old_pos_sqr))))); // Ensure old_pos_sqr > 0
                 double theta = atan2(old_pos.y, sqrt(old_pos.x*old_pos.x + old_pos.z*old_pos.z)); // Approx latitude
                 // Python: np.logical_xor(np.mod(phi,1.04719) < 0.52359,np.mod(theta,1.04719) < 0.52359)
                 bool phi_check = fmod(phi + 100*M_PI, 1.04719) < 0.52359; // Add large multiple of PI to handle negative phi
-                bool theta_check = fmod(theta + 100*M_PI, 1.04719) < 0.52359;
-                if (phi_check ^ theta_check) { // XOR
+                bool alt_check = fmod(altitude + M_PI/2.0 + 100*M_PI, 1.04719) < 0.52359;
+                if (phi_check ^ alt_check) { // XOR
                     horizon_color = (ColorRGB){1.0, 0.0, 0.0}; // Red grid lines
                 } else {
                     // Keep horizon_color black if not on grid line
