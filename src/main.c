@@ -18,8 +18,7 @@ int main(int argc, char *argv[]) {
 
     Config config; // Will hold all settings
 
-    // --- 1. Load Configuration (Placeholder) ---
-    // We'll replace this with actual loading soon
+    // --- 1. Load Configuration ---
     printf("Loading configuration...\n");
     if (!load_config(argc, argv, &config)) {
          fprintf(stderr, "Failed to load configuration.\n");
