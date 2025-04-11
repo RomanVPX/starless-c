@@ -231,12 +231,12 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
 
     double sum = 0.0;
     double sigma_sq = sigma * sigma;
-    double scale = 1.0 / (sqrt(2.0 * M_PI) * sigma); // Normalization factor for continuous Gaussian
+    // double scale = 1.0 / (sqrt(2.0 * M_PI) * sigma); // Normalization factor for continuous Gaussian
 
     for (int i = -size; i <= size; ++i) {
-        double x = (double)i;
-        double exp_val = exp(-(x * x) / (2.0 * sigma_sq));
-        double val = scale * exp_val; // Use normalization factor for better accuracy? Or normalize discrete sum?
+        const double x = i;
+        // double exp_val = exp(-(x * x) / (2.0 * sigma_sq));
+        // double val = scale * exp_val; // Use normalization factor for better accuracy? Or normalize discrete sum?
                                       // Let's normalize the discrete sum like typical image processing.
 
         double discrete_val = exp(-(x * x) / (2.0 * sigma_sq));
@@ -284,7 +284,6 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
     int W = src->width;
     int H = src->height;
     int k_size = k->size;
-    int k_length = k->length;
 
     // #pragma omp parallel for schedule(dynamic) // Can parallelize outer loop
     for (int y = 0; y < H; ++y) {

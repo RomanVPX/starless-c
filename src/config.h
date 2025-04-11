@@ -5,18 +5,19 @@
 #include "image.h"
 #include "vector.h"
 
-// Enums matching Python code
+// --- Enums ---
 typedef enum { METH_LEAPFROG, METH_RK4 } IntegrationMethod;
 typedef enum { ST_NONE, ST_TEXTURE, ST_FINAL } SkyTextureMode;
 typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextureMode;
 
+// --- Config Structure ---
 typedef struct {
     // Resolution & Performance
     int resolution[2];
     int n_iterations;
     double step_size;
     int n_threads;
-    int chunk_size; // Approx pixels per chunk
+    int chunk_size;
     bool lofi;
     IntegrationMethod method;
 
@@ -28,17 +29,17 @@ typedef struct {
     bool distort; // Gravitational lensing
     double disk_inner_radius;
     double disk_outer_radius;
-    double disk_inner_sqr;
-    double disk_outer_sqr;
+    double disk_inner_sqr; // Derived
+    double disk_outer_sqr; // Derived
 
     // Materials & Effects
     bool horizon_grid;
     DiskTextureMode disk_texture_mode;
     SkyTextureMode sky_texture_mode;
-    const char* disk_texture_path; // Path if DT_TEXTURE
-    const char* sky_texture_path;  // Path if ST_TEXTURE
-    Texture *disk_texture;         // Loaded texture
-    Texture *sky_texture;          // Loaded texture
+    char* disk_texture_path; // Allocated path string (or NULL)
+    char* sky_texture_path;  // Allocated path string (or NULL)
+    Texture *disk_texture;   // Loaded texture struct
+    Texture *sky_texture;    // Loaded texture struct
     double sky_disk_ratio;
     bool fog_do;
     double fog_mult;
@@ -48,24 +49,28 @@ typedef struct {
     bool airy_bloom;
     double airy_radius;
     double gain;
-    double normalize; // -1 means off, > 0 is target max value
+    double normalize;
     bool srgb_out;
-    bool srgb_in; // For input textures
+    bool srgb_in;
 
     // Blackbody Disk Specific
     double disk_multiplier;
     bool disk_intensity_do;
     double redshift;
 
-    // Internal/Derived
+    // Derived / Internal
     Vec3d view_matrix[3]; // [0]=left, [1]=up, [2]=front
-    bool *internal_override_res_ptr; // Internal pointer used during INI parsing
-
 } Config;
 
-// Function to load config from file and command line args
+// --- UserData for ini_parse callbacks ---
+typedef struct {
+    Config* cfg;                // Pointer to the main config struct
+    bool* override_res_flag;    // Pointer to the command-line override flag for resolution
+} IniParseUserData;
+
+// --- Function Declarations ---
 bool load_config(int argc, char *argv[], Config *cfg);
-void free_config_textures(Config *cfg); // Free loaded textures
-void compute_derived_config(Config *cfg); // Calculate view matrix, sqr radii etc.
+void free_config_textures(Config *cfg);
+void compute_derived_config(Config *cfg);
 
 #endif // CONFIG_H

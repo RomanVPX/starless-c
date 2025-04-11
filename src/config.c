@@ -1,10 +1,11 @@
 #include "config.h"
+#include "config_defaults.h"
 #include <stdio.h>
-#include <string.h> // For strcmp, strdup, strtol, strtod, sscanf, strcasecmp
-#include <stdlib.h> // For free, exit, EXIT_FAILURE, atoi, atof
+#include <string.h>
+#include <stdlib.h>
 #include <stdbool.h>
-#include <unistd.h> // For access() to check file existence
-#include <ctype.h>  // For isdigit, isspace
+#include <unistd.h>
+#include <ctype.h>
 #include "ini.h"
 #include "image.h"
 
@@ -13,10 +14,8 @@ bool string_to_bool(const char* str);
 bool parse_resolution(const char* res_str, int resolution[2]);
 bool parse_vec3d(const char* str, Vec3d *vec);
 bool parse_int_list(const char* str, int* arr, int expected_count);
-void compute_derived_config(Config *cfg);
 
-// --- Helper function definitions ---
-// Definition for: parse_vec3d
+// --- Helper Functions ---
 bool parse_vec3d(const char* str, Vec3d *vec) {
     if (!str || !vec) return false;
     double x, y, z;
@@ -29,271 +28,334 @@ bool parse_vec3d(const char* str, Vec3d *vec) {
     return false;
 }
 
-// Definition for: parse_int_list
 bool parse_int_list(const char* str, int* arr, int expected_count) {
     if (!str || !arr || expected_count <= 0) return false;
-    char* str_copy = strdup(str); // Work on a copy as strtok modifies it
+
+    char* str_copy = strdup(str);
     if (!str_copy) return false;
 
     char* token;
     const char* delim = ",";
     int count = 0;
+
     token = strtok(str_copy, delim);
     while (token != NULL && count < expected_count) {
-        // Trim whitespace (optional but good)
-        while (isspace((unsigned char)*token)) token++; // Cast to unsigned char for safety with ctype functions
+        // Trim whitespace
+        while (isspace((unsigned char)*token)) token++;
         char* end = token + strlen(token) - 1;
         while (end > token && isspace((unsigned char)*end)) end--;
         *(end + 1) = '\0';
 
-        if (strlen(token) > 0) { // Check if token is not empty after trimming
+        if (strlen(token) > 0) {
             char* endptr;
             long val = strtol(token, &endptr, 10);
-            if (*endptr == '\0') { // Ensure whole token was parsed as integer
-                 arr[count++] = (int)val;
+            if (*endptr == '\0') {
+                arr[count++] = (int)val;
             } else {
-                // Parsing failed for this token
-                count = -1; // Indicate error
+                count = -1; // Error
                 break;
             }
         } else {
-             // Empty token (e.g., "1,,3") - treat as error or skip? Let's error.
-             count = -1;
-             break;
+            count = -1; // Error on empty token
+            break;
         }
         token = strtok(NULL, delim);
     }
+
     free(str_copy);
     return count == expected_count;
 }
 
-// Definition for: string_to_bool
 bool string_to_bool(const char* str) {
     if (!str) return false;
-     // Use strcasecmp if available (needs <strings.h> usually, but often included by string.h on POSIX)
+
     #ifdef _WIN32
-        // Windows doesn't have strcasecmp, use _stricmp
-        #define C_STRCASECMP _stricmp
+        #define STRCASECMP _stricmp
     #else
-        #define C_STRCASECMP strcasecmp
+        #define STRCASECMP strcasecmp
     #endif
-    if (strcmp(str, "1") == 0 || C_STRCASECMP(str, "true") == 0 || C_STRCASECMP(str, "yes") == 0) {
+
+    if (strcmp(str, "1") == 0 ||
+        STRCASECMP(str, "true") == 0 ||
+        STRCASECMP(str, "yes") == 0) {
         return true;
     }
-    #undef C_STRCASECMP
+
+    #undef STRCASECMP
     return false;
 }
 
-// Definition for: parse_resolution
 bool parse_resolution(const char* res_str, int resolution[2]) {
-     if (!res_str) return false;
+    if (!res_str) return false;
+
     // Find the 'x' separator
     const char* x_pos = strchr(res_str, 'x');
     if (!x_pos || x_pos == res_str || *(x_pos + 1) == '\0') {
-        // 'x' not found, or it's at the beginning/end
         return false;
     }
-    // Use sscanf for potentially more robust parsing than manual strtol
+
     int width = 0, height = 0;
     if (sscanf(res_str, "%dx%d", &width, &height) == 2) {
-         if (width > 0 && height > 0) {
+        if (width > 0 && height > 0) {
             resolution[0] = width;
             resolution[1] = height;
             return true;
-         }
+        }
     }
-   return false;
+    return false;
 }
 
-
-// --- INI parsing callback function definition ---
+// --- INI Parsing Callback ---
 static int scene_ini_callback(void* user, const char* section, const char* name, const char* value) {
-    Config* pconfig = (Config*)user;
-    // --- HACK to get override_res flag ---
-    // Check if the user pointer itself is usable to store this flag address temporarily
-    // This avoids the need for the extra pointer in the Config struct itself.
-    // Let's try passing the address of override_res directly as the user pointer in ini_parse call.
-    // NO - user pointer should point to the Config struct.
-    // Stick with the internal pointer for now, it's explicit.
-     bool *p_override_res = pconfig->internal_override_res_ptr;
-     if (!p_override_res) {
-         fprintf(stderr,"Runtime Error: internal_override_res_ptr not set in config for ini_handler! Cannot check -r flag.\n");
-         return 0; // Stop parsing
-     }
+    IniParseUserData* user_data = (IniParseUserData*)user;
+    Config* cfg = user_data->cfg;
+    bool* override_res = user_data->override_res_flag;
 
-    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
-    // --- Handle LoFi/HiFi sections for specific overrides ---
-    if (MATCH("lofi", "Resolution") || MATCH("hifi", "Resolution")) {
-        if ((pconfig->lofi && MATCH("lofi", "Resolution")) ||
-            (!pconfig->lofi && MATCH("hifi", "Resolution"))) {
-            if (!(*p_override_res)) { // Only parse if -r wasn't used
-                 if (!parse_int_list(value, pconfig->resolution, 2)) {
-                      fprintf(stderr, "Warning: Invalid format for Resolution '%s' in section [%s]. Using default/previous.\n", value, section);
-                 }
+    // --- Handle LoFi/HiFi Section Parameters ---
+    if (strcmp(section, "lofi") == 0 || strcmp(section, "hifi") == 0) {
+        // Skip processing if we're in the wrong section for our mode
+        bool is_correct_section = (cfg->lofi && strcmp(section, "lofi") == 0) ||
+                                  (!cfg->lofi && strcmp(section, "hifi") == 0);
+
+        if (!is_correct_section) {
+            return 1; // Skip this section
+        }
+
+        if (strcmp(name, "Resolution") == 0) {
+            if (!(*override_res) && !parse_int_list(value, cfg->resolution, 2)) {
+                fprintf(stderr, "Warning: Invalid format for Resolution '%s'. Using defaults.\n", value);
+            }
+            return 1;
+        }
+        else if (strcmp(name, "Iterations") == 0) {
+            cfg->n_iterations = atoi(value);
+            return 1;
+        }
+        else if (strcmp(name, "Stepsize") == 0) {
+            cfg->step_size = atof(value);
+            return 1;
+        }
+    }
+
+    // --- Geometry Section ---
+    else if (strcmp(section, "geometry") == 0) {
+        if (strcmp(name, "Cameraposition") == 0) {
+            if (!parse_vec3d(value, &cfg->camera_pos)) {
+                fprintf(stderr, "Warning: Invalid format for Cameraposition '%s'\n", value);
             }
         }
-    } else if (MATCH("lofi", "Iterations") || MATCH("hifi", "Iterations")) {
-         if ((pconfig->lofi && MATCH("lofi", "Iterations")) ||
-            (!pconfig->lofi && MATCH("hifi", "Iterations"))) {
-             pconfig->n_iterations = atoi(value);
-         }
-    } else if (MATCH("lofi", "Stepsize") || MATCH("hifi", "Stepsize")) {
-         if ((pconfig->lofi && MATCH("lofi", "Stepsize")) ||
-            (!pconfig->lofi && MATCH("hifi", "Stepsize"))) {
-              pconfig->step_size = atof(value);
-         }
+        else if (strcmp(name, "Fieldofview") == 0) {
+            cfg->tan_fov = atof(value);
+        }
+        else if (strcmp(name, "Lookat") == 0) {
+            if (!parse_vec3d(value, &cfg->look_at)) {
+                fprintf(stderr, "Warning: Invalid format for Lookat '%s'\n", value);
+            }
+        }
+        else if (strcmp(name, "Upvector") == 0) {
+            if (!parse_vec3d(value, &cfg->up_vector)) {
+                fprintf(stderr, "Warning: Invalid format for Upvector '%s'\n", value);
+            }
+        }
+        else if (strcmp(name, "Distort") == 0) {
+            cfg->distort = string_to_bool(value);
+        }
+        else if (strcmp(name, "Diskinner") == 0) {
+            cfg->disk_inner_radius = atof(value);
+        }
+        else if (strcmp(name, "Diskouter") == 0) {
+            cfg->disk_outer_radius = atof(value);
+        }
     }
-    // --- Geometry Section ---
-    else if (MATCH("geometry", "Cameraposition")) { if (!parse_vec3d(value, &pconfig->camera_pos)) fprintf(stderr, "Warning: Invalid format for Cameraposition '%s'\n", value); }
-    else if (MATCH("geometry", "Fieldofview")) { pconfig->tan_fov = atof(value); } // Assuming value is already tan(FoV_H/2)*aspect or similar
-    else if (MATCH("geometry", "Lookat")) { if (!parse_vec3d(value, &pconfig->look_at)) fprintf(stderr, "Warning: Invalid format for Lookat '%s'\n", value); }
-    else if (MATCH("geometry", "Upvector")) { if (!parse_vec3d(value, &pconfig->up_vector)) fprintf(stderr, "Warning: Invalid format for Upvector '%s'\n", value); }
-    else if (MATCH("geometry", "Distort")) { pconfig->distort = string_to_bool(value); }
-    else if (MATCH("geometry", "Diskinner")) { pconfig->disk_inner_radius = atof(value); }
-    else if (MATCH("geometry", "Diskouter")) { pconfig->disk_outer_radius = atof(value); }
 
     // --- Materials Section ---
-    else if (MATCH("materials", "Horizongrid")) { pconfig->horizon_grid = string_to_bool(value); }
-    else if (MATCH("materials", "Disktexture")) {
-        // Store path first, as it might be needed even if mode changes later
-        char* new_path = strdup(value); // Use temp var
-        if (new_path) { // Check if strdup succeeded
-            free((void*)pconfig->disk_texture_path); // Free old path if any
-            pconfig->disk_texture_path = new_path; // Assign new path
-        } else {
-             fprintf(stderr, "Warning: Failed to duplicate Disktexture path string.\n");
+    else if (strcmp(section, "materials") == 0) {
+        if (strcmp(name, "Horizongrid") == 0) {
+            cfg->horizon_grid = string_to_bool(value);
         }
+        else if (strcmp(name, "Disktexture") == 0) {
+            // Free old path if any
+            free((void*)cfg->disk_texture_path);
+            cfg->disk_texture_path = NULL;
 
-        // Convert string mode to enum based on the *value* (which is also the path for texture mode)
-        if (strcasecmp(value, "none") == 0) pconfig->disk_texture_mode = DT_NONE;
-        else if (strcasecmp(value, "texture") == 0) {
-            pconfig->disk_texture_mode = DT_TEXTURE;
-            // PROBLEM: If value is "texture", how do we get the actual path?
-            // The original Python code used Disktexture = path/to/texture.jpg
-            // Let's assume the INI does the same.
-            // So, if value is not "none", "solid", etc. assume it IS the path.
-            // Re-evaluate logic:
-            free((void*)pconfig->disk_texture_path); // Free old path
-            pconfig->disk_texture_path = strdup(value); // Assume value is path or mode
-            if (!pconfig->disk_texture_path) { /* Handle strdup error */ }
-
-            if (strcasecmp(value, "none") == 0) pconfig->disk_texture_mode = DT_NONE;
-            else if (strcasecmp(value, "solid") == 0) pconfig->disk_texture_mode = DT_SOLID;
-            else if (strcasecmp(value, "grid") == 0) pconfig->disk_texture_mode = DT_GRID;
-            else if (strcasecmp(value, "blackbody") == 0) pconfig->disk_texture_mode = DT_BLACKBODY;
+            if (strcasecmp(value, "none") == 0) {
+                cfg->disk_texture_mode = DT_NONE;
+            }
+            else if (strcasecmp(value, "solid") == 0) {
+                cfg->disk_texture_mode = DT_SOLID;
+            }
+            else if (strcasecmp(value, "grid") == 0) {
+                cfg->disk_texture_mode = DT_GRID;
+            }
+            else if (strcasecmp(value, "blackbody") == 0) {
+                cfg->disk_texture_mode = DT_BLACKBODY;
+            }
+            else if (strcasecmp(value, "texture") == 0) {
+                // New option: use default texture path
+                cfg->disk_texture_mode = DT_TEXTURE;
+                cfg->disk_texture_path = strdup(DEFAULT_DISK_TEXTURE_PATH);
+                if (!cfg->disk_texture_path) {
+                    fprintf(stderr, "Error: Memory allocation failed for default disk texture path\n");
+                    return 0;
+                }
+                printf("Info: Using default disk texture path: %s\n", DEFAULT_DISK_TEXTURE_PATH);
+            }
             else {
                 // Assume it's a path for texture mode
-                pconfig->disk_texture_mode = DT_TEXTURE;
-                // If we want to be robust, check if file exists? Maybe later.
+                cfg->disk_texture_mode = DT_TEXTURE;
+                cfg->disk_texture_path = strdup(value);
+                if (!cfg->disk_texture_path) {
+                    fprintf(stderr, "Error: Memory allocation failed for disk texture path\n");
+                    return 0;
+                }
                 printf("Info: Assuming Disktexture value '%s' is a path for DT_TEXTURE mode.\n", value);
             }
         }
-        // This logic seems flawed. Let's revert to simpler Python-like logic:
-        // If the value matches a known mode string, set that mode. Otherwise assume it's a path.
-        if (strcasecmp(value, "none") == 0) { pconfig->disk_texture_mode = DT_NONE; free((void*)pconfig->disk_texture_path); pconfig->disk_texture_path = NULL; }
-        else if (strcasecmp(value, "solid") == 0) { pconfig->disk_texture_mode = DT_SOLID; free((void*)pconfig->disk_texture_path); pconfig->disk_texture_path = NULL; }
-        else if (strcasecmp(value, "grid") == 0) { pconfig->disk_texture_mode = DT_GRID; free((void*)pconfig->disk_texture_path); pconfig->disk_texture_path = NULL; }
-        else if (strcasecmp(value, "blackbody") == 0) { pconfig->disk_texture_mode = DT_BLACKBODY; free((void*)pconfig->disk_texture_path); pconfig->disk_texture_path = NULL; }
-        else { // Assume it's a texture path
-            pconfig->disk_texture_mode = DT_TEXTURE;
-            free((void*)pconfig->disk_texture_path); // Free potentially old path
-            pconfig->disk_texture_path = strdup(value);
-            if (!pconfig->disk_texture_path) { fprintf(stderr, "Error: strdup failed for disk texture path\n"); return 0;}
+        else if (strcmp(name, "Skytexture") == 0) {
+            // Free old path if any
+            free((void*)cfg->sky_texture_path);
+            cfg->sky_texture_path = NULL;
+
+            if (strcasecmp(value, "none") == 0) {
+                cfg->sky_texture_mode = ST_NONE;
+            }
+            else if (strcasecmp(value, "final") == 0) {
+                cfg->sky_texture_mode = ST_FINAL;
+            }
+            else if (strcasecmp(value, "texture") == 0) {
+                // New option: use default texture path
+                cfg->sky_texture_mode = ST_TEXTURE;
+                cfg->sky_texture_path = strdup(DEFAULT_SKY_TEXTURE_PATH);
+                if (!cfg->sky_texture_path) {
+                    fprintf(stderr, "Error: Memory allocation failed for default sky texture path\n");
+                    return 0;
+                }
+                printf("Info: Using default sky texture path: %s\n", DEFAULT_SKY_TEXTURE_PATH);
+            }
+            else {
+                // Assume it's a path for texture mode
+                cfg->sky_texture_mode = ST_TEXTURE;
+                cfg->sky_texture_path = strdup(value);
+                if (!cfg->sky_texture_path) {
+                    fprintf(stderr, "Error: Memory allocation failed for sky texture path\n");
+                    return 0;
+                }
+                printf("Info: Using custom sky texture path: %s\n", value);
+            }
+        }
+        else if (strcmp(name, "Skydiskratio") == 0) {
+            cfg->sky_disk_ratio = atof(value);
+        }
+        else if (strcmp(name, "Fogdo") == 0) {
+            cfg->fog_do = string_to_bool(value);
+        }
+        else if (strcmp(name, "Fogmult") == 0) {
+            cfg->fog_mult = atof(value);
+        }
+        else if (strcmp(name, "Fogskip") == 0) {
+            cfg->fog_skip = atoi(value);
+            if (cfg->fog_skip <= 0) cfg->fog_skip = 1;
+        }
+        else if (strcmp(name, "Blurdo") == 0) {
+            cfg->blur_do = string_to_bool(value);
+        }
+        else if (strcmp(name, "Bloomcut") == 0) {
+            cfg->bloom_cut = atof(value);
+        }
+        else if (strcmp(name, "Airy_bloom") == 0) {
+            cfg->airy_bloom = string_to_bool(value);
+        }
+        else if (strcmp(name, "Airy_radius") == 0) {
+            cfg->airy_radius = atof(value);
+        }
+        else if (strcmp(name, "Gain") == 0) {
+            cfg->gain = atof(value);
+        }
+        else if (strcmp(name, "Normalize") == 0) {
+            cfg->normalize = atof(value);
+        }
+        else if (strcmp(name, "sRGBOut") == 0) {
+            cfg->srgb_out = string_to_bool(value);
+        }
+        else if (strcmp(name, "sRGBIn") == 0) {
+            cfg->srgb_in = string_to_bool(value);
+        }
+        else if (strcmp(name, "Diskmultiplier") == 0) {
+            cfg->disk_multiplier = atof(value);
+        }
+        else if (strcmp(name, "Diskintensitydo") == 0) {
+            cfg->disk_intensity_do = string_to_bool(value);
+        }
+        else if (strcmp(name, "Redshift") == 0) {
+            cfg->redshift = atof(value);
         }
     }
-    else if (MATCH("materials", "Skytexture")) {
-         // Similar logic for Skytexture
-         if (strcasecmp(value, "none") == 0) { pconfig->sky_texture_mode = ST_NONE; free((void*)pconfig->sky_texture_path); pconfig->sky_texture_path = NULL; }
-         else if (strcasecmp(value, "final") == 0) { pconfig->sky_texture_mode = ST_FINAL; free((void*)pconfig->sky_texture_path); pconfig->sky_texture_path = NULL; }
-         else { // Assume it's a texture path
-            pconfig->sky_texture_mode = ST_TEXTURE;
-            free((void*)pconfig->sky_texture_path);
-            pconfig->sky_texture_path = strdup(value);
-            if (!pconfig->sky_texture_path) { fprintf(stderr, "Error: strdup failed for sky texture path\n"); return 0;}
-         }
-    }
-    else if (MATCH("materials", "Skydiskratio")) { pconfig->sky_disk_ratio = atof(value); }
-    else if (MATCH("materials", "Fogdo")) { pconfig->fog_do = string_to_bool(value); }
-    else if (MATCH("materials", "Fogmult")) { pconfig->fog_mult = atof(value); }
-    else if (MATCH("materials", "Fogskip")) { pconfig->fog_skip = atoi(value); if (pconfig->fog_skip <= 0) pconfig->fog_skip = 1; }
-    else if (MATCH("materials", "Blurdo")) { pconfig->blur_do = string_to_bool(value); }
-    else if (MATCH("materials", "Bloomcut")) { pconfig->bloom_cut = atof(value); }
-    else if (MATCH("materials", "Airy_bloom")) { pconfig->airy_bloom = string_to_bool(value); }
-    else if (MATCH("materials", "Airy_radius")) { pconfig->airy_radius = atof(value); }
-    else if (MATCH("materials", "Gain")) { pconfig->gain = atof(value); }
-    else if (MATCH("materials", "Normalize")) { pconfig->normalize = atof(value); }
-    else if (MATCH("materials", "sRGBOut")) { pconfig->srgb_out = string_to_bool(value); }
-    else if (MATCH("materials", "sRGBIn")) { pconfig->srgb_in = string_to_bool(value); }
-    else if (MATCH("materials", "Diskmultiplier")) { pconfig->disk_multiplier = atof(value); }
-    else if (MATCH("materials", "Diskintensitydo")) { pconfig->disk_intensity_do = string_to_bool(value); }
-    else if (MATCH("materials", "Redshift")) { pconfig->redshift = atof(value); }
-    // else {
-         // Optional: Warn about unknown keys
-         // fprintf(stderr, "Warning: Unknown config key [%s] %s = %s\n", section, name, value);
-    // }
 
-    #undef MATCH
-    return 1; // Success
+    return 1; // Success (even for unknown keys)
 }
 
-// --- Main Config Loading Function definition ---
+// --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg) {
-    cfg->resolution[0] = 160;
-    cfg->resolution[1] = 120;
-    cfg->n_iterations = 1000;
-    cfg->step_size = 0.02;
-    cfg->n_threads = 4;
-    cfg->chunk_size = 9000;
-    cfg->lofi = false;
-    cfg->method = METH_RK4;
-    cfg->camera_pos = (Vec3d){0.0, 1.0, -10.0};
-    cfg->tan_fov = 1.5;
-    cfg->look_at = (Vec3d){0.0, 0.0, 0.0};
-    cfg->up_vector = (Vec3d){0.0, 1.0, 0.0};
-    cfg->distort = true;
-    cfg->disk_inner_radius = 1.5;
-    cfg->disk_outer_radius = 4.0;
-    cfg->horizon_grid = true;
-    cfg->disk_texture_mode = DT_NONE;
-    cfg->sky_texture_mode = ST_NONE;
+    // Initialize with defaults
+    cfg->resolution[0] = DEFAULT_RESOLUTION_WIDTH;
+    cfg->resolution[1] = DEFAULT_RESOLUTION_HEIGHT;
+    cfg->n_iterations = DEFAULT_ITERATIONS;
+    cfg->step_size = DEFAULT_STEPSIZE;
+    cfg->n_threads = DEFAULT_THREADS;
+    cfg->chunk_size = DEFAULT_CHUNKSIZE;
+    cfg->lofi = DEFAULT_LOFI;
+    cfg->method = DEFAULT_METHOD;
+
+    cfg->camera_pos = (Vec3d)DEFAULT_CAMERA_POS;
+    cfg->tan_fov = DEFAULT_TAN_FOV;
+    cfg->look_at = (Vec3d)DEFAULT_LOOK_AT;
+    cfg->up_vector = (Vec3d)DEFAULT_UP_VECTOR;
+    cfg->distort = DEFAULT_DISTORT;
+    cfg->disk_inner_radius = DEFAULT_DISK_INNER_RADIUS;
+    cfg->disk_outer_radius = DEFAULT_DISK_OUTER_RADIUS;
+
+    cfg->horizon_grid = DEFAULT_HORIZON_GRID;
+    cfg->disk_texture_mode = DEFAULT_DISK_TEXTURE_MODE;
+    cfg->sky_texture_mode = DEFAULT_SKY_TEXTURE_MODE;
     cfg->disk_texture_path = NULL;
     cfg->sky_texture_path = NULL;
     cfg->disk_texture = NULL;
     cfg->sky_texture = NULL;
-    cfg->sky_disk_ratio = 1.0;
-    cfg->fog_do = true;
-    cfg->fog_mult = 0.02;
-    cfg->fog_skip = 1;
-    cfg->blur_do = true;
-    cfg->bloom_cut = 2.0;
-    cfg->airy_bloom = true;
-    cfg->airy_radius = 1.0;
-    cfg->gain = 1.0;
-    cfg->normalize = -1.0;
-    cfg->srgb_out = true;
-    cfg->srgb_in = true;
-    cfg->disk_multiplier = 100.0;
-    cfg->disk_intensity_do = true;
-    cfg->redshift = 1.0;
-    cfg->internal_override_res_ptr = NULL;
+    cfg->sky_disk_ratio = DEFAULT_SKY_DISK_RATIO;
+    cfg->fog_do = DEFAULT_FOG_DO;
+    cfg->fog_mult = DEFAULT_FOG_MULT;
+    cfg->fog_skip = DEFAULT_FOG_SKIP;
+    cfg->blur_do = DEFAULT_BLUR_DO;
+    cfg->bloom_cut = DEFAULT_BLOOM_CUT;
+    cfg->airy_bloom = DEFAULT_AIRY_BLOOM;
+    cfg->airy_radius = DEFAULT_AIRY_RADIUS;
+    cfg->gain = DEFAULT_GAIN;
+    cfg->normalize = DEFAULT_NORMALIZE;
+    cfg->srgb_out = DEFAULT_SRGB_OUT;
+    cfg->srgb_in = DEFAULT_SRGB_IN;
 
-    const char *scene_fname = "scenes/default.scene";
+    cfg->disk_multiplier = DEFAULT_DISK_MULTIPLIER;
+    cfg->disk_intensity_do = DEFAULT_DISK_INTENSITY_DO;
+    cfg->redshift = DEFAULT_REDSHIFT;
+
+    const char *scene_fname = DEFAULT_SCENE_FILENAME;
     bool override_res = false;
 
+    // Parse command line arguments
     printf("Parsing command line arguments...\n");
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-d") == 0) {
             cfg->lofi = true;
-            printf("  Found -d: Enabling Lo-Fi mode defaults (will be applied during INI parse).\n");
-        } else if (strcmp(argv[i], "--no-graph") == 0) {
-            printf("  Found --no-graph: (Ignoring, graph not implemented).\n");
-        } else if (strcmp(argv[i], "--no-display") == 0) {
-            printf("  Found --no-display: (Ignoring, display not implemented).\n");
-        } else if (strcmp(argv[i], "--no-shuffle") == 0) {
-            printf("  Found --no-shuffle: (Note: Shuffling not implemented yet).\n");
-        } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--no-bs") == 0) {
-            printf("  Found -o/--no-bs: (Ignoring related display/graph flags).\n");
-        } else if (strncmp(argv[i], "-c", 2) == 0 && strlen(argv[i]) > 2 && isdigit((unsigned char)argv[i][2])) { // Cast to unsigned char
+            printf("  Found -d: Enabling Lo-Fi mode defaults\n");
+        }
+        else if (strcmp(argv[i], "--no-graph") == 0 ||
+                 strcmp(argv[i], "--no-display") == 0 ||
+                 strcmp(argv[i], "--no-shuffle") == 0 ||
+                 strcmp(argv[i], "-o") == 0 ||
+                 strcmp(argv[i], "--no-bs") == 0) {
+            printf("  Found %s: (Ignoring, not implemented or relevant)\n", argv[i]);
+        }
+        else if (strncmp(argv[i], "-c", 2) == 0 && strlen(argv[i]) > 2 && isdigit((unsigned char)argv[i][2])) {
             long csize = strtol(argv[i] + 2, NULL, 10);
             if (csize > 0) {
                 cfg->chunk_size = (int)csize;
@@ -301,7 +363,8 @@ bool load_config(int argc, char *argv[], Config *cfg) {
             } else {
                 fprintf(stderr, "Warning: Invalid chunk size '%s'. Ignoring.\n", argv[i] + 2);
             }
-        } else if (strncmp(argv[i], "-j", 2) == 0 && strlen(argv[i]) > 2 && isdigit((unsigned char)argv[i][2])) { // Cast to unsigned char
+        }
+        else if (strncmp(argv[i], "-j", 2) == 0 && strlen(argv[i]) > 2 && isdigit((unsigned char)argv[i][2])) {
             long threads = strtol(argv[i] + 2, NULL, 10);
             if (threads > 0) {
                 cfg->n_threads = (int)threads;
@@ -309,45 +372,51 @@ bool load_config(int argc, char *argv[], Config *cfg) {
             } else {
                 fprintf(stderr, "Warning: Invalid thread count '%s'. Ignoring.\n", argv[i] + 2);
             }
-        } else if (strncmp(argv[i], "-r", 2) == 0 && strlen(argv[i]) > 2) {
+        }
+        else if (strncmp(argv[i], "-r", 2) == 0 && strlen(argv[i]) > 2) {
             if (parse_resolution(argv[i] + 2, cfg->resolution)) {
                 printf("  Found -r: Setting resolution override to %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
                 override_res = true;
             } else {
-                fprintf(stderr, "Error: Resolution format unreadable in '%s'. Use WxH (e.g., -r640x480).\n", argv[i]);
+                fprintf(stderr, "Error: Invalid resolution format in '%s'. Use WxH (e.g., -r640x480).\n", argv[i]);
                 return false;
             }
-        } else if (argv[i][0] == '-') {
+        }
+        else if (argv[i][0] == '-') {
             fprintf(stderr, "Error: Unrecognized option: %s\n", argv[i]);
             return false;
-        } else {
+        }
+        else {
             scene_fname = argv[i];
             printf("  Found scene file argument: %s\n", scene_fname);
         }
     }
 
+    // Check if scene file exists
     if (access(scene_fname, F_OK) == -1) {
         fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
         return false;
     }
     printf("Using scene file: %s\n", scene_fname);
 
+    // Parse INI file using our improved structure
     printf("Parsing INI file: %s...\n", scene_fname);
-    cfg->internal_override_res_ptr = &override_res;
-    if (ini_parse(scene_fname, scene_ini_callback, cfg) < 0) {
+    IniParseUserData user_data = { cfg, &override_res };
+
+    if (ini_parse(scene_fname, scene_ini_callback, &user_data) < 0) {
         fprintf(stderr, "Error: Can't load or parse scene file '%s'\n", scene_fname);
-        cfg->internal_override_res_ptr = NULL;
-        // Free any paths potentially strdup'd before error
+        // Cleanup before returning error
         free((void*)cfg->disk_texture_path); cfg->disk_texture_path = NULL;
         free((void*)cfg->sky_texture_path); cfg->sky_texture_path = NULL;
         return false;
     }
-    cfg->internal_override_res_ptr = NULL;
+
     printf("Finished parsing INI file.\n");
 
-    // --- Load Textures Based on Config ---
+    // Load textures based on config
     printf("Loading textures based on configuration...\n");
-    Texture *original_sky_texture = NULL; // Temporary pointer
+    Texture *original_sky_texture = NULL;
+
     if (cfg->disk_texture_mode == DT_TEXTURE) {
         if (cfg->disk_texture_path && strlen(cfg->disk_texture_path) > 0) {
             printf("  Loading disk texture: %s\n", cfg->disk_texture_path);
@@ -356,64 +425,57 @@ bool load_config(int argc, char *argv[], Config *cfg) {
                 fprintf(stderr, "Warning: Failed to load disk texture '%s'. Check path and file.\n", cfg->disk_texture_path);
             }
         } else {
-             fprintf(stderr, "Warning: Disktexture mode is TEXTURE, but no valid path was found or stored in config.\n");
+            fprintf(stderr, "Warning: Disk texture mode is TEXTURE, but no valid path was found.\n");
         }
     }
+
     if (cfg->sky_texture_mode == ST_TEXTURE) {
         if (cfg->sky_texture_path && strlen(cfg->sky_texture_path) > 0) {
             printf("  Loading sky texture: %s\n", cfg->sky_texture_path);
-            original_sky_texture = load_texture(cfg->sky_texture_path); // Load into temp var
+            original_sky_texture = load_texture(cfg->sky_texture_path);
             if (!original_sky_texture) {
                 fprintf(stderr, "Warning: Failed to load sky texture '%s'. Check path and file.\n", cfg->sky_texture_path);
-                // Fallback?
-                // cfg->sky_texture_mode = ST_NONE;
             }
         } else {
-            fprintf(stderr, "Warning: Skytexture mode is TEXTURE, but no valid path ('%s') found in config.\n", cfg->sky_texture_path);
-            // Fallback
-            // cfg->sky_texture_mode = ST_NONE;
+            fprintf(stderr, "Warning: Sky texture mode is TEXTURE, but no valid path was found.\n");
         }
     }
 
-    // --- Apply Sky Texture Resizing (if HiFi and texture loaded) ---
+    // Apply sky texture resizing (if HiFi and texture loaded)
     if (!cfg->lofi && original_sky_texture) {
-        printf("HiFi mode: Attempting to resize sky texture by 2.0x...\n");
-        // Use the resize function from image.c
-        cfg->sky_texture = resize_texture(original_sky_texture, 2.0f); // Assign resized to final config pointer
+        printf("HiFi mode: Resizing sky texture by 2.0x for higher quality...\n");
+        cfg->sky_texture = resize_texture(original_sky_texture, 2.0f);
 
         if (cfg->sky_texture) {
-                printf("  Sky texture resized successfully.\n");
-                free_texture(original_sky_texture); // Free the original small texture
-                original_sky_texture = NULL; // Avoid double free
+            printf("  Sky texture resized successfully.\n");
+            free_texture(original_sky_texture);
+            original_sky_texture = NULL;
         } else {
-                fprintf(stderr, "Warning: Sky texture resizing failed. Using original texture.\n");
-                cfg->sky_texture = original_sky_texture; // Resizing failed, assign original to final pointer
-                original_sky_texture = NULL; // Avoid double free later
+            fprintf(stderr, "Warning: Sky texture resizing failed. Using original texture.\n");
+            cfg->sky_texture = original_sky_texture;
+            original_sky_texture = NULL;
         }
     } else {
-        // If LoFi or no original texture, just use the original (if any)
         cfg->sky_texture = original_sky_texture;
-        original_sky_texture = NULL; // Avoid double free
+        original_sky_texture = NULL;
     }
-    // At this point, cfg->sky_texture points to the potentially resized texture,
-    // or the original one, or NULL. original_sky_texture is NULL.
 
-    // --- Compute Derived Values ---
+    // Compute derived values
     printf("Computing derived configuration values...\n");
     compute_derived_config(cfg);
 
-     if (vec3d_norm(cfg->camera_pos) <= 1.0) {
+    // Final validation
+    if (vec3d_norm(cfg->camera_pos) <= 1.0) {
         fprintf(stderr, "Error: Observer is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
-        // Free loaded resources before returning false
-        free_config_textures(cfg); // Includes freeing paths
+        free_config_textures(cfg);
         return false;
     }
 
+    // Print summary of final configuration
     printf("Configuration loaded successfully.\n");
     printf("Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
     printf("Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
     printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
-    // Optional: Print more final config values for debugging
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
     if(cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
     if(cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
@@ -421,22 +483,25 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     return true;
 }
 
-
-// Definition for: compute_derived_config
+// Calculate derived configuration values
 void compute_derived_config(Config *cfg) {
+    // Calculate squared radii for faster checks
     cfg->disk_inner_sqr = cfg->disk_inner_radius * cfg->disk_inner_radius;
     cfg->disk_outer_sqr = cfg->disk_outer_radius * cfg->disk_outer_radius;
+
+    // Create view matrix from camera parameters
     Vec3d front = vec3d_normalize(vec3d_sub(cfg->look_at, cfg->camera_pos));
     Vec3d left = vec3d_normalize(vec3d_cross(cfg->up_vector, front));
     Vec3d new_up = vec3d_normalize(vec3d_cross(front, left));
+
     cfg->view_matrix[0] = left;
     cfg->view_matrix[1] = new_up;
     cfg->view_matrix[2] = front;
 }
 
-// Definition for: free_config_textures
+// Free allocated resources
 void free_config_textures(Config *cfg) {
-     if (cfg->disk_texture) {
+    if (cfg->disk_texture) {
         printf("Freeing disk texture...\n");
         free_texture(cfg->disk_texture);
         cfg->disk_texture = NULL;
@@ -451,7 +516,7 @@ void free_config_textures(Config *cfg) {
         free((void*)cfg->disk_texture_path);
         cfg->disk_texture_path = NULL;
     }
-     if (cfg->sky_texture_path) {
+    if (cfg->sky_texture_path) {
         printf("Freeing sky texture path string...\n");
         free((void*)cfg->sky_texture_path);
         cfg->sky_texture_path = NULL;
