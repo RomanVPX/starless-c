@@ -1,13 +1,17 @@
 import numpy as np
 import colour
 import sys
+import imageio.v3 as iio
 
 # --- Configuration ---
 TEMP_MIN = 1000.0
 TEMP_MAX = 30000.0
-NUM_SAMPLES = 1024
-# Use .ramp extension as requested
-OUTPUT_FILENAME = f"blackbody_ramp_{int(TEMP_MIN)}_{int(TEMP_MAX)}K_{NUM_SAMPLES}_linear_srgb_normalized.ramp"
+NUM_SAMPLES = 2048
+# Use .ramp extension for the data file
+RAMP_FILENAME = f"blackbody_ramp_{int(TEMP_MIN)}_{int(TEMP_MAX)}K_{NUM_SAMPLES}_linear_srgb_normalized.ramp"
+# Filename for the PNG preview
+PNG_FILENAME = f"blackbody_ramp_{int(TEMP_MIN)}_{int(TEMP_MAX)}K_{NUM_SAMPLES}_preview.png"
+PNG_HEIGHT = 50 # Height of the preview image in pixels
 # --- End Configuration ---
 
 print(f"Using colour-science version: {colour.__version__}")
@@ -33,7 +37,6 @@ for i, temp in enumerate(temperatures):
                                        colour.RGB_COLOURSPACES['sRGB'].matrix_XYZ_to_RGB)
         rgb_linear_clipped = np.clip(rgb_linear, 0.0, None)
 
-        # Find the maximum component value across all samples
         current_max = np.max(rgb_linear_clipped)
         if current_max > max_val:
             max_val = float(current_max)
@@ -52,18 +55,49 @@ print(f"\nCalculation complete. Found max value: {max_val:.4f}")
 
 # --- Normalize the ramp ---
 print("Normalizing ramp by dividing by max value...")
-if max_val <= 1e-9: # Avoid division by zero if ramp is all black
+if max_val <= 1e-9:
     print("Warning: Max value is near zero. Cannot normalize.")
-    rgb_ramp_normalized = rgb_ramp_linear_raw # Keep raw values (should be ~0)
+    rgb_ramp_normalized = rgb_ramp_linear_raw
 else:
     rgb_ramp_normalized = [rgb / max_val for rgb in rgb_ramp_linear_raw]
 
-
-print(f"Saving {len(rgb_ramp_normalized)} normalized colors to {OUTPUT_FILENAME}...")
+# --- Save the normalized float data to .ramp file ---
+print(f"Saving {len(rgb_ramp_normalized)} normalized colors to {RAMP_FILENAME}...")
 try:
-    with open(OUTPUT_FILENAME, 'w') as f:
+    with open(RAMP_FILENAME, 'w') as f:
         for rgb in rgb_ramp_normalized:
             f.write(f"{rgb[0]:.9f} {rgb[1]:.9f} {rgb[2]:.9f}\n")
-    print("Done.")
+    print("  Data file saved.")
 except IOError as e:
-    print(f"\nError writing to file {OUTPUT_FILENAME}: {e}")
+    print(f"\nError writing to file {RAMP_FILENAME}: {e}")
+
+
+# --- Create and save the PNG preview ---
+print(f"Generating PNG preview ({NUM_SAMPLES}x{PNG_HEIGHT}) to {PNG_FILENAME}...")
+try:
+    # Convert normalized linear float ramp to sRGB uint8 for PNG
+    # 1. Convert linear RGB [0, ~1] to sRGB [0, ~1] (Apply OETF)
+    rgb_ramp_srgb_float = [colour.RGB_to_RGB(rgb, 'sRGB', 'sRGB', apply_cctf_encoding=True) for rgb in rgb_ramp_normalized]
+
+    # 2. Convert sRGB float [0, 1] to sRGB uint8 [0, 255]
+    # Ensure values are clipped to [0, 1] before scaling, just in case
+    rgb_ramp_srgb_uint8 = [(np.clip(rgb, 0.0, 1.0) * 255.999).astype(np.uint8) for rgb in rgb_ramp_srgb_float]
+
+    # Create the image array (height, width, channels)
+    # Convert list of RGB triplets to a NumPy array (width, channels)
+    ramp_array = np.array(rgb_ramp_srgb_uint8) # Shape: (NUM_SAMPLES, 3)
+
+    # Repeat the ramp vertically to create the desired height
+    image_array = np.tile(ramp_array, (PNG_HEIGHT, 1, 1)) # Shape: (PNG_HEIGHT, NUM_SAMPLES, 3)
+
+    # Save the image using imageio
+    iio.imwrite(PNG_FILENAME, image_array)
+    print("  PNG preview saved.")
+
+except ImportError:
+     print("\nError: imageio library not found. Cannot save PNG preview.")
+     print("Please install it: pip install imageio")
+except Exception as e:
+    print(f"\nError generating or saving PNG preview: {e}")
+
+print("\nScript finished.")
