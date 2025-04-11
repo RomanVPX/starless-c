@@ -186,10 +186,8 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
 
             }
             double horizon_alpha = 1.0; // Opaque horizon
-            ray.color = blend_colors(ray.color, ray.alpha, horizon_color, horizon_alpha);
-            ray.alpha = blend_alpha(ray.alpha, horizon_alpha);
-            ray.active = false; // Stop tracing this ray
-            continue; // Skip other checks for this step
+            ray.color = blend_colors(horizon_color, horizon_alpha, ray.color, ray.alpha); // cb=horizon, ca=ray
+            ray.alpha = blend_alpha(horizon_alpha, ray.alpha); // bg=horizon, fg=ray
         }
 
         // --- Accretion Disk Check ---
@@ -321,8 +319,8 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                                 disk_color.r, disk_color.g, disk_color.b, disk_alpha);
                     }
 
-                    ray.color = blend_colors(ray.color, ray.alpha, disk_color, disk_alpha);
-                    ray.alpha = blend_alpha(ray.alpha, disk_alpha);
+                    ray.color = blend_colors(disk_color, disk_alpha, ray.color, ray.alpha); // cb=disk, ca=ray
+                    ray.alpha = blend_alpha(disk_alpha, ray.alpha); // bg=disk, fg=ray
                     // Should the ray stop? Assume disk is semi-transparent based on alpha.
                     // If disk_alpha == 1.0, we could set ray.active = false;
 
@@ -345,7 +343,6 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                         }
                         ray.active = false;
                     }
-
                 } // end if within bounds
             } // end if t_cross valid
         } // end if plane crossed
@@ -361,8 +358,8 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                  ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
                  // Fog seems to be additive in the Python blend logic? Let's use standard blend.
-                 ray.color = blend_colors(ray.color, ray.alpha, fog_col, fog_int);
-                 ray.alpha = blend_alpha(ray.alpha, fog_int);
+                 ray.color = blend_colors(fog_col, fog_int, ray.color, ray.alpha);
+                 ray.alpha = blend_alpha(fog_int, ray.alpha);
             }
         }
 
@@ -417,12 +414,10 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                  break;
         }
 
-        // Blend background behind accumulated ray color
-        // Python: blendcolors(SKYDISK_RATIO*col_bg, ones ,object_colour,object_alpha)
-        // Here: background=bg_color, bg_alpha=1.0, foreground=ray.color, fg_alpha=ray.alpha
-        ray.color = blend_colors(bg_color, 1.0, ray.color, ray.alpha);
-        // Final alpha is now effectively 1.0 after blending with opaque background
-        ray.alpha = 1.0; // Or blend_alpha(1.0, ray.alpha) which should yield 1.0
+        ColorRGB scaled_bg_color = color_mul_scalar(bg_color, cfg->sky_disk_ratio);
+        double sky_balpha = 1.0;
+        ray.color = blend_colors(scaled_bg_color, sky_balpha, ray.color, ray.alpha); // cb=sky, ca=ray
+        ray.alpha = blend_alpha(sky_balpha, ray.alpha); // bg=sky, fg=ray
     }
 
     if (log_this_pixel) {
