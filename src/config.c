@@ -1,5 +1,6 @@
 #include "config.h"
 #include "config_defaults.h"
+#include "blackbody.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -279,7 +280,6 @@ static int scene_ini_callback(void* user, const char* section, const char* name,
         else if (strcmp(name, "sRGBIn") == 0) {
             cfg->srgb_in = string_to_bool(value);
         }
-
         else if (strcmp(name, "Blackbodyramp") == 0) {
             // Free old path if any
             free((void*)cfg->blackbody_ramp_path);
@@ -350,6 +350,8 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     cfg->srgb_in = DEFAULT_SRGB_IN;
 
     cfg->blackbody_ramp_path = NULL;
+    cfg->blackbody_ramp_data = NULL;
+    cfg->blackbody_ramp_size = 0;
     cfg->disk_multiplier = DEFAULT_DISK_MULTIPLIER;
     cfg->disk_intensity_do = DEFAULT_DISK_INTENSITY_DO;
     cfg->redshift = DEFAULT_REDSHIFT;
@@ -415,7 +417,7 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     }
     printf("Using scene file: %s\n", scene_fname);
 
-    // Parse INI file using our improved structure
+    // Parse INI file
     printf("Parsing INI file: %s...\n", scene_fname);
     IniParseUserData user_data = { cfg, &override_res };
 
@@ -424,10 +426,21 @@ bool load_config(int argc, char *argv[], Config *cfg) {
         // Cleanup before returning error
         free((void*)cfg->disk_texture_path); cfg->disk_texture_path = NULL;
         free((void*)cfg->sky_texture_path); cfg->sky_texture_path = NULL;
+        free((void*)cfg->blackbody_ramp_path); cfg->blackbody_ramp_path = NULL;
         return false;
     }
-
     printf("Finished parsing INI file.\n");
+
+    // Set default ramp path if not specified in INI
+    if (cfg->blackbody_ramp_path == NULL) {
+        cfg->blackbody_ramp_path = strdup(DEFAULT_BLACKBODY_RAMP_PATH);
+        if (!cfg->blackbody_ramp_path) {
+            fprintf(stderr, "Error: Failed to allocate memory for default blackbody ramp path\n");
+            free_config_textures(cfg); // Cleans up already allocated stuff
+            return false;
+        }
+        printf("Info: No Blackbodyramp specified, using default: %s\n", cfg->blackbody_ramp_path);
+    }
 
     // Load textures based on config
     printf("Loading textures based on configuration...\n");
@@ -476,13 +489,24 @@ bool load_config(int argc, char *argv[], Config *cfg) {
         original_sky_texture = NULL;
     }
 
-    if (cfg->blackbody_ramp_path == NULL) {
-        cfg->blackbody_ramp_path = strdup(DEFAULT_BLACKBODY_RAMP_PATH);
-        if (!cfg->blackbody_ramp_path) {
-            fprintf(stderr, "Error: Failed to allocate memory for default blackbody ramp path\n");
+    // Load Blackbody Ramp Conditionally
+    if (cfg->disk_texture_mode == DT_BLACKBODY) {
+        if (cfg->blackbody_ramp_path && strlen(cfg->blackbody_ramp_path) > 0) {
+            printf("Loading blackbody ramp (required by Disktexture mode): %s...\n", cfg->blackbody_ramp_path);
+            // Pass pointers to store the results in the config struct
+            if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size)) {
+                fprintf(stderr, "Error: Failed to load required blackbody ramp.\n");
+                free_config_textures(cfg); // Cleans up textures and paths
+                return false;
+            }
+        } else {
+            // This case should ideally not happen due to default path logic, but check anyway
+            fprintf(stderr, "Error: Disktexture mode is BLACKBODY, but no valid ramp path was configured.\n");
             free_config_textures(cfg);
             return false;
         }
+    } else {
+        printf("Disktexture mode is not BLACKBODY, skipping blackbody ramp loading.\n");
     }
 
     // Compute derived values
@@ -504,6 +528,8 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
     if (cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
     if (cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
+    if (cfg->blackbody_ramp_path) printf("Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path);
+    if (cfg->blackbody_ramp_data) printf("Blackbody Ramp Data: Loaded (%d samples)\n", cfg->blackbody_ramp_size);
 
     return true;
 }
@@ -549,7 +575,14 @@ void free_config_textures(Config *cfg) {
 
     if (cfg->blackbody_ramp_path) {
         printf("Freeing blackbody ramp path string...\n");
-        free((void*)cfg->blackbody_ramp_path);
+        free(cfg->blackbody_ramp_path);
         cfg->blackbody_ramp_path = NULL;
+    }
+
+    if (cfg->blackbody_ramp_data) {
+        printf("Freeing blackbody ramp data (%d samples)...\n", cfg->blackbody_ramp_size);
+        free(cfg->blackbody_ramp_data);
+        cfg->blackbody_ramp_data = NULL;
+        cfg->blackbody_ramp_size = 0;
     }
 }

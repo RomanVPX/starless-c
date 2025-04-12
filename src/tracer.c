@@ -235,7 +235,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             }
 
             // double intensity = bb_intensity(temp);
-            ColorRGB bb_col = bb_color_from_temp(temp);
+            ColorRGB bb_col = bb_color_from_temp(cfg, temp);
 
             // --- Apply multiplier ---
             if (cfg->disk_intensity_do) {

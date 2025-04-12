@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "image.h"
 #include "vector.h"
+#include "color.h"
 
 // --- Enums ---
 typedef enum { METH_LEAPFROG, METH_RK4 } IntegrationMethod;
@@ -55,6 +56,8 @@ typedef struct {
 
     // Blackbody Disk Specific
     char* blackbody_ramp_path;
+    ColorRGB *blackbody_ramp_data;
+    int blackbody_ramp_size;
     double disk_multiplier;
     bool disk_intensity_do;
     double redshift;
