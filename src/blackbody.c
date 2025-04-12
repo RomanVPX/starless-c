@@ -40,7 +40,6 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
         return false;
     }
 
-    printf("Loading blackbody ramp from '%s' (%d samples)... ", filename, samples_to_load);
     fflush(stdout);
 
     FILE *file = fopen(filename, "r");

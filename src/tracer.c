@@ -395,7 +395,6 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
     // --- Debugging Output ---
     if (log_this_pixel) {
         printf("\n--- Logging for pixel (%d, %d)\n", px, py);
-        printf("--- Disk texture mode: %u\n", cfg->disk_texture_mode);
         printf("--- Disk inner radius: %f\n", cfg->disk_inner_radius);
         printf("--- Disk outer radius: %f\n", cfg->disk_outer_radius);
         printf("--- Redshift: %f\n", cfg->redshift);

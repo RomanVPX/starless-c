@@ -518,7 +518,6 @@ bool load_config(int argc, char *argv[], Config *cfg) {
     printf("Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
     printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
-    printf("Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path ? cfg->blackbody_ramp_path : "(none)");
     if (cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
     if (cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
     if (cfg->blackbody_ramp_path) printf("Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path);
