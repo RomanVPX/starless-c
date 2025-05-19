@@ -145,7 +145,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             return 1;
         }
     }
-
     // --- Geometry Section ---
     else if (strcmp(section, "geometry") == 0)
     {

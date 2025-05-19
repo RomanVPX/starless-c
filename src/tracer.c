@@ -125,11 +125,9 @@ static Vec3d calculate_initial_view_vector(int px, int py, const Config *cfg) {
     int H = cfg->resolution[1];
 
     // Screen coordinates [-0.5, 0.5] for x, corrected aspect for y
-    // Add 0.5 to px, py to sample from pixel center (matches Python logic better)
     double screen_x = (((double)px + 0.5) / W) - 0.5;
     double screen_y = (-(((double)py + 0.5) / H) + 0.5) * ((double)H / W); // Aspect ratio correction
 
-    // Scale by FoV (assuming cfg->tan_fov is tan(HorizFOV/2) * 2 from Python code)
     screen_x *= cfg->tan_fov;
     screen_y *= cfg->tan_fov;
 
@@ -194,7 +192,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 
                 // Stop if alpha is very high (mimicking original code's implicit stop)
                 if (disk_alpha >= 0.95) { // Adjusted threshold slightly based on prev discussion
-                     stop_ray = true;
+                    stop_ray = true;
                 }
 
                 if (log_this_pixel) {
@@ -208,7 +206,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 }
             } else {
                 disk_alpha = 0.0; // No texture loaded
-                 if (log_this_pixel) printf("--- Disk texture not loaded!\n");
+                if (log_this_pixel) printf("--- Disk texture not loaded!\n");
             }
             break;
         case DT_BLACKBODY: {
@@ -217,20 +215,19 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double R = sqrt(col_point_sqr);
 
             if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) { // Apply redshift if enabled and outside horizon slightly
-                 // Python formula for velocity factor
+                 // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
                 Vec3d disk_vel_dir = vec3d_cross(VEC3D_UP, vec3d_normalize(col_point));
                 Vec3d disk_vel = vec3d_mul_scalar(disk_vel_dir, speed_factor);
                 double disk_vel_sqr = fmin(0.99, vec3d_norm_sqr(disk_vel)); // Clamp speed < c
 
                 double gamma = 1.0 / sqrt(1.0 - disk_vel_sqr);
-                // NOTE: Sign difference in python code was likely error, using standard formula convention
                 double doppler_dot = vec3d_dot(disk_vel, vec3d_normalize(ray->vel));
                 double opz_doppler = gamma * (1.0 - doppler_dot); // 1+z, NOTE: '-' sign used here based on standard physics
 
                 double opz_grav = 1.0 / sqrt(fmax(1e-6, 1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR)/R)); // 1+z grav sqrt(g_tt)
 
-                double total_opz = opz_doppler * opz_grav * cfg->redshift; // Include config factor? Original python didn't. Let's assume it's intended.
+                double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
             }
 
@@ -284,12 +281,11 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     double alpha_before_hit = ray->alpha; // Store alpha before overwrite
 
     if (log_this_pixel) {
-         printf("--- Iter %d: EVENT HORIZON HIT DETECTED!\n", ray->steps_taken);
-         printf("--- Previous color was: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, alpha_before_hit);
+        printf("--- Iter %d: EVENT HORIZON HIT DETECTED!\n", ray->steps_taken);
+        printf("--- Previous color was: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, alpha_before_hit);
     }
 
     // If ray was already significantly opaque (hit disk first), DO NOT overwrite color.
-    // This matches the emergent behavior of the Python code's blend function.
     if (alpha_before_hit > 0.1) { // Threshold can be adjusted
         if (log_this_pixel) {
             printf("--- Ray already had alpha %.3f (> 0.1), PRESERVING color, ignoring horizon overwrite.\n", alpha_before_hit);
@@ -306,7 +302,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
 
     ColorRGB horizon_color = COLOR_BLACK;
     if (cfg->horizon_grid) {
-        // Interpolate collision point lambda (more robust than original Python?)
+        // Interpolate collision point lambda
         // lambda = (sqrt(R_h^2) - sqrt(r_old^2)) / (sqrt(r_new^2) - sqrt(r_old^2)) approx
         // Or use linear interp on r^2: lambda = (R_h^2 - r_old^2) / (r_new^2 - r_old^2)
         // Let's stick to approximation using old_pos for angles as before for simplicity/consistency
@@ -345,9 +341,9 @@ static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg) 
          double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
          ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
-         // Blend fog (cb=fog, ca=ray)
-         ray->color = blend_colors(fog_col, fog_alpha_step, ray->color, ray->alpha);
-         ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
+        // Blend fog (cb=fog, ca=ray)
+        ray->color = blend_colors(fog_col, fog_alpha_step, ray->color, ray->alpha);
+        ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
     }
 }
 
@@ -364,7 +360,6 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
     double valtitude = asin(fmax(-1.0, fmin(1.0, final_vel_norm.y)));
 
     // Map angles to UV [0, 1]
-    // Python used a strange offset vuv[:,0] = np.mod(vphi+4.5,2*np.pi)/(2*np.pi)
     // Using standard mapping here unless proven necessary
     double sky_u = fmod(vphi + 2.0 * M_PI, 2.0 * M_PI) / (2.0 * M_PI); // Longitude [0, 1]
     // Map altitude [-pi/2, pi/2] to v [0, 1]
@@ -377,12 +372,12 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
             } // else bg_color remains black
             break;
         case ST_FINAL: // Debug mode: color based on final direction component magnitudes
-             bg_color = (ColorRGB){fabs(final_vel_norm.x), fabs(final_vel_norm.y), fabs(final_vel_norm.z)};
-             break;
+            bg_color = (ColorRGB){fabs(final_vel_norm.x), fabs(final_vel_norm.y), fabs(final_vel_norm.z)};
+            break;
         case ST_NONE: // Fallthrough
         default:
-             // bg_color is already black
-             break;
+            // bg_color is already black
+            break;
     }
     // Apply sky brightness scaling AFTER lookup/calculation
     return color_mul_scalar(bg_color, cfg->sky_disk_ratio);
@@ -439,8 +434,8 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
                     if (col_point_sqr >= cfg->disk_inner_sqr && col_point_sqr <= cfg->disk_outer_sqr) { // Within disk radial bounds
                         bool stop_after_disk = handle_disk_hit(&ray, col_point, col_point_sqr, cfg, log_this_pixel);
                         if (stop_after_disk) {
-                             ray.active = false;
-                             if (log_this_pixel) printf("--- Ray stopped after disk hit.\n");
+                            ray.active = false;
+                            if (log_this_pixel) printf("--- Ray stopped after disk hit.\n");
                         }
                     }
                 }
@@ -561,10 +556,10 @@ bool run_tracer(Config *config, ImageF *output_image) {
     int threads_failed = 0;
     for (int i = 0; i < n_threads; ++i) {
         int ret = pthread_join(threads[i], NULL);
-         if (ret != 0) {
-             fprintf(stderr, "Error joining thread %d: %s\n", i, strerror(ret));
-             threads_failed++;
-         }
+        if (ret != 0) {
+            fprintf(stderr, "Error joining thread %d: %s\n", i, strerror(ret));
+            threads_failed++;
+        }
     }
 
     clock_t total_end_time = clock();

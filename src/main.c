@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
         double spectrum[3] = {1.0, 0.86, 0.61};
         double fov_rad = config.tan_fov; // tangent of field of view
         // Check for zero FoV to prevent division by zero
-         if (fabs(fov_rad) < 1e-6) {
+        if (fabs(fov_rad) < 1e-6) {
             fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
             fov_rad = 1.5; // Use a default value
         }
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 
         double max_intensity = 0.0;
         for (int i = 0; i < W * H; ++i) {
-             max_intensity = fmax(max_intensity, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
+            max_intensity = fmax(max_intensity, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
         }
 
         int kernel_size_radius = (int)(25.0 * pow(fmax(0.1, max_intensity) / 5.0, 1.0/3.0) * (double)W / 1920.0); // Use W
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
     // At this point, current_image holds the final result before normalization.
 
     // --- 4d. Normalization ---
-     if (config.normalize > 0) {
+    if (config.normalize > 0) {
         printf("Applying Normalization (target max %f)...\n", config.normalize);
         double current_max = 0.0;
         for (int i = 0; i < W * H; ++i) { // Use W * H
