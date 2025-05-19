@@ -32,9 +32,9 @@ for i, temp in enumerate(temperatures):
         spd = colour.sd_blackbody(float(temp), cmfs.shape)
         xyz = colour.sd_to_XYZ(spd, cmfs=cmfs)
         rgb_linear = colour.XYZ_to_RGB(xyz / 100.0,
-                                       colour.CCS_ILLUMINANTS['CIE 1931 2 Degree Standard Observer']['E'],
-                                       colour.RGB_COLOURSPACES['sRGB'].whitepoint,
-                                       colour.RGB_COLOURSPACES['sRGB'].matrix_XYZ_to_RGB)
+                        colour.CCS_ILLUMINANTS['CIE 1931 2 Degree Standard Observer']['E'],
+                        colour.RGB_COLOURSPACES['sRGB'].whitepoint,
+                        colour.RGB_COLOURSPACES['sRGB'].matrix_XYZ_to_RGB)
         rgb_linear_clipped = np.clip(rgb_linear, 0.0, None)
 
         current_max = np.max(rgb_linear_clipped)
@@ -95,8 +95,8 @@ try:
     print("  PNG preview saved.")
 
 except ImportError:
-     print("\nError: imageio library not found. Cannot save PNG preview.")
-     print("Please install it: pip install imageio")
+    print("\nError: imageio library not found. Cannot save PNG preview.")
+    print("Please install it: pip install imageio")
 except Exception as e:
     print(f"\nError generating or saving PNG preview: {e}")
 

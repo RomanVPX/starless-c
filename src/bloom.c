@@ -80,10 +80,10 @@ Kernel2D* generate_airy_kernel(const double scale[3], int size) {
     // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
     for (int c = 0; c < 3; ++c) {
         if (fabs(sum[c]) < 1e-9) {
-             fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
-             // Optional: Set kernel to an identity for this channel? Or leave as is?
-             // Let's leave it as calculated, convolution will just yield zero.
-             sum[c] = 1.0; // Avoid division by zero, result will be unnormalized (likely all zero anyway)
+            fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
+            // Optional: Set kernel to an identity for this channel? Or leave as is?
+            // Let's leave it as calculated, convolution will just yield zero.
+            sum[c] = 1.0; // Avoid division by zero, result will be unnormalized (likely all zero anyway)
         }
     }
 
@@ -125,7 +125,7 @@ static void get_symmetric_coords(int W, int H, int x, int y, int* sx, int* sy) {
 
 
     // Handle Y coordinate
-     if (y < 0) {
+    if (y < 0) {
         *sy = -y - 1;
     } else if (y >= H) {
         *sy = 2 * H - y - 1;
@@ -215,7 +215,7 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
     }
 
     Kernel1D* k = (Kernel1D*)malloc(sizeof(Kernel1D));
-     if (!k) {
+    if (!k) {
         fprintf(stderr, "Error: Failed to allocate memory for Kernel1D struct.\n");
         return NULL;
     }
@@ -250,12 +250,12 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
             k->data[i] /= sum;
         }
     } else {
-         fprintf(stderr, "Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
-         // Maybe set center element to 1.0?
-         if (k->length > 0) {
+        fprintf(stderr, "Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
+        // Maybe set center element to 1.0?
+        if (k->length > 0) {
             memset(k->data, 0, k->length * sizeof(double));
             k->data[k->size] = 1.0; // Center element (identity kernel)
-         }
+        }
     }
 
     printf("Generated %d-element 1D Gaussian kernel (sigma=%.2f, size=%d).\n", k->length, sigma, size);
@@ -264,7 +264,7 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
 
 // --- Free 1D Kernel ---
 void free_kernel1d(Kernel1D* k) {
-     if (k) {
+    if (k) {
         free(k->data);
         free(k);
     }
@@ -272,7 +272,7 @@ void free_kernel1d(Kernel1D* k) {
 
 // --- 1D Horizontal Convolution ---
 bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
-     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
         fprintf(stderr, "Error: NULL pointer passed to convolve1d_h_rgb.\n");
         return false;
     }
@@ -309,18 +309,18 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
             dst->pixels[dst_idx] = accumulator;
         }
     }
-     printf("Horizontal 1D convolution finished.\n");
+    printf("Horizontal 1D convolution finished.\n");
     return true;
 }
 
 
 // --- 1D Vertical Convolution ---
 bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
-     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
         fprintf(stderr, "Error: NULL pointer passed to convolve1d_v_rgb.\n");
         return false;
     }
-     if (src->width != dst->width || src->height != dst->height) {
+    if (src->width != dst->width || src->height != dst->height) {
         fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }

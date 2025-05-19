@@ -63,20 +63,20 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
         if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
 
         if (sscanf(line_buffer, "%lf %lf %lf",
-                   &loaded_data[samples_read].r,
-                   &loaded_data[samples_read].g,
-                   &loaded_data[samples_read].b) == 3)
+                    &loaded_data[samples_read].r,
+                    &loaded_data[samples_read].g,
+                    &loaded_data[samples_read].b) == 3)
         {
             // Optional: Validate loaded data here (NaN, negative checks)
              ColorRGB *color = &loaded_data[samples_read];
-             if (isnan(color->r) || isnan(color->g) || isnan(color->b) ||
-                 color->r < 0.0 || color->g < 0.0 || color->b < 0.0) {
-                 fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n",
-                         samples_read, filename);
-                 color->r = fmax(0.0, color->r);
-                 color->g = fmax(0.0, color->g);
-                 color->b = fmax(0.0, color->b);
-             }
+            if (isnan(color->r) || isnan(color->g) || isnan(color->b) ||
+                color->r < 0.0 || color->g < 0.0 || color->b < 0.0) {
+                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n",
+                        samples_read, filename);
+                color->r = fmax(0.0, color->r);
+                color->g = fmax(0.0, color->g);
+                color->b = fmax(0.0, color->b);
+            }
             samples_read++;
         } else {
             fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", samples_read + 1, filename);
