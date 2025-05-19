@@ -5,7 +5,10 @@
 #include <stdlib.h> // For EXIT_SUCCESS
 #include <string.h>
 #include <math.h>
+#include <unistd.h> // For access()
 #include "config.h"
+#include "core_constants.h"
+#include "config_defaults.h"
 #include "tracer.h"
 #include "image.h"
 #include "bloom.h"
@@ -84,16 +87,16 @@ int main(int argc, char *argv[]) {
     // Reads from current_image, writes to next_image
     if (config.airy_bloom) {
         printf("Applying Airy Bloom...\n");
-        double spectrum[3] = {1.0, 0.86, 0.61};
+        double spectrum[3] = {SPECTRUM_R, SPECTRUM_G, SPECTRUM_B};
         double fov_rad = config.tan_fov; // tangent of field of view
         // Check for zero FoV to prevent division by zero
-        if (fabs(fov_rad) < 1e-6) {
+        if (fabs(fov_rad) < EPSILON_LOOSE) {
             fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
-            fov_rad = 1.5; // Use a default value
+            fov_rad = DEFAULT_TAN_FOV; // Use a default value (from config_defaults.h)
         }
         // the float constant is 1.22 * 650nm / (4 mm), the typical diffractive resolution
         // of the human eye for red light. It's in radians, so we rescale using field of view.
-        double rad_scale = 0.00019825 * (double)W / atan(fov_rad); // Use W (width) consistent with Python RESOLUTION[0]
+        double rad_scale = AIRY_RAD_SCALE * (double)W / atan(fov_rad); // Use W (width) consistent with Python RESOLUTION[0]
         rad_scale *= config.airy_radius; // Apply user-defined radius scaling
 
         double kernel_scale[3] = {rad_scale * spectrum[0], rad_scale * spectrum[1], rad_scale * spectrum[2]};
@@ -237,39 +240,62 @@ int main(int argc, char *argv[]) {
     }
 
     // --- 5. Save Image ---
-    printf("Saving final image to tests/out_c.png...\n");
+    // Get scene name from input file path
+    const char* scene_path = (argc > 1) ? argv[1] : "default.scene";
+    const char* scene_name = strrchr(scene_path, '/');
+    if (scene_name) {
+        scene_name++; // Skip the slash
+    } else {
+        scene_name = scene_path;
+    }
 
-    // Create tests directory if it doesn't exist
+    // Remove .scene extension if present
+    char* base_name = strdup(scene_name);
+    char* dot = strrchr(base_name, '.');
+    if (dot && strcmp(dot, ".scene") == 0) {
+        *dot = '\0';
+    }
+
+    // Create output directory
     struct stat st = {0};
-    if (stat("tests", &st) == -1) { // Check if directory exists
-        printf("  'tests' directory not found, attempting to create...\n");
+    if (stat("out", &st) == -1) {
         #ifdef _WIN32
-            if (_mkdir("tests") != 0) {
-                perror("  Error creating 'tests' directory");
-                // Decide if this is fatal or just a warning
-            } else {
-                printf("  'tests' directory created.\n");
+            if (_mkdir("out") != 0) {
+                perror("Error creating 'out' directory");
+                free(base_name);
+                return EXIT_FAILURE;
             }
         #else
-            if (mkdir("tests", 0775) != 0 && errno != EEXIST) { // Create with rwxrwx-r-x permissions, ignore error if it already exists
-                perror("  Error creating 'tests' directory");
-                // Decide if this is fatal or just a warning
-            } else {
-                if (errno == EEXIST) printf("  'tests' directory already exists.\n");
-                else printf("  'tests' directory created.\n");
-                errno = 0; // Reset errno after successful check/creation
+            if (mkdir("out", 0775) != 0 && errno != EEXIST) {
+                perror("Error creating 'out' directory");
+                free(base_name);
+                return EXIT_FAILURE;
             }
         #endif
-    } else {
-        printf("  'tests' directory already exists.\n");
     }
+
+    // Find first available file name
+    char output_path[256];
+    int index = 0;
+    do {
+        snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
+    } while (access(output_path, F_OK) != -1 && index < 100);
+
+    if (index >= 100) {
+        fprintf(stderr, "Error: Too many output files for scene %s\n", base_name);
+        free(base_name);
+        return EXIT_FAILURE;
+    }
+
+    printf("Saving final image to %s...\n", output_path);
+    free(base_name);
 
     // Clamp final image pixels *before* saving
     for (int i = 0; i < W * H; ++i) { // Use W * H
         final_image->pixels[i] = color_clamp(final_image->pixels[i], 0.0, 1.0);
     }
 
-    if (!save_image_png(final_image, "tests/out_c.png", config.srgb_out)) {
+    if (!save_image_png(final_image, output_path, config.srgb_out)) {
         fprintf(stderr, "Error saving final image!\n");
         // Consider not exiting here, maybe just warn?
     } else {

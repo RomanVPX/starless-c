@@ -1,4 +1,5 @@
 #include "bloom.h"
+#include "core_constants.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -8,7 +9,7 @@
 // Approximates (2*J1(x)/x)^2
 // Handles the limit at x=0 where the value should be 1.0
 static double airy_disk_func(double x) {
-    if (fabs(x) < 1e-9) { // Handle x close to 0
+    if (fabs(x) < EPSILON_STRICT) { // Handle x close to 0
         return 1.0;
     }
     // Ensure math.h provides j1 or _j1 depending on the system
@@ -57,7 +58,7 @@ Kernel2D* generate_airy_kernel(const double scale[3], int size) {
 
             // Add small epsilon like Python code to avoid r=0 if needed,
             // although airy_disk_func handles it. Let's keep it for consistency.
-            r += 1e-9;
+            r += EPSILON_STRICT;
 
             int kernel_idx = (j + size) * k->width + (i + size); // Index in kernel data array
 
@@ -79,7 +80,7 @@ Kernel2D* generate_airy_kernel(const double scale[3], int size) {
     // --- Normalize Kernel ---
     // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
     for (int c = 0; c < 3; ++c) {
-        if (fabs(sum[c]) < 1e-9) {
+        if (fabs(sum[c]) < EPSILON_STRICT) {
             fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
             // Optional: Set kernel to an identity for this channel? Or leave as is?
             // Let's leave it as calculated, convolution will just yield zero.
