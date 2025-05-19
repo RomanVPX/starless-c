@@ -37,8 +37,8 @@ typedef struct {
     bool horizon_grid;
     DiskTextureMode disk_texture_mode;
     SkyTextureMode sky_texture_mode;
-    char* disk_texture_path; // Allocated path string (or NULL)
-    char* sky_texture_path;  // Allocated path string (or NULL)
+    char *disk_texture_path; // Allocated path string (or NULL)
+    char *sky_texture_path;  // Allocated path string (or NULL)
     Texture *disk_texture;   // Loaded texture struct
     Texture *sky_texture;    // Loaded texture struct
     double sky_disk_ratio;
@@ -55,7 +55,7 @@ typedef struct {
     bool srgb_in;
 
     // Blackbody Disk Specific
-    char* blackbody_ramp_path;
+    char *blackbody_ramp_path;
     ColorRGB *blackbody_ramp_data;
     int blackbody_ramp_size;
     double disk_multiplier;
@@ -68,8 +68,8 @@ typedef struct {
 
 // --- UserData for ini_parse callbacks ---
 typedef struct {
-    Config* cfg;                // Pointer to the main config struct
-    bool* override_res_flag;    // Pointer to the command-line override flag for resolution
+    Config *cfg;                // Pointer to the main config struct
+    bool *override_res_flag;    // Pointer to the command-line override flag for resolution
 } IniParseUserData;
 
 // --- Function Declarations ---

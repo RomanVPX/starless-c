@@ -485,7 +485,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             printf("Loading blackbody ramp (required by Disktexture mode): %s...\n", cfg->blackbody_ramp_path);
             // Pass pointers to store the results in the config struct
             if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data,
-                                               &cfg->blackbody_ramp_size))
+                                                &cfg->blackbody_ramp_size))
             {
                 fprintf(stderr, "Error: Failed to load required blackbody ramp.\n");
                 free_config_textures(cfg); // Cleans up textures and paths
