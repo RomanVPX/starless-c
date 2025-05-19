@@ -12,7 +12,7 @@
 #include "stb_image_resize.h"
 
 
-ImageF* create_imagef(int width, int height) {
+ImageF *create_imagef(int width, int height) {
     ImageF *img = (ImageF*)malloc(sizeof(ImageF));
     if (!img) return NULL;
     img->width = width;
@@ -36,7 +36,7 @@ void free_imagef(ImageF *img) {
 }
 
 
-Texture* load_texture(const char *filename) {
+Texture *load_texture(const char *filename) {
     Texture *tex = (Texture*)malloc(sizeof(Texture));
     if (!tex) {
         fprintf(stderr, "Error: Could not allocate memory for Texture struct.\n");
@@ -58,7 +58,7 @@ Texture* load_texture(const char *filename) {
 }
 
 
-Texture* resize_texture(const Texture* input_tex, float scale_factor) {
+Texture *resize_texture(const Texture* input_tex, float scale_factor) {
     if (!input_tex || !input_tex->data || scale_factor <= 0) {
         fprintf(stderr, "Error: Invalid input to resize_texture.\n");
         return NULL;
@@ -105,7 +105,7 @@ Texture* resize_texture(const Texture* input_tex, float scale_factor) {
     }
 
     // Create a new Texture struct for the resized data
-    Texture* output_tex = (Texture*)malloc(sizeof(Texture));
+    Texture *output_tex = (Texture*)malloc(sizeof(Texture));
     if (!output_tex) {
         fprintf(stderr, "Error: Failed to allocate memory for resized Texture struct.\n");
         free(output_data);
@@ -130,6 +130,7 @@ void free_texture(Texture *tex) {
         free(tex);
     }
 }
+
 
 // Simple nearest neighbor lookup
 ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in) {
@@ -163,6 +164,7 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in) {
         return color;
     }
 }
+
 
 bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb) {
     if (!img || !img->pixels) return false;

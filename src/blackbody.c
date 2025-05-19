@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// --- Module Constants ---
-
 
 // --- Function to count valid data lines in a file ---
 static int count_ramp_samples(const char *filename) {
