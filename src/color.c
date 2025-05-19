@@ -5,9 +5,65 @@
 const ColorRGB COLOR_BLACK = {0.0, 0.0, 0.0};
 const ColorRGB COLOR_WHITE = {1.0, 1.0, 1.0};
 
+// --- Color Operations ---
 ColorRGB color_add(ColorRGB a, ColorRGB b) { return (ColorRGB){a.r + b.r, a.g + b.g, a.b + b.b}; }
 ColorRGB color_mul_scalar(ColorRGB c, double s) { return (ColorRGB){c.r * s, c.g * s, c.b * s}; }
 ColorRGB color_mul(ColorRGB a, ColorRGB b) { return (ColorRGB){a.r * b.r, a.g * b.g, a.b * b.b}; }
+
+// --- ACES Tonemapping Matrices (groundtruth, fitted) ---
+// Source: https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
+static const double ACESInputMat[3][3] = {
+    {0.59719, 0.35458, 0.04823},
+    {0.07600, 0.90834, 0.01566},
+    {0.02840, 0.13383, 0.83777}
+};
+
+static const double ACESOutputMat[3][3] = {
+    { 1.60475, -0.53108, -0.07367},
+    {-0.10208,  1.10813, -0.00605},
+    {-0.00327, -0.07276,  1.07602}
+};
+
+// --- Helper: Matrix * Vector ---
+static ColorRGB mat3_mul_vec3(const double m[3][3], ColorRGB v) {
+    ColorRGB out;
+    out.r = m[0][0]*v.r + m[0][1]*v.g + m[0][2]*v.b;
+    out.g = m[1][0]*v.r + m[1][1]*v.g + m[1][2]*v.b;
+    out.b = m[2][0]*v.r + m[2][1]*v.g + m[2][2]*v.b;
+    return out;
+}
+
+// --- Helper: RRT and ODT fit (ACES) ---
+static ColorRGB RRTAndODTFit(ColorRGB v) {
+    // float3 a = v * (v + 0.0245786f) - 0.000090537f;
+    // float3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+    // return a / b;
+    ColorRGB a, b, out;
+    a.r = v.r * (v.r + 0.0245786) - 0.000090537;
+    a.g = v.g * (v.g + 0.0245786) - 0.000090537;
+    a.b = v.b * (v.b + 0.0245786) - 0.000090537;
+
+    b.r = v.r * (0.983729 * v.r + 0.4329510) + 0.238081;
+    b.g = v.g * (0.983729 * v.g + 0.4329510) + 0.238081;
+    b.b = v.b * (0.983729 * v.b + 0.4329510) + 0.238081;
+
+    // Avoid division by zero
+    out.r = (b.r != 0.0) ? (a.r / b.r) : 0.0;
+    out.g = (b.g != 0.0) ? (a.g / b.g) : 0.0;
+    out.b = (b.b != 0.0) ? (a.b / b.b) : 0.0;
+    return out;
+}
+
+ColorRGB aces_fitted(ColorRGB in) {
+    // 1. Input matrix
+    ColorRGB color = mat3_mul_vec3(ACESInputMat, in);
+    // 2. RRT and ODT fit
+    color = RRTAndODTFit(color);
+    // 3. Output matrix
+    color = mat3_mul_vec3(ACESOutputMat, color);
+    return color;
+}
+
 
 ColorRGB color_clamp(ColorRGB c, double min_val, double max_val) {
     return (ColorRGB){
