@@ -52,7 +52,7 @@ Texture* load_texture(const char *filename) {
     // Always set channels to 3 since we requested 3 components.
     tex->channels = 3;
     printf("Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n",
-           filename, tex->width, tex->height, tex->channels);
+        filename, tex->width, tex->height, tex->channels);
 
     return tex;
 }
@@ -64,7 +64,7 @@ Texture* resize_texture(const Texture* input_tex, float scale_factor) {
         return NULL;
     }
     if (scale_factor == 1.0f) {
-         fprintf(stderr, "Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
+        fprintf(stderr, "Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
 
          return NULL; // Or return a copy if the caller expects a new texture always?
     }
@@ -95,8 +95,8 @@ Texture* resize_texture(const Texture* input_tex, float scale_factor) {
     // Perform the resize operation
     // Use default flags/filter for now (STBIR_FILTER_DEFAULT which is Mitchell-Netravali, good quality)
     int success = stbir_resize_uint8(input_tex->data, in_w, in_h, 0, // 0 stride means default (in_w * channels)
-                                     output_data, out_w, out_h, 0,    // 0 stride means default (out_w * channels)
-                                     channels);
+                                    output_data, out_w, out_h, 0,    // 0 stride means default (out_w * channels)
+                                    channels);
 
     if (!success) {
         fprintf(stderr, "Error: stbir_resize_uint8 failed.\n");
@@ -148,8 +148,8 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in) {
 
     // Ensure index is within bounds (should be due to clamping, but belt-and-suspenders)
     if (index < 0 || index + 2 >= tex->width * tex->height * tex->channels) {
-         fprintf(stderr, "Warning: Texture lookup out of bounds (%d, %d) -> index %d\n", x, y, index);
-         return COLOR_BLACK;
+        fprintf(stderr, "Warning: Texture lookup out of bounds (%d, %d) -> index %d\n", x, y, index);
+        return COLOR_BLACK;
     }
 
     ColorRGB color;

@@ -70,7 +70,7 @@ ColorRGB color_linear_to_srgb(ColorRGB c) {
 }
 
 ColorRGB color_srgb_to_linear(ColorRGB c) {
-     return (ColorRGB){
+    return (ColorRGB){
         srgb_to_linear(c.r),
         srgb_to_linear(c.g),
         srgb_to_linear(c.b)

@@ -3,34 +3,38 @@ CC = clang
 CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native # -g for debugging, -O3 for release
 LDFLAGS = -lm -lpthread
 
-# Source files directory
+# Directories
 SRCDIR = src
+BUILDDIR = build
 
 # Source files
 SRCS = $(SRCDIR)/main.c $(SRCDIR)/tracer.c $(SRCDIR)/vector.c $(SRCDIR)/color.c \
        $(SRCDIR)/blackbody.c $(SRCDIR)/bloom.c $(SRCDIR)/image.c $(SRCDIR)/config.c \
-	   $(SRCDIR)/ini.c
+       $(SRCDIR)/ini.c
 
-# Object files
-OBJS = $(SRCS:.c=.o)
+# Object files (in build directory)
+OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
 # Executable name
-TARGET = blackhole_tracer
+TARGET = $(BUILDDIR)/blackhole_tracer
 
 # Default target
-all: $(TARGET)
+all: $(BUILDDIR) $(TARGET)
+
+# Create build directory
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
 
 # Link the executable
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
 # Compile source files into object files
-$(SRCDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up build files
 clean:
-	rm -f $(SRCDIR)/*.o $(TARGET)
+	rm -rf $(BUILDDIR)
 
 # Phony targets
-.PHONY: all clean
