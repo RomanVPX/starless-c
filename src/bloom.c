@@ -25,13 +25,13 @@ static double airy_disk_func(double x) {
 }
 
 // --- Generate 2D Kernel ---
-Kernel2D* generate_airy_kernel(const double scale[3], int size) {
+Kernel2D *generate_airy_kernel(const double scale[3], int size) {
     if (size < 0) {
         fprintf(stderr, "Error: Kernel size cannot be negative.\n");
         return NULL;
     }
 
-    Kernel2D* k = (Kernel2D*)malloc(sizeof(Kernel2D));
+    Kernel2D *k = (Kernel2D*)malloc(sizeof(Kernel2D));
     if (!k) {
         fprintf(stderr, "Error: Failed to allocate memory for Kernel struct.\n");
         return NULL;

@@ -267,6 +267,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         else if (strcmp(name, "Airy_bloom") == 0) { cfg->airy_bloom = string_to_bool(value); }
         else if (strcmp(name, "Airy_radius") == 0) { cfg->airy_radius = atof(value); }
         else if (strcmp(name, "Gain") == 0) { cfg->gain = atof(value); }
+        else if (strcmp(name, "ACESExposure") == 0) { cfg->aces_exposure = atof(value); }
         else if (strcmp(name, "Normalize") == 0) { cfg->normalize = atof(value); }
         else if (strcmp(name, "sRGBOut") == 0) { cfg->srgb_out = string_to_bool(value); }
         else if (strcmp(name, "sRGBIn") == 0) { cfg->srgb_in = string_to_bool(value); }
@@ -315,6 +316,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->airy_bloom = DEFAULT_AIRY_BLOOM;
     cfg->airy_radius = DEFAULT_AIRY_RADIUS;
     cfg->gain = DEFAULT_GAIN;
+    cfg->aces_exposure = DEFAULT_ACES_EXPOSURE;
     cfg->normalize = DEFAULT_NORMALIZE;
     cfg->srgb_out = DEFAULT_SRGB_OUT;
     cfg->srgb_in = DEFAULT_SRGB_IN;

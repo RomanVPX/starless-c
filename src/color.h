@@ -34,5 +34,7 @@ typedef struct {
 
 ColorRGB_u8 color_to_u8(ColorRGB c);
 
+// Tonemapping
+ColorRGB aces_fitted(ColorRGB in);
 
 #endif // COLOR_H
