@@ -54,4 +54,5 @@ dkms.conf
 .vscode
 _replies
 .venv/
-/tests
+out/**
+tests/**
