@@ -116,6 +116,8 @@ Airy_radius=0.5
 #simulates dust lit up by bright objects (very scenographic)
 Blurdo=1
 
+ACESExposure = 0.5
+
 
 #Deprecated option
 Bloomcut=0.8
