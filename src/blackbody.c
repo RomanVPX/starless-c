@@ -1,4 +1,5 @@
 #include "blackbody.h"
+#include "core_constants.h"
 #include "color.h"
 #include <math.h>
 #include <stdio.h>
@@ -6,9 +7,6 @@
 #include <string.h>
 
 // --- Module Constants ---
-static const double LOGSHIFT = 0.823959216501;
-static const double RAMP_TEMP_MIN = 1000.0;
-static const double RAMP_TEMP_MAX = 30000.0;
 
 
 // --- Function to count valid data lines in a file ---
@@ -135,7 +133,7 @@ ColorRGB bb_color_from_temp(const Config *cfg, double temperature) {
     double normalized_temp = (temperature - RAMP_TEMP_MIN) / temp_range;
     normalized_temp = fmax(0.0, fmin(1.0, normalized_temp));
 
-    int index = (int)(normalized_temp * (cfg->blackbody_ramp_size - 1e-9));
+    int index = (int)(normalized_temp * (cfg->blackbody_ramp_size - EPSILON_STRICT));
     index = fmax(0, fmin(cfg->blackbody_ramp_size - 1, index));
 
     return cfg->blackbody_ramp_data[index];

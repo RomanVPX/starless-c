@@ -7,6 +7,8 @@
 #include <math.h>
 #include <unistd.h> // For access()
 #include "config.h"
+#include "core_constants.h"
+#include "config_defaults.h"
 #include "tracer.h"
 #include "image.h"
 #include "bloom.h"
@@ -85,16 +87,16 @@ int main(int argc, char *argv[]) {
     // Reads from current_image, writes to next_image
     if (config.airy_bloom) {
         printf("Applying Airy Bloom...\n");
-        double spectrum[3] = {1.0, 0.86, 0.61};
+        double spectrum[3] = {SPECTRUM_R, SPECTRUM_G, SPECTRUM_B};
         double fov_rad = config.tan_fov; // tangent of field of view
         // Check for zero FoV to prevent division by zero
-        if (fabs(fov_rad) < 1e-6) {
+        if (fabs(fov_rad) < EPSILON_LOOSE) {
             fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
-            fov_rad = 1.5; // Use a default value
+            fov_rad = DEFAULT_TAN_FOV; // Use a default value (from config_defaults.h)
         }
         // the float constant is 1.22 * 650nm / (4 mm), the typical diffractive resolution
         // of the human eye for red light. It's in radians, so we rescale using field of view.
-        double rad_scale = 0.00019825 * (double)W / atan(fov_rad); // Use W (width) consistent with Python RESOLUTION[0]
+        double rad_scale = AIRY_RAD_SCALE * (double)W / atan(fov_rad); // Use W (width) consistent with Python RESOLUTION[0]
         rad_scale *= config.airy_radius; // Apply user-defined radius scaling
 
         double kernel_scale[3] = {rad_scale * spectrum[0], rad_scale * spectrum[1], rad_scale * spectrum[2]};
