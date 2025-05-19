@@ -50,6 +50,7 @@ typedef struct {
     bool airy_bloom;
     double airy_radius;
     double gain;
+    double aces_exposure; // Exposure for ACES tonemapping
     double normalize;
     bool srgb_out;
     bool srgb_in;

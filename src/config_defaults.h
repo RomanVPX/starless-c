@@ -40,6 +40,7 @@
 #define DEFAULT_AIRY_BLOOM true
 #define DEFAULT_AIRY_RADIUS 1.0
 #define DEFAULT_GAIN 1.0
+#define DEFAULT_ACES_EXPOSURE 1.0
 #define DEFAULT_NORMALIZE -1.0 // Off by default
 #define DEFAULT_SRGB_OUT true
 #define DEFAULT_SRGB_IN true

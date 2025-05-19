@@ -239,6 +239,14 @@ int main(int argc, char *argv[]) {
         final_image = output_image; // Now final result is definitively in output_image
     }
 
+    // --- 4e. ACES Tonemapping ---
+    printf("Applying ACES tonemapping (exposure = %f)...\n", config.aces_exposure);
+    for (int i = 0; i < W * H; ++i) {
+        ColorRGB hdr = final_image->pixels[i];
+        ColorRGB mapped = aces_fitted(color_mul_scalar(hdr, config.aces_exposure));
+        final_image->pixels[i] = mapped;
+    }
+
     // --- 5. Save Image ---
     // Get scene name from input file path
     const char* scene_path = (argc > 1) ? argv[1] : "default.scene";
