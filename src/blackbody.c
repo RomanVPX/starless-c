@@ -101,7 +101,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 double bb_log_temperature(double sqr_radius, double log_T0_isco) {
     if (sqr_radius <= 0) return -INFINITY;
     double A = log_T0_isco + LOGSHIFT;
-    return A - 0.375 * log(sqr_radius);
+    return A - SHAKURA_SUNYAEV_TEMP_EXP * log(sqr_radius);
 }
 
 // Intensity calculation is likely NO LONGER NEEDED if using normalized ramp

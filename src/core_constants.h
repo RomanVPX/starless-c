@@ -17,6 +17,9 @@
 // Maximum temperature for blackbody ramp (K)
 #define RAMP_TEMP_MAX 30000.0
 
+// Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
+#define SHAKURA_SUNYAEV_TEMP_EXP 0.375
+
 // Scale for Airy bloom (see main.c, comment: "the float constant is 1.22 * 650nm / (4 mm)")
 // 1.22 — diffraction limit, 650nm — red wavelength, 4mm — pupil diameter
 #define AIRY_RAD_SCALE 0.00019825
