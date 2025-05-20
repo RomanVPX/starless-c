@@ -306,7 +306,7 @@ int main(int argc, char *argv[]) {
         final_image->pixels[i] = color_clamp(final_image->pixels[i], 0.0, 1.0);
     }
 
-    if (!save_image_png(final_image, output_path, config.srgb_out)) {
+    if (!save_image_png(final_image, output_path, config.srgb_out, &config)) {
         fprintf(stderr, "Error saving final image!\n");
         // Consider not exiting here, maybe just warn?
     } else {
