@@ -15,7 +15,8 @@
 #include "color.h"
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     printf("Black Hole Tracer (C Version) - Starting...\n");
 
     Config config; // Will hold all settings

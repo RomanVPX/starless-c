@@ -24,18 +24,20 @@ typedef struct Config {
     bool lofi;
     IntegrationMethod method;
 
-    // Geometry
+    // Camera & View
     Vec3d camera_pos;
     double tan_fov;
     Vec3d look_at;
     Vec3d up_vector;
+
+    // Geometry
     bool distort; // Gravitational lensing
     double disk_inner_radius;
     double disk_outer_radius;
     double disk_inner_sqr; // Derived
     double disk_outer_sqr; // Derived
 
-    // Materials & Effects
+    // Materials
     bool horizon_grid;
     DiskTextureMode disk_texture_mode;
     SkyTextureMode sky_texture_mode;
@@ -46,7 +48,9 @@ typedef struct Config {
     double sky_disk_ratio;
     bool fog_do;
     double fog_mult;
-    int fog_skip;
+    int fog_skip; // Fog applies every fog_skip steps
+
+    // Post-Processing
     bool blur_do;
     double bloom_cut;
     bool airy_bloom;
@@ -54,8 +58,8 @@ typedef struct Config {
     double gain;
     double aces_exposure; // Exposure for ACES tonemapping
     double normalize;
-    bool srgb_out;
     bool srgb_in;
+    bool srgb_out;
 
     // Blackbody Disk Specific
     char *blackbody_ramp_path;

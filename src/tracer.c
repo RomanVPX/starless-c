@@ -182,10 +182,12 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             break;
         }
         case DT_SOLID:
+        {
             disk_color = (ColorRGB){1.0, 1.0, 0.98};
             disk_alpha = 1.0;
             stop_ray = true; // Solid disk is opaque
             break;
+        }
         case DT_TEXTURE:
             if (cfg->disk_texture)
             {
@@ -330,8 +332,10 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
 
 
 // --- Helper: Apply Fog ---
-static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg) {
-    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0)) {
+static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
+{
+    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0))
+    {
         return; // Fog disabled or skip this step
     }
 
