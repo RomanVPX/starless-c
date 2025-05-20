@@ -276,6 +276,8 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
         printf("--- Result: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, ray->alpha);
     }
 
+    /* mark ray opaque if we decided to stop */
+    if (stop_ray) ray->alpha = 1.0;
     return stop_ray;
 }
 
