@@ -87,7 +87,7 @@ Diskalphamultiplier=2000.
 Skytexture=textures/bgedit.jpg
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.05
+Skydiskratio=0.16
 
 #Toggle dust (0/1)
 Fogdo=0
@@ -116,7 +116,7 @@ Airy_radius=0.5
 #simulates dust lit up by bright objects (very scenographic)
 Blurdo=0
 
-ACESExposure = 0.85
+ACESExposure = 1.0
 
 
 #Deprecated option
