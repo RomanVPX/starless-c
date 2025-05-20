@@ -312,12 +312,14 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     }
 
     // Otherwise (ray was transparent), apply horizon color (black or grid)
-    if (log_this_pixel) {
+    if (log_this_pixel)
+    {
         printf("--- Ray was transparent (alpha=%.3f <= 0.1), applying horizon color.\n", alpha_before_hit);
     }
 
     ColorRGB horizon_color = COLOR_BLACK;
-    if (cfg->horizon_grid) {
+    if (cfg->horizon_grid)
+    {
         // Interpolate collision point lambda
         // lambda = (sqrt(R_h^2) - sqrt(r_old^2)) / (sqrt(r_new^2) - sqrt(r_old^2)) approx
         // Or use linear interp on r^2: lambda = (R_h^2 - r_old^2) / (r_new^2 - r_old^2)
@@ -329,7 +331,8 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
         bool phi_check = fmod(phi + GRID_ANGLE_OFFSET, GRID_HORIZON_PHI_STEP) < (GRID_HORIZON_PHI_STEP * 0.5);
         bool alt_check = fmod(altitude + M_PI/2.0 + GRID_ANGLE_OFFSET, GRID_HORIZON_ALT_STEP) < (GRID_HORIZON_ALT_STEP * 0.5);
 
-        if (phi_check ^ alt_check) { // XOR
+        if (phi_check ^ alt_check)
+        { // XOR
             horizon_color = (ColorRGB){1.0, 0.0, 0.0}; // Red grid lines
         }
     }
@@ -337,7 +340,8 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     double horizon_alpha = 1.0; // Opaque horizon
 
     // Blend horizon color (cb=horizon, ca=ray)
-    ray->color = blend_colors(horizon_color, horizon_alpha, ray->color, alpha_before_hit);
+    // ray->color = BLEND_COLORS(horizon_color, horizon_alpha, ray->color, alpha_before_hit);
+    ray->color = BLEND_COLORS(horizon_color, alpha_before_hit, ray->color, horizon_alpha);
     ray->alpha = blend_alpha(horizon_alpha, alpha_before_hit); // Will become 1.0
 
     ray->active = false; // Stop tracing this ray
@@ -354,7 +358,8 @@ static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
     }
 
     // Only apply fog outside horizon
-    if (current_pos_sqr > SCHWARZSCHILD_RADIUS_SQR) {
+    if (current_pos_sqr > SCHWARZSCHILD_RADIUS_SQR)
+    {
          double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
          double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
          double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
