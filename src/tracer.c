@@ -21,10 +21,11 @@
 #define MIN_VEL_R_SQR 0.1             // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP false  // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA 0.9999            // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA 0.95             // Set stop ray in disk handling if alpha exceeds this
-#define CROSSING_TOLERANCE 1e-6         // Tolerance for checking disk/plane crossing parameter t
+#define OPAQUE_RAY_ALPHA_ON_STOP false           // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA 0.9999                    // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA 0.90                     // Set stop ray in disk handling if alpha exceeds this
+#define MAX_DISC_ALPHA_INV 1.0 - MAX_DISC_ALPHA // Set stop ray in disk handling if alpha exceeds this
+#define CROSSING_TOLERANCE 1e-6                 // Tolerance for checking disk/plane crossing parameter t
 
 // --- Grid Constants ---
 #define GRID_PHI_STEP (M_PI / 6.0)         // ~0.52359... For disk grid pattern
@@ -253,7 +254,12 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 
             // --- Alpha calculation ---
             double isco_taper = fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR));
+
+#ifdef USE_ORIGINAL_OUTER_TAPER_CALCULATION
             double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
+#else
+            double outer_taper = (temp > RAMP_TEMP_MAX)? 1.0 : (temp < RAMP_TEMP_MIN) ? 0.0 : (temp - RAMP_TEMP_MIN) / (RAMP_TEMP_MAX - RAMP_TEMP_MIN);
+#endif
             disk_alpha = isco_taper * outer_taper;
 
             if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
@@ -269,7 +275,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 ray->color.r, ray->color.g, ray->color.b, ray->alpha,
                 disk_color.r, disk_color.g, disk_color.b, disk_alpha);
     }
-    ray->color = blend_colors(disk_color, disk_alpha, ray->color, ray->alpha);
+    ray->color = BLEND_COLORS(disk_color, disk_alpha, ray->color, ray->alpha);
     ray->alpha = blend_alpha(disk_alpha, ray->alpha);
 
     if (log_this_pixel && disk_alpha > 1e-6)
@@ -293,12 +299,14 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     }
 
     // If ray was already significantly opaque (hit disk first), DO NOT overwrite color.
-    if (alpha_before_hit > 0.1) { // Threshold can be adjusted
-        if (log_this_pixel) {
+    if (alpha_before_hit > MAX_DISC_ALPHA_INV)
+    {
+        if (log_this_pixel)
+        {
             printf("--- Ray already had alpha %.3f (> 0.1), PRESERVING color, ignoring horizon overwrite.\n", alpha_before_hit);
         }
-        // Ray stops, color remains as it was from the disk.
-        if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; } // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
+        // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
+        if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }
         ray->active = false;
         return; // Exit without blending horizon color
     }
@@ -353,7 +361,7 @@ static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
          ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
         // Blend fog (cb=fog, ca=ray)
-        ray->color = blend_colors(fog_col, fog_alpha_step, ray->color, ray->alpha);
+        ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
         ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
     }
 }
@@ -440,7 +448,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
         if (cfg->disk_texture_mode != DT_NONE && (old_pos.y * ray.pos.y < 0.0))
         { // Crossed y=0 plane
             double delta_y = ray.pos.y - old_pos.y;
-            if (fabs(delta_y) > 1e-9)
+            if (fabs(delta_y) > EPSILON_STRICT)
             { // Avoid division by zero if static on plane
                 double t_cross = -old_pos.y / delta_y;
                 if (t_cross >= -CROSSING_TOLERANCE && t_cross <= 1.0 + CROSSING_TOLERANCE)
@@ -479,7 +487,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
         ColorRGB bg_color = get_background_color(&ray, cfg);
         double sky_balpha = 1.0; // Sky is opaque background
         // Blend sky (cb=sky, ca=ray)
-        ray.color = blend_colors(bg_color, sky_balpha, ray.color, ray.alpha);
+        ray.color = BLEND_COLORS(bg_color, sky_balpha, ray.color, ray.alpha);
         ray.alpha = blend_alpha(sky_balpha, ray.alpha); // Final alpha should be 1.0
     }
 

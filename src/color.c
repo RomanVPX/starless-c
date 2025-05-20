@@ -100,7 +100,7 @@ ColorRGB blend_colors_over(ColorRGB cb, double balpha, ColorRGB ca, double aalph
     ColorRGB sum_of_terms = color_add(background_term, foreground_term);
     return (out_alpha > EPSILON_LOOSE)
          ? color_mul_scalar(sum_of_terms, 1.0 / out_alpha)
-         : (ColorRGB){0.0, 0.0, 0.0};
+         : COLOR_BLACK;
 }
 
 // Assumes ca is already premultiplied by aalpha
