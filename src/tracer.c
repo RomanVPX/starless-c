@@ -21,8 +21,10 @@
 #define MIN_VEL_R_SQR 0.1             // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define MAX_RAY_ALPHA 0.9999        // Stop tracing if alpha exceeds this
-#define CROSSING_TOLERANCE 1e-6     // Tolerance for checking disk/plane crossing parameter t
+#define OPAQUE_RAY_ALPHA_ON_STOP false  // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA 0.9999            // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA 0.95             // Set stop ray in disk handling if alpha exceeds this
+#define CROSSING_TOLERANCE 1e-6         // Tolerance for checking disk/plane crossing parameter t
 
 // --- Grid Constants ---
 #define GRID_PHI_STEP (M_PI / 6.0)         // ~0.52359... For disk grid pattern
@@ -201,7 +203,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 disk_alpha = fmax(0.0, fmin(1.0, color_norm_sq / 3.0));
 
                 // Stop if alpha is high enough (mimicking original code's implicit stop)
-                if (disk_alpha >= 0.95) { stop_ray = true; }
+                if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; }
 
                 if (log_this_pixel)
                 {
@@ -243,7 +245,6 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 temp /= fmax(0.1, total_opz); // Correct temperature
             }
 
-            // double intensity = bb_intensity(temp);
             ColorRGB bb_col = bb_color_from_temp(cfg, temp);
 
             // --- Apply multiplier ---
@@ -255,7 +256,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
             disk_alpha = isco_taper * outer_taper;
 
-            if (disk_alpha >= 0.95) { stop_ray = true; } // Stop if alpha is high enough
+            if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
             break;
         }
         default: break;
@@ -277,9 +278,10 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     }
 
     /* mark ray opaque if we decided to stop */
-    // if (stop_ray) ray->alpha = 1.0;
+    if (stop_ray && OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0;}
     return stop_ray;
 }
+
 
 // --- Helper: Handle Event Horizon Hit ---
 static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_pos_sqr, const Config *cfg, bool log_this_pixel) {
@@ -296,7 +298,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
             printf("--- Ray already had alpha %.3f (> 0.1), PRESERVING color, ignoring horizon overwrite.\n", alpha_before_hit);
         }
         // Ray stops, color remains as it was from the disk.
-        // ray->alpha  = 1.0; // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
+        if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; } // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
         ray->active = false;
         return; // Exit without blending horizon color
     }
@@ -331,7 +333,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ray->alpha = blend_alpha(horizon_alpha, alpha_before_hit); // Will become 1.0
 
     ray->active = false; // Stop tracing this ray
-    // ray->alpha = 1.0;   // Opaque – prevent further blending
+    if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }   // Opaque – prevent further blending
 }
 
 
@@ -453,7 +455,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
                         if (stop_after_disk)
                         {
                             ray.active = false;
-                            // ray.alpha = 1.0;   /* fully opaque – skip sky */
+                            if (OPAQUE_RAY_ALPHA_ON_STOP) {ray.alpha = 1.0;}   /* fully opaque – skip sky */
                             if (log_this_pixel) printf("--- Ray stopped after disk hit.\n");
                         }
                     }

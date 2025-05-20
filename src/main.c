@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 
     // --- 2. Create Output Image Buffer ---
     printf("Creating output image buffer (%dx%d)...\n", config.resolution[0], config.resolution[1]);
-    ImageF* output_image = create_imagef(config.resolution[0], config.resolution[1]);
+    ImageF *output_image = create_imagef(config.resolution[0], config.resolution[1]);
     if (!output_image) {
         fprintf(stderr, "Failed to create output image buffer.\n");
         free_config_textures(&config);
