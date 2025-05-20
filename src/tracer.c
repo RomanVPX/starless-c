@@ -277,7 +277,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     }
 
     /* mark ray opaque if we decided to stop */
-    if (stop_ray) ray->alpha = 1.0;
+    // if (stop_ray) ray->alpha = 1.0;
     return stop_ray;
 }
 
@@ -296,6 +296,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
             printf("--- Ray already had alpha %.3f (> 0.1), PRESERVING color, ignoring horizon overwrite.\n", alpha_before_hit);
         }
         // Ray stops, color remains as it was from the disk.
+        // ray->alpha  = 1.0; // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
         ray->active = false;
         return; // Exit without blending horizon color
     }
@@ -330,6 +331,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ray->alpha = blend_alpha(horizon_alpha, alpha_before_hit); // Will become 1.0
 
     ray->active = false; // Stop tracing this ray
+    // ray->alpha = 1.0;   // Opaque – prevent further blending
 }
 
 
@@ -451,6 +453,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
                         if (stop_after_disk)
                         {
                             ray.active = false;
+                            // ray.alpha = 1.0;   /* fully opaque – skip sky */
                             if (log_this_pixel) printf("--- Ray stopped after disk hit.\n");
                         }
                     }
