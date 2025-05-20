@@ -71,7 +71,8 @@ int main(int argc, char *argv[]) {
 
     // --- 4a. Gain ---
     printf("Applying gain: %f\n", config.gain);
-    for (int i = 0; i < output_image->width * output_image->height; ++i) {
+    for (int i = 0; i < output_image->width * output_image->height; ++i)
+    {
         output_image->pixels[i] = color_mul_scalar(output_image->pixels[i], config.gain);
     }
 
@@ -133,7 +134,7 @@ int main(int argc, char *argv[]) {
             printf("  (Post-bloom result remains in current_image buffer)\n");
         }
     } else {
-        printf("Skipping Airy Bloom.\n");
+        printf("Airy Bloom is disabled, skipping .\n");
     }
 
     // At this point, current_image holds the "post-bloom" result ('colour_pb' in Python)
@@ -201,7 +202,7 @@ int main(int argc, char *argv[]) {
         }
 
     } else {
-        printf("Skipping Gaussian Blur.\n");
+        printf("Gaussian Blur is disabled, skipping .\n");
         // No changes to current_image or next_image needed.
     }
 
@@ -224,6 +225,8 @@ int main(int argc, char *argv[]) {
         } else {
             printf("  Skipping normalization as max intensity is near zero.\n");
         }
+    } else {
+        printf("Normalization is disabled, skipping.\n");
     }
 
     // --- Final Image Preparation ---
@@ -303,7 +306,7 @@ int main(int argc, char *argv[]) {
         final_image->pixels[i] = color_clamp(final_image->pixels[i], 0.0, 1.0);
     }
 
-    if (!save_image_png(final_image, output_path, config.srgb_out)) {
+    if (!save_image_png(final_image, output_path, config.srgb_out, &config)) {
         fprintf(stderr, "Error saving final image!\n");
         // Consider not exiting here, maybe just warn?
     } else {

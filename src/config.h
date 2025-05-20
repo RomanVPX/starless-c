@@ -2,9 +2,11 @@
 #define CONFIG_H
 
 #include <stdbool.h>
-#include "image.h"
 #include "vector.h"
 #include "color.h"
+
+typedef struct Texture Texture;
+typedef struct ImageF ImageF;
 
 // --- Enums ---
 typedef enum { METH_LEAPFROG, METH_RK4 } IntegrationMethod;
@@ -12,7 +14,7 @@ typedef enum { ST_NONE, ST_TEXTURE, ST_FINAL } SkyTextureMode;
 typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextureMode;
 
 // --- Config Structure ---
-typedef struct {
+typedef struct Config {
     // Resolution & Performance
     int resolution[2];
     int n_iterations;

@@ -3,15 +3,17 @@
 
 #include <stdint.h>
 #include "color.h"
+#include "config.h"
 
-typedef struct {
+
+typedef struct Texture {
     int width;
     int height;
     int channels; // Usually 3 (RGB) or 4 (RGBA)
     unsigned char *data; // Raw pixel data (uint8) loaded by the stb_image library, commonly used for image loading
 } Texture;
 
-typedef struct {
+typedef struct ImageF {
     int width;
     int height;
     ColorRGB *pixels; // Pixel data stored as doubles for high-precision color manipulation during image processing operations
@@ -38,7 +40,7 @@ Texture* resize_texture(const Texture* input_tex, float scale_factor);
 // - img: The floating-point image buffer to save.
 // - filename: The name of the file to save the image to.
 // - convert_to_srgb: If true, the image's colors will be converted from linear space to sRGB space.
-bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb);
+bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb, const Config *cfg);
 // Parameters:
 // - tex: Pointer to the texture to sample from.
 // - u: Horizontal coordinate in normalized texture space [0.0, 1.0].
