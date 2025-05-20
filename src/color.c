@@ -1,4 +1,5 @@
 #include "color.h"
+#include "core_constants.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -65,8 +66,10 @@ ColorRGB aces_fitted(ColorRGB in) {
 }
 
 
-ColorRGB color_clamp(ColorRGB c, double min_val, double max_val) {
-    return (ColorRGB){
+ColorRGB color_clamp(ColorRGB c, double min_val, double max_val)
+{
+    return (ColorRGB)
+    {
         fmax(min_val, fmin(max_val, c.r)),
         fmax(min_val, fmin(max_val, c.g)),
         fmax(min_val, fmin(max_val, c.b))
@@ -78,13 +81,27 @@ ColorRGB color_clamp(ColorRGB c, double min_val, double max_val) {
 // USING THE PYTHON SCRIPT'S FORMULA: ca + cb * (balpha*(1.-aalpha))
 // !!! Note: This is NOT the standard 'over' operator! !!!
 // Arguments match Python call order: cb=background, balpha=background_alpha, ca=foreground, aalpha=foreground_alpha
-ColorRGB blend_colors(ColorRGB cb, double balpha, ColorRGB ca, double aalpha) {
+ColorRGB blend_colors(ColorRGB cb, double balpha, ColorRGB ca, double aalpha)
+{
     // Calculate background contribution term: cb * (balpha * (1.0 - aalpha))
     ColorRGB background_term = color_mul_scalar(cb, balpha * (1.0 - aalpha));
     // Add foreground color (ca) to the background term
     return color_add(ca, background_term);
 }
 // ================================================================
+
+ColorRGB blend_colors_over(ColorRGB cb, double balpha, ColorRGB ca, double aalpha)
+{
+    // over = (ca * aalpha + cb * balpha * (1.0 - aalpha))/out_alpha
+    double out_alpha = blend_alpha(balpha, aalpha);
+    ColorRGB background_term = color_mul_scalar(cb, balpha);
+    background_term = color_mul_scalar(background_term, (1.0 - aalpha));
+    ColorRGB foreground_term = color_mul_scalar(ca, aalpha);
+    ColorRGB sum_of_terms = color_add(background_term, foreground_term);
+    return (out_alpha > EPSILON_LOOSE)
+        ? color_mul_scalar(sum_of_terms, 1.0 / out_alpha)
+        : COLOR_BLACK;
+}
 
 
 // Note: Arguments here follow standard bg/fg naming, but match Python calculation
@@ -132,7 +149,6 @@ ColorRGB color_srgb_to_linear(ColorRGB c) {
         srgb_to_linear(c.b)
     };
 }
-
 
 ColorRGB_u8 color_to_u8(ColorRGB c) {
     // Assumes input color c is in the range [0, 1]

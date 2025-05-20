@@ -93,27 +93,12 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     return true;
 }
 
-// Removed: free_blackbody_ramp()
-
 // --- Temperature calculation function (no change) ---
 double bb_log_temperature(double sqr_radius, double log_T0_isco) {
     if (sqr_radius <= 0) return -INFINITY;
     double A = log_T0_isco + LOGSHIFT;
     return A - SHAKURA_SUNYAEV_TEMP_EXP * log(sqr_radius);
 }
-
-// Intensity calculation is likely NO LONGER NEEDED if using normalized ramp
-// Keep it commented out or remove if definitely unused.
-/*
-double bb_intensity(double temperature) {
-    temperature = fmax(1.0, temperature);
-    double exp_term = exp(INTENSITY_TEMP_CONST / temperature);
-    if (isinf(exp_term) || exp_term <= 1.0) {
-        return 0.0;
-    }
-    return 1.0 / (exp_term - 1.0);
-}
-*/
 
 // --- Color lookup function ---
 ColorRGB bb_color_from_temp(const Config *cfg, double temperature) {
@@ -135,16 +120,4 @@ ColorRGB bb_color_from_temp(const Config *cfg, double temperature) {
     index = fmax(0, fmin(cfg->blackbody_ramp_size - 1, index));
 
     return cfg->blackbody_ramp_data[index];
-
-    // Optional Linear Interpolation using cfg->blackbody_ramp_data and cfg->blackbody_ramp_size
-    /*
-    double float_index = normalized_temp * (cfg->blackbody_ramp_size - 1.0);
-    int index0 = (int)float_index;
-    int index1 = fmin(cfg->blackbody_ramp_size - 1, index0 + 1);
-    double lerp_factor = float_index - index0;
-    ColorRGB color0 = cfg->blackbody_ramp_data[index0];
-    ColorRGB color1 = cfg->blackbody_ramp_data[index1];
-    // ... interpolation logic ...
-    return result;
-    */
 }
