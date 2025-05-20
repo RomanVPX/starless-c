@@ -1,0 +1,47 @@
+[lofi]
+
+Resolution=160,120
+
+Iterations=750
+Stepsize=0.08
+
+
+[hifi]
+
+Resolution=1920,1080
+Iterations=750
+Stepsize=0.08
+
+
+[geometry]
+
+Cameraposition=0.,0.4,-40.
+Fieldofview=0.3
+Lookat=0.,0.,0.
+Upvector=-0.05,1.,0.
+Diskinner=2.0
+Diskouter=18.
+
+
+[materials]
+
+sRGBIn=1
+sRGBOut=1
+Horizongrid=0
+Disktexture=blackbody
+Redshift=2.0
+#multiplier for impact of computed planckian brightness in disc colour brightness
+Diskmultiplier=500
+#multiplier for impact of computed planckian brightness in disc alpha
+Diskalphamultiplier=2000
+Skytexture=textures/bgedit.jpg
+Skydiskratio=0.06
+ACESExposure = 0.5
+Fogdo=1
+Fogmult=0.02
+Airy_bloom=1
+Bloomcut=0.8
+Gain=1
+Normalize=-1
+
+Diskintensitydo=1

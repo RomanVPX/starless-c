@@ -67,7 +67,7 @@ Horizongrid=0
 #	grid:		draw blue/white checkered
 #	solid:		draw solid white
 #	blackbody:	use the realistic 'blackbody' model
-Disktexture=textures/adisk_02.jpg
+Disktexture=textures/adisk.jpg
 
 #blackbody disc options
 #these options are ignored when Disktexture != blackbody
@@ -85,7 +85,7 @@ Diskalphamultiplier=2000.
 Skytexture=textures/bgedit.jpg
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.05
+Skydiskratio=0.08
 
 #Toggle dust (0/1)
 Fogdo=1
@@ -103,8 +103,9 @@ Fogmult=0.02
 #Whether to perform Airy disk bloom
 Airy_bloom=1
 #this parameter rescales the resolution (1.0 = standard size)
-Airy_radius=0.5
+Airy_radius=0.75
 
+ACESExposure = 0.75
 
 #image done until now is called 'postbloom.png'
 
@@ -119,7 +120,7 @@ Blurdo=1
 Bloomcut=0.8
 
 #Gain
-Gain=1
+Gain=4
 
 #Normalize.
 #	-1:			don't normalize
