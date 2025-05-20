@@ -1,6 +1,7 @@
 #include "tracer.h"
 #include "vector.h"
 #include "color.h"
+#include "core_constants.h"
 #include "config.h" // Already included via tracer.h
 #include "image.h"  // Already included via tracer.h
 #include "blackbody.h" // For disk blackbody calculations
@@ -38,6 +39,10 @@
 
 // --- Fog Constants ---
 #define FOG_TAPER_FACTOR 0.8 // Factor for fog intensity taper near horizon
+
+// --- Debug Single Pixel ---
+#define DEBUG_SINGLE_PIXEL_X 1300
+#define DEBUG_SINGLE_PIXEL_Y 950
 
 // --- Vector/Color Constants ---
 static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
@@ -225,7 +230,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double doppler_dot = vec3d_dot(disk_vel, vec3d_normalize(ray->vel));
                 double opz_doppler = gamma * (1.0 - doppler_dot); // 1+z, NOTE: '-' sign used here based on standard physics
 
-                double opz_grav = 1.0 / sqrt(fmax(1e-6, 1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR)/R)); // 1+z grav sqrt(g_tt)
+                double opz_grav = 1.0 / sqrt(fmax(EPSILON_LOOSE, 1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR)/R)); // 1+z grav sqrt(g_tt)
 
                 double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
@@ -386,7 +391,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
 
 // --- The Refactored Trace a single ray for one pixel function ---
 static ColorRGB trace_pixel(int px, int py, const Config *cfg) {
-    bool log_this_pixel = (px == 1300 && py == 950); // Example debug pixel
+    bool log_this_pixel = (px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
     // --- Debugging Output ---
     if (log_this_pixel) {
         printf("\n--- Logging for pixel (%d, %d)\n", px, py);
