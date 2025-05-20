@@ -72,23 +72,23 @@ Disktexture=blackbody
 #blackbody disc options
 #these options are ignored when Disktexture != blackbody
 
-Redshift=1.5
+Redshift=1
 
 #multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=2000.
+Diskmultiplier=1500.
 #multiplier for impact of computed planckian brightness in disc alpha
 
 #Sky rendering mode
 #	none:		solid black
 #	texture:	use texture bgedit.png
 #	final:		normalized final ray direction
-Skytexture=textures/bgedit.jpg
+Skytexture=textures/Gradient_8bit_0-255.png
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.03
+Skydiskratio=0.33
 
 #Toggle dust (0/1)
-Fogdo=1
+Fogdo=0
 #Dust intensity multiplier
 Fogmult=0.02
 
@@ -101,7 +101,7 @@ Fogmult=0.02
 #the standard optical resolution is computed assuming the human eye's aperture
 
 #Whether to perform Airy disk bloom
-Airy_bloom=1
+Airy_bloom=0
 #this parameter rescales the resolution (1.0 = standard size)
 Airy_radius=0.5
 
@@ -112,7 +112,7 @@ Airy_radius=0.5
 #Wide gaussian (lit up dust effect)
 #a convolution pass with a pretty wide gaussian which is add-blended
 #simulates dust lit up by bright objects (very scenographic)
-Blurdo=1
+Blurdo=0
 
 ACESExposure = 0.75
 

@@ -35,7 +35,7 @@ Diskmultiplier=500
 #multiplier for impact of computed planckian brightness in disc alpha
 Diskalphamultiplier=2000
 Skytexture=textures/bgedit.jpg
-Skydiskratio=0.06
+Skydiskratio=0.16
 ACESExposure = 0.5
 Fogdo=1
 Fogmult=0.02
