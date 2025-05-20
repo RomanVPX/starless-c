@@ -23,9 +23,7 @@
 // --- Integration & Ray Constants ---
 #define OPAQUE_RAY_ALPHA_ON_STOP false           // Set ray.alpha to 1.0 on stop
 #define MAX_RAY_ALPHA 0.9999                    // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA 0.90                     // Set stop ray in disk handling if alpha exceeds this
-#define MAX_DISC_ALPHA_INV 1.0 - MAX_DISC_ALPHA // Set stop ray in disk handling if alpha exceeds this
-#define CROSSING_TOLERANCE 1e-6                 // Tolerance for checking disk/plane crossing parameter t
+#define MAX_DISC_ALPHA 0.95                     // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
 #define GRID_PHI_STEP (M_PI / 6.0)         // ~0.52359... For disk grid pattern
@@ -152,7 +150,8 @@ static Vec3d calculate_initial_view_vector(int px, int py, const Config *cfg) {
 }
 
 // --- Helper: Initialize the ray state ---
-static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Config *cfg) {
+static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Config *cfg)
+{
     ray->pos = cfg->camera_pos;
     ray->vel = initial_velocity;
     ray->initial_vel = initial_velocity; // Store for sky lookup
@@ -229,8 +228,9 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double temp = exp(log_temp);
             double R = sqrt(col_point_sqr);
 
-            if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) { // Apply redshift if enabled and outside horizon slightly
-                 // Formula from Python code for velocity factor
+            if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR))  // Apply redshift if enabled and outside horizon slightly
+            {
+                // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
                 Vec3d disk_vel_dir = vec3d_cross(VEC3D_UP, vec3d_normalize(col_point));
                 Vec3d disk_vel = vec3d_mul_scalar(disk_vel_dir, speed_factor);
@@ -298,8 +298,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
         printf("--- Previous color was: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, alpha_before_hit);
     }
 
-    // If ray was already significantly opaque (hit disk first), DO NOT overwrite color.
-    if (alpha_before_hit > MAX_DISC_ALPHA_INV)
+    if (alpha_before_hit >= 1)
     {
         if (log_this_pixel)
         {
@@ -340,8 +339,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     double horizon_alpha = 1.0; // Opaque horizon
 
     // Blend horizon color (cb=horizon, ca=ray)
-    // ray->color = BLEND_COLORS(horizon_color, horizon_alpha, ray->color, alpha_before_hit);
-    ray->color = BLEND_COLORS(horizon_color, alpha_before_hit, ray->color, horizon_alpha);
+    ray->color = BLEND_COLORS(horizon_color, horizon_alpha, ray->color, alpha_before_hit);
     ray->alpha = blend_alpha(horizon_alpha, alpha_before_hit); // Will become 1.0
 
     ray->active = false; // Stop tracing this ray
@@ -456,7 +454,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
             if (fabs(delta_y) > EPSILON_STRICT)
             { // Avoid division by zero if static on plane
                 double t_cross = -old_pos.y / delta_y;
-                if (t_cross >= -CROSSING_TOLERANCE && t_cross <= 1.0 + CROSSING_TOLERANCE)
+                if (t_cross >= -EPSILON_LOOSE && t_cross <= 1.0 + EPSILON_LOOSE)
                 { // Intersection within step
                     t_cross = fmax(0.0, fmin(1.0, t_cross)); // Clamp t
                     Vec3d col_point = vec3d_add(old_pos, vec3d_mul_scalar(vec3d_sub(ray.pos, old_pos), t_cross));

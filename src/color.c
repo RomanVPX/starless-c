@@ -99,18 +99,10 @@ ColorRGB blend_colors_over(ColorRGB cb, double balpha, ColorRGB ca, double aalph
     ColorRGB foreground_term = color_mul_scalar(ca, aalpha);
     ColorRGB sum_of_terms = color_add(background_term, foreground_term);
     return (out_alpha > EPSILON_LOOSE)
-         ? color_mul_scalar(sum_of_terms, 1.0 / out_alpha)
-         : COLOR_BLACK;
+        ? color_mul_scalar(sum_of_terms, 1.0 / out_alpha)
+        : COLOR_BLACK;
 }
 
-// Assumes ca is already premultiplied by aalpha
-ColorRGB blend_colors_over_premultiplied(ColorRGB cb, double balpha, ColorRGB ca, double aalpha)
-{
-    // over_premultiplied = ca + cb * (1.0 - aalpha)
-    ColorRGB background_term = color_mul_scalar(cb, (1.0 - aalpha));
-    ColorRGB sum_of_terms = color_add(background_term, ca);
-    return sum_of_terms;
-}
 
 // Note: Arguments here follow standard bg/fg naming, but match Python calculation
 double blend_alpha(double bg_alpha, double fg_alpha) {

@@ -20,7 +20,6 @@ ColorRGB color_clamp(ColorRGB c, double min_val, double max_val);
 // Blending
 ColorRGB blend_colors(ColorRGB background, double bg_alpha, ColorRGB foreground, double fg_alpha);
 ColorRGB blend_colors_over(ColorRGB background, double bg_alpha, ColorRGB foreground, double fg_alpha);
-ColorRGB blend_colors_over_premultiplied(ColorRGB background, double bg_alpha, ColorRGB foreground, double fg_alpha);
 double blend_alpha(double bg_alpha, double fg_alpha);
 
 #ifdef USE_ORIGINAL_BLENDING
