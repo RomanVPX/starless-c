@@ -15,7 +15,11 @@
 // Minimum temperature for blackbody ramp (K)
 #define RAMP_TEMP_MIN 1000.0
 // Maximum temperature for blackbody ramp (K)
-#define RAMP_TEMP_MAX 30000.0
+#define RAMP_TEMP_MAX 50000.0
+// Temperature low cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_LOW 1000.0
+// Temperature high cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_HIGH 25000.0
 
 // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
 #define SHAKURA_SUNYAEV_TEMP_EXP 0.375

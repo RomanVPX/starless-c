@@ -10,6 +10,7 @@
 #define DEFAULT_RESOLUTION_WIDTH 160
 #define DEFAULT_RESOLUTION_HEIGHT 120
 #define DEFAULT_ITERATIONS 1000
+#define DEFAULT_SSAA_LEVEL 2
 #define DEFAULT_STEPSIZE 0.02
 #define DEFAULT_THREADS 4
 #define DEFAULT_CHUNKSIZE 9000
@@ -46,7 +47,7 @@
 #define DEFAULT_SRGB_IN true
 
 // Blackbody Disk Specific
-#define DEFAULT_BLACKBODY_RAMP_PATH "blackbody_ramp/blackbody_ramp_1000_30000K_2048_linear_srgb_normalized.ramp"
+#define DEFAULT_BLACKBODY_RAMP_PATH "blackbody_ramp/blackbody_ramp_1000_50000K_4096_linear_srgb_normalized.ramp"
 #define DEFAULT_DISK_MULTIPLIER 100.0
 #define DEFAULT_DISK_INTENSITY_DO true
 #define DEFAULT_REDSHIFT 1.0

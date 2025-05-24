@@ -1,49 +1,48 @@
 #include "tracer.h"
-#include "vector.h"
-#include "color.h"
-#include "core_constants.h"
-#include "config.h" // Already included via tracer.h
-#include "image.h"  // Already included via tracer.h
-#include "blackbody.h" // For disk blackbody calculations
-#include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
 #include <pthread.h> // For threading later
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <time.h>    // For progress timing later
+#include <time.h>      // For progress timing later
+#include "blackbody.h" // For disk blackbody calculations
+#include "color.h"
+#include "config.h"    // Already included via tracer.h
+#include "core_constants.h"
+#include "image.h"     // Already included via tracer.h
+#include "vector.h"
 
 
 // --- Physics & Geometry Constants ---
-#define EVENT_HORIZON_RADIUS_SQR 1.0
-#define SCHWARZSCHILD_RADIUS_SQR 1.0  // Alias for clarity
-#define SINGULARITY_THRESHOLD 1e-12   // Threshold for r_sqr near singularity in RK4
-#define MIN_GRAV_REDSHIFT_R_SQR 1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
-#define MIN_VEL_R_SQR 0.1             // Min r^2 for disk velocity calculation
+#define EVENT_HORIZON_RADIUS_SQR   1.0
+#define SCHWARZSCHILD_RADIUS_SQR   1.0   // Alias for clarity
+#define SINGULARITY_THRESHOLD      1e-12 // Threshold for r_sqr near singularity in RK4
+#define MIN_GRAV_REDSHIFT_R_SQR    1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
+#define MIN_VEL_R_SQR              0.1   // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP false           // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA 0.9999                    // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA 0.95                     // Set stop ray in disk handling if alpha exceeds this
+#define OPAQUE_RAY_ALPHA_ON_STOP   false  // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA              0.9999 // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA             0.95   // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
-#define GRID_PHI_STEP (M_PI / 6.0)         // ~0.52359... For disk grid pattern
-#define GRID_HORIZON_PHI_STEP (M_PI / 3.0) // ~1.04719... For horizon grid pattern
-#define GRID_HORIZON_ALT_STEP (M_PI / 3.0) // ~1.04719... For horizon grid pattern
-#define GRID_ANGLE_OFFSET (100.0 * M_PI)   // Large offset for fmod with negative angles
+#define GRID_PHI_STEP              (M_PI / 6.0)   // ~0.52359... For disk grid pattern
+#define GRID_HORIZON_PHI_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_HORIZON_ALT_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_ANGLE_OFFSET          (100.0 * M_PI) // Large offset for fmod with negative angles
 
 // --- Blackbody & Disk Constants ---
-#define DEFAULT_LOG_T0_ISCO 9.210340371976184 // log(10000 K), default temp scale at ISCO
-#define BBODY_SPEED_FACTOR (1.0 / M_SQRT2)    // 0.70710678... For disk velocity calculation
-#define BBODY_ISCO_TAPER_FACTOR 0.3           // Taper factor from inner disk radius
-#define BBODY_TEMP_TAPER_THRESHOLD 1000.0     // Temperature threshold for outer taper
-#define BBODY_MAX_CLAMP_VALUE 100.0           // Max color value clamp for blackbody
+#define DEFAULT_LOG_T0_ISCO        9.210340371976184 // log(10000 K), default temp scale at ISCO
+#define BBODY_SPEED_FACTOR         (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
+#define BBODY_ISCO_TAPER_FACTOR    0.3               // Taper factor from inner disk radius
+#define BBODY_TEMP_TAPER_THRESHOLD 1000.0            // Temperature threshold for outer taper
 
 // --- Fog Constants ---
-#define FOG_TAPER_FACTOR 0.8 // Factor for fog intensity taper near horizon
+#define FOG_TAPER_FACTOR           0.8 // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
-#define DEBUG_SINGLE_PIXEL_X 1300
-#define DEBUG_SINGLE_PIXEL_Y 950
+#define DEBUG_SINGLE_PIXEL_X       1300
+#define DEBUG_SINGLE_PIXEL_Y       950
 
 // --- Vector/Color Constants ---
 static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
@@ -54,7 +53,8 @@ static const Vec3d VEC3D_UP = {0.0, 1.0, 0.0};
 // Calculates the derivatives for position and velocity under the approximate potential.
 // y = [pos.x, pos.y, pos.z, vel.x, vel.y, vel.z]
 // dydt = [vel.x, vel.y, vel.z, accel.x, accel.y, accel.z]
-static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2) {
+static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2)
+{
     // Derivatives of position are just velocity
     dydt[0] = y[3];
     dydt[1] = y[4];
@@ -65,12 +65,15 @@ static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2) {
     double r_sqr = vec3d_norm_sqr(pos);
 
     // Avoid division by zero if r_sqr is tiny
-    if (r_sqr < 1e-12) { // Close to singularity
+    if (r_sqr < SINGULARITY_THRESHOLD)
+    { // Close to singularity
         dydt[3] = 0.0;
         dydt[4] = 0.0;
         dydt[5] = 0.0;
         // Or maybe set velocity to zero / mark ray as stopped?
-    } else {
+    }
+    else
+    {
         // Accel = -1.5 * h^2 * r_vec / r^5
         double r_pow_neg5 = pow(r_sqr, -2.5); // r^-5 = (r^2)^(-5/2)
         double factor = -1.5 * h2 * r_pow_neg5;
@@ -82,15 +85,16 @@ static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2) {
 }
 
 // --- Single RK4 Step ---
-static void perform_rk4_step(RayState *ray, double step_size, bool distort) {
+static void perform_rk4_step(RayState *ray, double step_size, bool distort)
+{
     if (!ray->active) return;
-
-    if (!distort) {
-        // Simple Euler step if no distortion (straight line)
+    if (!distort)
+    { // Simple Euler step if no distortion (straight line)
         ray->pos = vec3d_add(ray->pos, vec3d_mul_scalar(ray->vel, step_size));
         // Velocity remains constant
-    } else {
-        // Standard RK4 integration
+    }
+    else
+    { // Standard RK4 integration
         double y[6] = {ray->pos.x, ray->pos.y, ray->pos.z, ray->vel.x, ray->vel.y, ray->vel.z};
         double k1[6], k2[6], k3[6], k4[6];
         double temp_y[6];
@@ -98,25 +102,17 @@ static void perform_rk4_step(RayState *ray, double step_size, bool distort) {
 
         // Calculate k1
         calculate_rk4_derivs(y, k1, ray->h2);
-
         // Calculate k2
         for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + 0.5 * h * k1[i];
         calculate_rk4_derivs(temp_y, k2, ray->h2);
-
         // Calculate k3
         for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + 0.5 * h * k2[i];
         calculate_rk4_derivs(temp_y, k3, ray->h2);
-
         // Calculate k4
         for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + h * k3[i];
         calculate_rk4_derivs(temp_y, k4, ray->h2);
-
         // Update y using weighted average of ks
-        // y_new = y + (h/6) * (k1 + 2*k2 + 2*k3 + k4)
-        for (int i = 0; i < 6; ++i) {
-            y[i] += (h / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
-        }
-
+        for (int i = 0; i < 6; ++i) { y[i] += (h / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]); }
         // Update ray state
         ray->pos = (Vec3d){y[0], y[1], y[2]};
         ray->vel = (Vec3d){y[3], y[4], y[5]};
@@ -124,28 +120,22 @@ static void perform_rk4_step(RayState *ray, double step_size, bool distort) {
     ray->steps_taken++;
 }
 
-
 // --- Helper: Calculate initial ray direction in world space ---
-static Vec3d calculate_initial_view_vector(int px, int py, const Config *cfg) {
+static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg)
+{
     int W = cfg->resolution[0];
     int H = cfg->resolution[1];
 
-    // Screen coordinates [-0.5, 0.5] for x, corrected aspect for y
-    double screen_x = (((double)px + 0.5) / W) - 0.5;
-    double screen_y = (-(((double)py + 0.5) / H) + 0.5) * ((double)H / W); // Aspect ratio correction
+    double screen_x = (((double)px + sub_pixel_offset_x) / W) - 0.5;
+    double screen_y = (-(((double)py + sub_pixel_offset_y) / H) + 0.5) * ((double)H / W);
 
     screen_x *= cfg->tan_fov;
     screen_y *= cfg->tan_fov;
-
-    // Form vector in camera space (Z=1)
     Vec3d view_cam_space = {screen_x, screen_y, 1.0};
-
-    // Rotate into world space using view matrix (matrix * vector)
     Vec3d view_world = VEC3D_ZERO;
-    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[0], view_cam_space.x)); // Left * x
-    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[1], view_cam_space.y)); // Up * y
-    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[2], view_cam_space.z)); // Front * z
-
+    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[0], view_cam_space.x));
+    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[1], view_cam_space.y));
+    view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[2], view_cam_space.z));
     return vec3d_normalize(view_world);
 }
 
@@ -167,7 +157,8 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
 // --- Helper: Handle Accretion Disk Hit ---
 // Determines color and alpha based on disk mode and blends it.
 // Returns true if the ray should stop after this hit.
-static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_point_sqr, const Config *cfg, bool log_this_pixel) {
+static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_point_sqr, const Config *cfg, bool log_this_pixel)
+{
     ColorRGB disk_color = COLOR_BLACK;
     double disk_alpha = 0.0;
     bool stop_ray = false;
@@ -195,7 +186,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             {
                 double phi = atan2(col_point.x, col_point.z);
                 double r = sqrt(col_point_sqr);
-                double u = fmod(phi + 2.0 * M_PI, 2.0 * M_PI) / (2.0 * M_PI); // Normalize phi [0, 1]
+                double u = fmod(phi + 2.0 * M_PI, 2.0 * M_PI) / (2.0 * M_PI);                                // Normalize phi [0, 1]
                 double v = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius); // Normalize radius
 
                 disk_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in);
@@ -228,7 +219,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double temp = exp(log_temp);
             double R = sqrt(col_point_sqr);
 
-            if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR))  // Apply redshift if enabled and outside horizon slightly
+            if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) // Apply redshift if enabled and outside horizon slightly
             {
                 // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
@@ -240,7 +231,8 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double doppler_dot = vec3d_dot(disk_vel, vec3d_normalize(ray->vel));
                 double opz_doppler = gamma * (1.0 - doppler_dot); // 1+z, NOTE: '-' sign used here based on standard physics
 
-                double opz_grav = 1.0 / sqrt(fmax(EPSILON_LOOSE, 1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR) / R)); // 1+z grav sqrt(g_tt)
+                double opz_grav = 1.0 / sqrt(fmax(EPSILON_LOOSE,
+                                                  1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR) / R)); // 1+z grav sqrt(g_tt)
 
                 double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
@@ -258,22 +250,26 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 #ifdef USE_ORIGINAL_OUTER_TAPER_CALCULATION
             double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
 #else
-            double outer_taper = (temp > RAMP_TEMP_MAX)? 1.0 : (temp < RAMP_TEMP_MIN) ? 0.0 : (temp - RAMP_TEMP_MIN) / (RAMP_TEMP_MAX - RAMP_TEMP_MIN);
+            double outer_taper = (temp > TEMP_CUTOFF_HIGH)  ? 1.0
+                                 : (temp < TEMP_CUTOFF_LOW) ? 0.0
+                                                            : (temp - TEMP_CUTOFF_LOW) / (TEMP_CUTOFF_HIGH - TEMP_CUTOFF_LOW);
 #endif
             disk_alpha = isco_taper * outer_taper;
-
+            // TODO: ADD RADIAL FALLOFF HERE. Some higher-order function of radius, e.g. r^3(10 - 15*r + 6*r^2) for r in [0,1]
+            // disk_alpha *= pow(fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) / (cfg->disk_outer_sqr -
+            // cfg->disk_inner_sqr))), 3.0); double radius_taper_outer = ... ; disk_alpha *= radius_taper_outer;
             if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
             break;
         }
-        default: break;
+        default:
+            break;
     }
 
     // Blend disk color (cb=disk, ca=ray)
     if (log_this_pixel && disk_alpha > 1e-6)
     {
-        printf("--- Blending Disk: Ray (%.3f,%.3f,%.3f a=%.3f) + Disk (%.3f,%.3f,%.3f a=%.3f)\n",
-                ray->color.r, ray->color.g, ray->color.b, ray->alpha,
-                disk_color.r, disk_color.g, disk_color.b, disk_alpha);
+        printf("--- Blending Disk: Ray (%.3f,%.3f,%.3f a=%.3f) + Disk (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b,
+               ray->alpha, disk_color.r, disk_color.g, disk_color.b, disk_alpha);
     }
     ray->color = BLEND_COLORS(disk_color, disk_alpha, ray->color, ray->alpha);
     ray->alpha = blend_alpha(disk_alpha, ray->alpha);
@@ -284,37 +280,36 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     }
 
     /* mark ray opaque if we decided to stop */
-    if (stop_ray && OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0;}
+    if (stop_ray && OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }
     return stop_ray;
 }
 
 
 // --- Helper: Handle Event Horizon Hit ---
-static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_pos_sqr, const Config *cfg, bool log_this_pixel) {
+static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_pos_sqr, const Config *cfg, bool log_this_pixel)
+{
     double alpha_before_hit = ray->alpha; // Store alpha before overwrite
 
-    if (log_this_pixel) {
+    if (log_this_pixel)
+    {
         printf("--- Iter %d: EVENT HORIZON HIT DETECTED!\n", ray->steps_taken);
         printf("--- Previous color was: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, alpha_before_hit);
     }
 
-    if (alpha_before_hit >= 1)
+    if (alpha_before_hit >= MAX_DISC_ALPHA)
     {
         if (log_this_pixel)
         {
             printf("--- Ray already had alpha %.3f (> 0.1), PRESERVING color, ignoring horizon overwrite.\n", alpha_before_hit);
         }
-        // Ray stops, colour remains, but make it fully opaque so sky blending at the end of trace_pixel() is skipped.
+
         if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }
         ray->active = false;
         return; // Exit without blending horizon color
     }
 
     // Otherwise (ray was transparent), apply horizon color (black or grid)
-    if (log_this_pixel)
-    {
-        printf("--- Ray was transparent (alpha=%.3f <= 0.1), applying horizon color.\n", alpha_before_hit);
-    }
+    if (log_this_pixel) { printf("--- Ray was transparent (alpha=%.3f <= 0.1), applying horizon color.\n", alpha_before_hit); }
 
     ColorRGB horizon_color = COLOR_BLACK;
     if (cfg->horizon_grid)
@@ -323,15 +318,15 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
         // lambda = (sqrt(R_h^2) - sqrt(r_old^2)) / (sqrt(r_new^2) - sqrt(r_old^2)) approx
         // Or use linear interp on r^2: lambda = (R_h^2 - r_old^2) / (r_new^2 - r_old^2)
         // Let's stick to approximation using old_pos for angles as before for simplicity/consistency
-        double r_old = sqrt(fmax(1e-9, old_pos_sqr)); // Avoid sqrt(0)
+        double r_old = sqrt(fmax(1e-9, old_pos_sqr));                     // Avoid sqrt(0)
         double phi = atan2(old_pos.x, old_pos.z);
         double altitude = asin(fmax(-1.0, fmin(1.0, old_pos.y / r_old))); // Altitude angle
 
         bool phi_check = fmod(phi + GRID_ANGLE_OFFSET, GRID_HORIZON_PHI_STEP) < (GRID_HORIZON_PHI_STEP * 0.5);
-        bool alt_check = fmod(altitude + M_PI/2.0 + GRID_ANGLE_OFFSET, GRID_HORIZON_ALT_STEP) < (GRID_HORIZON_ALT_STEP * 0.5);
+        bool alt_check = fmod(altitude + M_PI / 2.0 + GRID_ANGLE_OFFSET, GRID_HORIZON_ALT_STEP) < (GRID_HORIZON_ALT_STEP * 0.5);
 
-        if (phi_check ^ alt_check)
-        { // XOR
+        if (phi_check ^ alt_check)                     // XOR
+        {
             horizon_color = (ColorRGB){1.0, 0.0, 0.0}; // Red grid lines
         }
     }
@@ -342,8 +337,8 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ray->color = BLEND_COLORS(horizon_color, horizon_alpha, ray->color, alpha_before_hit);
     ray->alpha = blend_alpha(horizon_alpha, alpha_before_hit); // Will become 1.0
 
-    ray->active = false; // Stop tracing this ray
-    if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }   // Opaque – prevent further blending
+    ray->active = false;                                       // Stop tracing this ray
+    if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }        // Opaque – prevent further blending
 }
 
 
@@ -358,10 +353,10 @@ static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
     // Only apply fog outside horizon
     if (current_pos_sqr > SCHWARZSCHILD_RADIUS_SQR)
     {
-         double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
-         double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
-         double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
-         ColorRGB fog_col = COLOR_WHITE; // Fog color is white
+        double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
+        double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
+        double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
+        ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
         // Blend fog (cb=fog, ca=ray)
         ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
@@ -370,7 +365,8 @@ static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
 }
 
 // --- Helper: Get Background Sky Color ---
-static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
+static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
+{
     ColorRGB bg_color = COLOR_BLACK; // Default background
 
     // Use final velocity direction for sky lookup
@@ -387,9 +383,11 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
     // Map altitude [-pi/2, pi/2] to v [0, 1]
     double sky_v = (valtitude + 0.5 * M_PI) / M_PI;
 
-    switch(cfg->sky_texture_mode) {
+    switch (cfg->sky_texture_mode)
+    {
         case ST_TEXTURE:
-            if (cfg->sky_texture) {
+            if (cfg->sky_texture)
+            {
                 bg_color = texture_lookup(cfg->sky_texture, sky_u, sky_v, cfg->srgb_in);
             } // else bg_color remains black
             break;
@@ -406,14 +404,14 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg) {
 }
 
 
-// --- The Refactored Trace a single ray for one pixel function ---
-static ColorRGB trace_pixel(int px, int py, const Config *cfg)
+// --- Trace for one pixel function ---
+static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg, int sample_idx_for_log)
 {
     bool log_this_pixel = (px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
     // --- Debugging Output ---
     if (log_this_pixel)
     {
-        printf("\n--- Logging for pixel (%d, %d)\n", px, py);
+        printf("\n--- Logging for pixel (%d, %d), SAMPLE %d\n", px, py, sample_idx_for_log);
         printf("--- Disk inner radius: %f\n", cfg->disk_inner_radius);
         printf("--- Disk outer radius: %f\n", cfg->disk_outer_radius);
         printf("--- Redshift: %f\n", cfg->redshift);
@@ -421,7 +419,7 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
     }
 
     // 1. Initialize Ray
-    Vec3d initial_vel = calculate_initial_view_vector(px, py, cfg);
+    Vec3d initial_vel = calculate_initial_view_vector(px, py, sub_pixel_offset_x, sub_pixel_offset_y, cfg);
     RayState ray;
     initialize_ray_state(&ray, initial_vel, cfg);
 
@@ -435,18 +433,15 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
 
         old_pos = ray.pos;
         old_pos_sqr = vec3d_norm_sqr(old_pos);
-
         // --- Step ---
         perform_rk4_step(&ray, cfg->step_size, cfg->distort);
         double current_pos_sqr = vec3d_norm_sqr(ray.pos);
-
         // --- Check for Horizon Hit ---
         if (old_pos_sqr > SCHWARZSCHILD_RADIUS_SQR && current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR)
         {
             handle_horizon_hit(&ray, old_pos, old_pos_sqr, cfg, log_this_pixel);
             continue; // Skip disk/fog checks if horizon was hit this step
         }
-
         // --- Check for Disk Hit ---
         if (cfg->disk_texture_mode != DT_NONE && (old_pos.y * ray.pos.y < 0.0))
         { // Crossed y=0 plane
@@ -456,17 +451,16 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
                 double t_cross = -old_pos.y / delta_y;
                 if (t_cross >= -EPSILON_LOOSE && t_cross <= 1.0 + EPSILON_LOOSE)
                 { // Intersection within step
-                    t_cross = fmax(0.0, fmin(1.0, t_cross)); // Clamp t
+                    t_cross = fmax(0.0, fmin(1.0, t_cross));
                     Vec3d col_point = vec3d_add(old_pos, vec3d_mul_scalar(vec3d_sub(ray.pos, old_pos), t_cross));
                     double col_point_sqr = vec3d_norm_sqr(col_point);
-
                     if (col_point_sqr >= cfg->disk_inner_sqr && col_point_sqr <= cfg->disk_outer_sqr)
                     { // Within disk radial bounds
                         bool stop_after_disk = handle_disk_hit(&ray, col_point, col_point_sqr, cfg, log_this_pixel);
                         if (stop_after_disk)
                         {
                             ray.active = false;
-                            if (OPAQUE_RAY_ALPHA_ON_STOP) {ray.alpha = 1.0;}   /* fully opaque – skip sky */
+                            if (OPAQUE_RAY_ALPHA_ON_STOP) { ray.alpha = 1.0; } /* fully opaque – skip sky */
                             if (log_this_pixel) printf("--- Ray stopped after disk hit.\n");
                         }
                     }
@@ -481,12 +475,12 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
 
     if (log_this_pixel)
     {
-        printf("--- Loop finished. Accumulated color: (%.3f,%.3f,%.3f a=%.3f)\n",ray.color.r, ray.color.g, ray.color.b, ray.alpha);
+        printf("--- Loop finished. Accumulated color: (%.3f,%.3f,%.3f a=%.3f)\n", ray.color.r, ray.color.g, ray.color.b, ray.alpha);
     }
 
     // 3. Background / Sky Color Blending
     if (ray.alpha < MAX_RAY_ALPHA)
-    { // If ray didn't hit something fully opaque
+    {                            // If ray didn't hit something fully opaque
         ColorRGB bg_color = get_background_color(&ray, cfg);
         double sky_balpha = 1.0; // Sky is opaque background
         // Blend sky (cb=sky, ca=ray)
@@ -494,43 +488,75 @@ static ColorRGB trace_pixel(int px, int py, const Config *cfg)
         ray.alpha = blend_alpha(sky_balpha, ray.alpha); // Final alpha should be 1.0
     }
 
-    if (log_this_pixel)
-    {
-        printf("--- Final pixel color: (%.3f,%.3f,%.3f)\n", ray.color.r, ray.color.g, ray.color.b);
-    }
+    if (log_this_pixel) { printf("--- Final pixel color: (%.3f,%.3f,%.3f)\n", ray.color.r, ray.color.g, ray.color.b); }
 
     return ray.color;
 }
 
 
 // --- Trace a range of pixels (for threading) ---
-static void* trace_pixel_range(void* thread_arg)
+static void *trace_pixel_range(void *thread_arg)
 {
-    ThreadData *data = (ThreadData*)thread_arg;
+    ThreadData *data = (ThreadData *)thread_arg;
     const Config *cfg = data->config;
     ImageF *image = data->image;
     int W = image->width;
 
-    printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
+    printf("Thread %d: Tracing pixels %d to %d (SSAA Level: %d)\n", data->thread_id, data->start_pixel_index, data->end_pixel_index,
+           cfg->ssaa_level);
     clock_t start_time = clock(); // Simple timing per thread
 
     for (int idx = data->start_pixel_index; idx < data->end_pixel_index; ++idx)
     {
         int px = idx % W;
         int py = idx / W;
-        image->pixels[idx] = trace_pixel(px, py, cfg); // Call the refactored function
+        // if (cfg->ssaa_level > 0)
+        // {
+        //     // SSAA: Jittered stratified sampling
+        //     px += (int)(rand() % cfg->ssaa_level);
+        //     py += (int)(rand() % cfg->ssaa_level);
+        // }
+        ColorRGB accumulated_color = COLOR_BLACK;
+        int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
+        int total_samples = num_samples_axis * num_samples_axis;
+
+        if (total_samples == 1)
+        { // SSAA is 1x1
+            // No jittering, just center sample
+            accumulated_color = trace_pixel(px, py, 0.5, 0.5, cfg, 0);
+        }
+        else
+        {
+            for (int sy = 0; sy < num_samples_axis; ++sy)
+            {
+                for (int sx = 0; sx < num_samples_axis; ++sx)
+                {
+                    // Jittered stratified grid
+                    double jitter_x = (double)rand() / RAND_MAX;
+                    double jitter_y = (double)rand() / RAND_MAX;
+
+                    // Sub-pixel offsets
+                    double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
+                    double sub_pixel_offset_y = (sy + jitter_y) / num_samples_axis;
+
+                    int current_sample_idx = sy * num_samples_axis + sx; // For logging of the first sample
+                    ColorRGB sample_color = trace_pixel(px, py, sub_pixel_offset_x, sub_pixel_offset_y, cfg, current_sample_idx);
+                    accumulated_color = color_add(accumulated_color, sample_color);
+                }
+            }
+            accumulated_color = color_mul_scalar(accumulated_color, 1.0 / total_samples);
+        }
+        image->pixels[idx] = accumulated_color;
     }
 
     clock_t end_time = clock();
     double time_spent = (double)(end_time - start_time) / CLOCKS_PER_SEC;
     printf("Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
-
     return NULL;
 }
 
 
 // --- Main run_tracer Function ---
-// Sets up and manages threads.
 bool run_tracer(Config *config, ImageF *output_image)
 {
     if (!config || !output_image || !output_image->pixels)
@@ -546,12 +572,14 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     if (n_threads <= 0) n_threads = 1; // Ensure at least one thread
 
-    printf("Starting ray tracing with %d threads...\n", n_threads);
+    printf("Starting ray tracing with %d threads... (SSAA: %dx%d = %d samples/pixel)\n", n_threads,
+           config->ssaa_level > 0 ? config->ssaa_level : 1, config->ssaa_level > 0 ? config->ssaa_level : 1,
+           (config->ssaa_level > 0 ? config->ssaa_level : 1) * (config->ssaa_level > 0 ? config->ssaa_level : 1));
     printf("Total pixels: %d\n", num_pixels);
 
     // Allocate thread handles and data structures
-    pthread_t *threads = (pthread_t*)malloc(n_threads * sizeof(pthread_t));
-    ThreadData *thread_data = (ThreadData*)malloc(n_threads * sizeof(ThreadData));
+    pthread_t *threads = (pthread_t *)malloc(n_threads * sizeof(pthread_t));
+    ThreadData *thread_data = (ThreadData *)malloc(n_threads * sizeof(ThreadData));
 
     if (!threads || !thread_data)
     {
@@ -587,7 +615,7 @@ bool run_tracer(Config *config, ImageF *output_image)
             fprintf(stderr, "Error creating thread %d: %s\n", i, strerror(ret));
             // Should ideally try to join already created threads before failing
             n_threads = i; // Only wait for threads up to this point
-            break; // Stop creating more threads
+            break;         // Stop creating more threads
         }
     }
 
@@ -611,14 +639,17 @@ bool run_tracer(Config *config, ImageF *output_image)
     free(threads);
     free(thread_data);
 
-    if (threads_failed > 0) {
+    if (threads_failed > 0)
+    {
         fprintf(stderr, "Error: %d threads failed to join correctly.\n", threads_failed);
         // Decide if this constitutes overall failure
         // return false;
     }
 
     printf("All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
-
-    // Return true even if some threads had issues joining? Or false? Let's return true for now.
+    printf("Final image size: %d x %d\n", W, H);
+    printf("Total pixels processed: %d\n", num_pixels);
+    printf("Average time per pixel: %.4f seconds\n", total_time_spent / num_pixels);
+    printf("Ray tracing completed successfully.\n");
     return true;
 }

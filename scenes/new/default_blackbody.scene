@@ -6,13 +6,13 @@
 [lofi]
 
 # output resolution
-Resolution=160,120
+Resolution=1024,768
 
 #number of raytracing steps
-Iterations=250
+Iterations=125
 
 #size of integration step
-Stepsize=0.16
+Stepsize=0.32
 
 
 # Full render options
@@ -22,7 +22,7 @@ Stepsize=0.16
 Resolution=2048,1572
 Iterations=250
 Stepsize=0.16
-
+SSAA=3
 
 # From now on, settings apply to both tests and full renders
 
@@ -57,7 +57,6 @@ sRGBIn=1
 #whether to convert back RGB -> sRGB after postprocessing, before saving
 sRGBOut=1
 
-
 #Whether to draw a grid on the horizon (0/1)
 Horizongrid=0
 
@@ -70,27 +69,23 @@ Horizongrid=0
 Disktexture=blackbody
 
 #blackbody disc options
-#these options are ignored when Disktexture != blackbody
-
-Redshift=1.5
-
+Redshift=1.1
 #multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=2000.
-#multiplier for impact of computed planckian brightness in disc alpha
+Diskmultiplier=2048.
 
 #Sky rendering mode
 #	none:		solid black
 #	texture:	use texture bgedit.png
 #	final:		normalized final ray direction
-Skytexture=textures/bgedit.jpg
+Skytexture=textures/starmap_2020_8k.png
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.03
+Skydiskratio=0.5
 
 #Toggle dust (0/1)
 Fogdo=1
 #Dust intensity multiplier
-Fogmult=0.02
+Fogmult=0.03
 
 #Postprocessing options
 
@@ -114,7 +109,7 @@ Airy_radius=0.5
 #simulates dust lit up by bright objects (very scenographic)
 Blurdo=1
 
-ACESExposure = 0.75
+ACESExposure = 0.65
 
 
 #Deprecated option

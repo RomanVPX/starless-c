@@ -43,7 +43,7 @@ BraceWrapping:
 BreakAfterReturnType: ExceptShortType
 BreakConstructorInitializers: AfterColon
 BreakConstructorInitializersBeforeComma: false # deprecated
-ColumnLimit: 120
+ColumnLimit: 140
 ConstructorInitializerAllOnOneLineOrOnePerLine: false # deprecated
 PackConstructorInitializers: NextLine
 ContinuationIndentWidth: 8
@@ -83,4 +83,5 @@ SpacesInParens: Never # use custom below if needed
 SpacesInAngles: false
 TabWidth: 4
 UseTab: Never
+IndentPPDirectives: AfterHash
 ...

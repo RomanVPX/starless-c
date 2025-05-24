@@ -5,8 +5,8 @@ import imageio.v3 as iio
 
 # --- Configuration ---
 TEMP_MIN = 1000.0
-TEMP_MAX = 30000.0
-NUM_SAMPLES = 2048
+TEMP_MAX = 50000.0
+NUM_SAMPLES = 4096
 # Use .ramp extension for the data file
 RAMP_FILENAME = f"blackbody_ramp_{int(TEMP_MIN)}_{int(TEMP_MAX)}K_{NUM_SAMPLES}_linear_srgb_normalized.ramp"
 # Filename for the PNG preview

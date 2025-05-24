@@ -139,6 +139,11 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             cfg->n_iterations = atoi(value);
             return 1;
         }
+        if (strcmp(name, "SSAA") == 0)
+        {
+            cfg->ssaa_level = (atoi(value) <= 0) ? 1 : atoi(value);
+            return 1;
+        }
         if (strcmp(name, "Stepsize") == 0)
         {
             cfg->step_size = atof(value);
@@ -282,6 +287,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->resolution[0] = DEFAULT_RESOLUTION_WIDTH;
     cfg->resolution[1] = DEFAULT_RESOLUTION_HEIGHT;
     cfg->n_iterations = DEFAULT_ITERATIONS;
+    cfg->ssaa_level = DEFAULT_SSAA_LEVEL;
     cfg->step_size = DEFAULT_STEPSIZE;
     cfg->n_threads = DEFAULT_THREADS;
     cfg->chunk_size = DEFAULT_CHUNKSIZE;
@@ -471,6 +477,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
     else
     {
+        cfg->ssaa_level = 1; // Reset SSAA level if not HiFi
+        printf("LoFi mode: Skipping sky texture resizing.\n");
         cfg->sky_texture = original_sky_texture;
         original_sky_texture = NULL;
     }
@@ -516,6 +524,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     printf("Configuration loaded successfully.\n");
     printf("Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
     printf("Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
+    printf("SSAA Level: %d\n", cfg->ssaa_level);
     printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
     printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
     if (cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
