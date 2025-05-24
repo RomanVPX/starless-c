@@ -14,7 +14,7 @@ static int count_ramp_samples(const char *filename) {
         return -1;
     }
     int count = 0;
-    char line[256];
+    char line[512]; // It's 33 characters for RGB values, but allow some extra space for comments or whatever
     double r, g, b;
     while (fgets(line, sizeof(line), file)) {
         if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') continue;
@@ -116,7 +116,7 @@ ColorRGB bb_color_from_temp(const Config *cfg, double temperature) {
     double normalized_temp = (temperature - RAMP_TEMP_MIN) / temp_range;
     normalized_temp = fmax(0.0, fmin(1.0, normalized_temp));
 
-    int index = (int)(normalized_temp * (cfg->blackbody_ramp_size - EPSILON_STRICT));
+    int index = (int)(normalized_temp * (cfg->blackbody_ramp_size - 1));
     index = fmax(0, fmin(cfg->blackbody_ramp_size - 1, index));
 
     return cfg->blackbody_ramp_data[index];
