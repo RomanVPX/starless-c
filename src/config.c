@@ -110,6 +110,7 @@ bool parse_resolution(const char *res_str, int resolution[2])
     return false;
 }
 
+
 // --- INI Parsing Callback ---
 static int scene_ini_callback(void *user, const char *section, const char *name, const char *value)
 {
@@ -150,6 +151,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             return 1;
         }
     }
+
     // --- Geometry Section ---
     else if (strcmp(section, "geometry") == 0)
     {
@@ -279,6 +281,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
     return 1; // Success (even for unknown keys)
 }
+
 
 // --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg)
@@ -535,6 +538,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     return true;
 }
 
+
 // Calculate derived configuration values
 void compute_derived_config(Config *cfg)
 {
@@ -551,6 +555,7 @@ void compute_derived_config(Config *cfg)
     cfg->view_matrix[1] = new_up;
     cfg->view_matrix[2] = front;
 }
+
 
 // Free allocated resources
 void free_config_textures(Config *cfg)
