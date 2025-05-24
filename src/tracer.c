@@ -532,8 +532,8 @@ static void *trace_pixel_range(void *thread_arg)
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)rand() / RAND_MAX;
-                    double jitter_y = (double)rand() / RAND_MAX;
+                    double jitter_x = (double)rand_r(&data->rand_seed) / RAND_MAX;
+                    double jitter_y = (double)rand_r(&data->rand_seed) / RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -600,6 +600,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     {
         thread_data[i].thread_id = i;
         thread_data[i].config = config;
+        thread_data[i].rand_seed = (unsigned int)(time(NULL) + i); // Unique seed per thread
         thread_data[i].image = output_image;
         thread_data[i].start_pixel_index = current_pixel_index;
 
