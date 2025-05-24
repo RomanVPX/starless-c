@@ -95,7 +95,7 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
         k->data[idx].b /= sum[2];
     }
 
-    printf("Generated %dx%d Airy kernel.\n", k->width, k->height);
+    printf("  Generated %dx%d Airy kernel.\n", k->width, k->height);
     return k;
 }
 
@@ -195,12 +195,12 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
 
         if (y % 10 == 0)
         {
-            printf("\rConvolution progress: %d / %d rows", y, H);
+            printf("\r  Convolution progress: %d / %d rows", y, H);
             fflush(stdout);
         }
     }
 
-    printf("\nConvolution finished.\n");
+    printf("\n  Convolution finished.\n");
     return true;
 }
 
