@@ -63,6 +63,12 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
             double val_g = airy_disk_func(r / scale[1]);
             double val_b = airy_disk_func(r / scale[2]);
 
+            if (val_r < EPSILON_LOOSE && val_g < EPSILON_LOOSE && val_b < EPSILON_LOOSE)
+            {
+                k->data[kernel_idx] = (ColorRGB){0.0, 0.0, 0.0};
+                continue;
+            }
+
             k->data[kernel_idx] = (ColorRGB){val_r, val_g, val_b};
             sum[0] += val_r;
             sum[1] += val_g;
@@ -168,6 +174,8 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
                     // Get kernel value (kernel coords are relative to center)
                     int kernel_idx = (ky + k_size) * k_width + (kx + k_size);
                     ColorRGB kernel_val = k->data[kernel_idx];
+
+                    if (kernel_val.r < EPSILON_LOOSE && kernel_val.g < EPSILON_LOOSE && kernel_val.b < EPSILON_LOOSE) { continue; }
 
                     // Get source pixel value
                     int src_idx = src_y * W + src_x;
