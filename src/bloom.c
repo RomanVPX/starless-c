@@ -1,9 +1,9 @@
 #include "bloom.h"
-#include "core_constants.h"
-#include <stdlib.h>
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h> // For memset
+#include "core_constants.h"
 
 // --- Airy Disk Function ---
 // Approximates (2*J1(x)/x)^2
@@ -21,14 +21,17 @@ static double airy_disk_func(double x)
 }
 
 // --- Generate 2D Kernel ---
-Kernel2D *generate_airy_kernel(const double scale[3], int size) {
-    if (size < 0) {
+Kernel2D *generate_airy_kernel(const double scale[3], int size)
+{
+    if (size < 0)
+    {
         fprintf(stderr, "Error: Kernel size cannot be negative.\n");
         return NULL;
     }
 
-    Kernel2D *k = (Kernel2D*)malloc(sizeof(Kernel2D));
-    if (!k) {
+    Kernel2D *k = (Kernel2D *)malloc(sizeof(Kernel2D));
+    if (!k)
+    {
         fprintf(stderr, "Error: Failed to allocate memory for Kernel struct.\n");
         return NULL;
     }
@@ -36,27 +39,31 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
     k->size = size;
     k->width = 2 * size + 1;
     k->height = 2 * size + 1;
-    k->data = (ColorRGB*)malloc(k->width * k->height * sizeof(ColorRGB));
-    if (!k->data) {
+    k->data = (ColorRGB *)malloc(k->width * k->height * sizeof(ColorRGB));
+    if (!k->data)
+    {
         fprintf(stderr, "Error: Failed to allocate memory for kernel data (%dx%d).\n", k->width, k->height);
         free(k);
         return NULL;
     }
     memset(k->data, 0, k->width * k->height * sizeof(ColorRGB)); // Initialize
 
-    double sum[3] = {0.0, 0.0, 0.0}; // For normalization
+    double sum[3] = {0.0, 0.0, 0.0};                             // For normalization
 
-    for (int j = -size; j <= size; ++j) { // y loop
-        for (int i = -size; i <= size; ++i) { // x loop
+    for (int j = -size; j <= size; ++j)
+    {     // y loop
+        for (int i = -size; i <= size; ++i)
+        { // x loop
             double x = (double)i;
             double y = (double)j;
-            double r = sqrt(x*x + y*y);
+            double r = sqrt(x * x + y * y);
 
             r += EPSILON_STRICT;
 
             int kernel_idx = (j + size) * k->width + (i + size); // Index in kernel data array
 
-            for (int c = 0; c < 3; ++c) { // RGB channels
+            for (int c = 0; c < 3; ++c)
+            { // RGB channels
                 double scaled_r = r / scale[c];
                 double val = airy_disk_func(scaled_r);
                 k->data[kernel_idx].r = (c == 0) ? val : k->data[kernel_idx].r;
@@ -72,14 +79,17 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
 
     // --- Normalize Kernel ---
     // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
-    for (int c = 0; c < 3; ++c) {
-        if (fabs(sum[c]) < EPSILON_STRICT) {
+    for (int c = 0; c < 3; ++c)
+    {
+        if (fabs(sum[c]) < EPSILON_STRICT)
+        {
             fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
             sum[c] = 1.0; // Avoid division by zero, result will be unnormalized (likely all zero anyway)
         }
     }
 
-    for (int idx = 0; idx < k->width * k->height; ++idx) {
+    for (int idx = 0; idx < k->width * k->height; ++idx)
+    {
         k->data[idx].r /= sum[0];
         k->data[idx].g /= sum[1];
         k->data[idx].b /= sum[2];
@@ -90,8 +100,10 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
 }
 
 // --- Free 2D Kernel ---
-void free_kernel2d(Kernel2D* k) {
-    if (k) {
+void free_kernel2d(Kernel2D *k)
+{
+    if (k)
+    {
         free(k->data);
         free(k);
     }
@@ -101,38 +113,34 @@ void free_kernel2d(Kernel2D* k) {
 // Scipy 'symm': reflect about the *center* of the edge pixel.
 // x_reflected = -x - 1 for x < 0
 // x_reflected = 2*W - x - 1 for x >= W
-static void get_symmetric_coords(int W, int H, int x, int y, int* sx, int* sy) {
+static void get_symmetric_coords(int W, int H, int x, int y, int *sx, int *sy)
+{
     // Handle X coordinate
-    if (x < 0) {
-        *sx = -x - 1;
-    } else if (x >= W) {
-        *sx = 2 * W - x - 1;
-    } else {
-        *sx = x;
-    }
+    if (x < 0) { *sx = -x - 1; }
+    else if (x >= W) { *sx = 2 * W - x - 1; }
+    else { *sx = x; }
     // Clamp just in case reflection logic goes wrong (shouldn't happen with correct logic)
     *sx = fmax(0, fmin(W - 1, *sx));
 
 
     // Handle Y coordinate
-    if (y < 0) {
-        *sy = -y - 1;
-    } else if (y >= H) {
-        *sy = 2 * H - y - 1;
-    } else {
-        *sy = y;
-    }
+    if (y < 0) { *sy = -y - 1; }
+    else if (y >= H) { *sy = 2 * H - y - 1; }
+    else { *sy = y; }
     *sy = fmax(0, fmin(H - 1, *sy));
 }
 
 
 // --- 2D Convolution (Direct Method) ---
-bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k) {
-    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
+{
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
+    {
         fprintf(stderr, "Error: NULL pointer passed to convolve2d_rgb.\n");
         return false;
     }
-    if (src->width != dst->width || src->height != dst->height) {
+    if (src->width != dst->width || src->height != dst->height)
+    {
         fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
@@ -194,28 +202,33 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k) {
 }
 
 // --- Generate 1D Gaussian Kernel ---
-Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
-    if (sigma <= 0) {
+Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
+{
+    if (sigma <= 0)
+    {
         fprintf(stderr, "Warning: Gaussian sigma must be positive. Using default sigma=1.0.\n");
         sigma = 1.0;
     }
 
     // If size is not specified, determine from sigma (e.g., cover +/- 3 sigma)
-    if (size <= 0) {
+    if (size <= 0)
+    {
         size = (int)ceil(3.0 * sigma);
         if (size == 0) size = 1; // Ensure at least 3 elements
     }
 
-    Kernel1D* k = (Kernel1D*)malloc(sizeof(Kernel1D));
-    if (!k) {
+    Kernel1D *k = (Kernel1D *)malloc(sizeof(Kernel1D));
+    if (!k)
+    {
         fprintf(stderr, "Error: Failed to allocate memory for Kernel1D struct.\n");
         return NULL;
     }
 
     k->size = size;
     k->length = 2 * size + 1;
-    k->data = (double*)malloc(k->length * sizeof(double));
-    if (!k->data) {
+    k->data = (double *)malloc(k->length * sizeof(double));
+    if (!k->data)
+    {
         fprintf(stderr, "Error: Failed to allocate memory for 1D kernel data (%d elements).\n", k->length);
         free(k);
         return NULL;
@@ -225,26 +238,26 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
     double sigma_sq = sigma * sigma;
     // double scale = 1.0 / (sqrt(2.0 * M_PI) * sigma); // Normalization factor for continuous Gaussian
 
-    for (int i = -size; i <= size; ++i) {
+    for (int i = -size; i <= size; ++i)
+    {
         const double x = i;
-        // double exp_val = exp(-(x * x) / (2.0 * sigma_sq));
-        // double val = scale * exp_val; // Use normalization factor for better accuracy? Or normalize discrete sum?
-                                      // Let's normalize the discrete sum like typical image processing.
-
+        // Calculate the discrete Gaussian value at x
         double discrete_val = exp(-(x * x) / (2.0 * sigma_sq));
         k->data[i + size] = discrete_val;
         sum += discrete_val;
     }
 
     // Normalize the discrete kernel sum to 1.0
-    if (sum > 1e-9) {
-        for (int i = 0; i < k->length; ++i) {
-            k->data[i] /= sum;
-        }
-    } else {
+    if (sum > 1e-9)
+    {
+        for (int i = 0; i < k->length; ++i) { k->data[i] /= sum; }
+    }
+    else
+    {
         fprintf(stderr, "Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
         // Maybe set center element to 1.0?
-        if (k->length > 0) {
+        if (k->length > 0)
+        {
             memset(k->data, 0, k->length * sizeof(double));
             k->data[k->size] = 1.0; // Center element (identity kernel)
         }
@@ -255,20 +268,25 @@ Kernel1D* generate_gaussian_kernel_1d(double sigma, int size) {
 }
 
 // --- Free 1D Kernel ---
-void free_kernel1d(Kernel1D* k) {
-    if (k) {
+void free_kernel1d(Kernel1D *k)
+{
+    if (k)
+    {
         free(k->data);
         free(k);
     }
 }
 
 // --- 1D Horizontal Convolution ---
-bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
-    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
+{
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
+    {
         fprintf(stderr, "Error: NULL pointer passed to convolve1d_h_rgb.\n");
         return false;
     }
-    if (src->width != dst->width || src->height != dst->height) {
+    if (src->width != dst->width || src->height != dst->height)
+    {
         fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
@@ -277,15 +295,17 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
     int H = src->height;
     int k_size = k->size;
 
-    // #pragma omp parallel for schedule(dynamic) // Can parallelize outer loop
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
+    for (int y = 0; y < H; ++y)
+    {
+        for (int x = 0; x < W; ++x)
+        {
             ColorRGB accumulator = {0.0, 0.0, 0.0};
-            for (int kx = -k_size; kx <= k_size; ++kx) {
+            for (int kx = -k_size; kx <= k_size; ++kx)
+            {
                 int src_x_raw = x - kx; // Convolution flip
 
                 // Apply boundary conditions (only need X coord here)
-                int src_x, dummy_y; // Don't need y coord from helper
+                int src_x, dummy_y;                                         // Don't need y coord from helper
                 get_symmetric_coords(W, H, src_x_raw, y, &src_x, &dummy_y); // Pass current y
 
                 double kernel_val = k->data[kx + k_size];
@@ -307,12 +327,15 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
 
 
 // --- 1D Vertical Convolution ---
-bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
-    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data) {
+bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
+{
+    if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
+    {
         fprintf(stderr, "Error: NULL pointer passed to convolve1d_v_rgb.\n");
         return false;
     }
-    if (src->width != dst->width || src->height != dst->height) {
+    if (src->width != dst->width || src->height != dst->height)
+    {
         fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
@@ -321,15 +344,17 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k) {
     int H = src->height;
     int k_size = k->size;
 
-    // #pragma omp parallel for schedule(dynamic) // Can parallelize outer loop
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
+    for (int y = 0; y < H; ++y)
+    {
+        for (int x = 0; x < W; ++x)
+        {
             ColorRGB accumulator = {0.0, 0.0, 0.0};
-            for (int ky = -k_size; ky <= k_size; ++ky) {
+            for (int ky = -k_size; ky <= k_size; ++ky)
+            {
                 int src_y_raw = y - ky; // Convolution flip
 
                 // Apply boundary conditions (only need Y coord here)
-                int src_y, dummy_x; // Don't need x coord from helper
+                int src_y, dummy_x;                                         // Don't need x coord from helper
                 get_symmetric_coords(W, H, x, src_y_raw, &dummy_x, &src_y); // Pass current x
 
                 double kernel_val = k->data[ky + k_size];
