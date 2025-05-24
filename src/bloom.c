@@ -5,6 +5,7 @@
 #include <string.h> // For memset
 #include "core_constants.h"
 
+
 // --- Airy Disk Function ---
 // Approximates (2*J1(x)/x)^2
 // Handles the limit at x=0 where the value should be 1.0
@@ -19,6 +20,7 @@ static double airy_disk_func(double x)
     double val = 2.0 * bessel_j1 / x;
     return val * val;
 }
+
 
 // --- Generate 2D Kernel ---
 Kernel2D *generate_airy_kernel(const double scale[3], int size)
@@ -51,31 +53,23 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
     double sum[3] = {0.0, 0.0, 0.0};                             // For normalization
 
     for (int j = -size; j <= size; ++j)
-    {     // y loop
+    {
         for (int i = -size; i <= size; ++i)
-        { // x loop
-            double x = (double)i;
-            double y = (double)j;
-            double r = sqrt(x * x + y * y);
+        {
+            double r = sqrt((double)(i * i + j * j)) + EPSILON_STRICT;
+            int kernel_idx = (j + size) * k->width + (i + size);
 
-            r += EPSILON_STRICT;
+            double val_r = airy_disk_func(r / scale[0]);
+            double val_g = airy_disk_func(r / scale[1]);
+            double val_b = airy_disk_func(r / scale[2]);
 
-            int kernel_idx = (j + size) * k->width + (i + size); // Index in kernel data array
-
-            for (int c = 0; c < 3; ++c)
-            { // RGB channels
-                double scaled_r = r / scale[c];
-                double val = airy_disk_func(scaled_r);
-                k->data[kernel_idx].r = (c == 0) ? val : k->data[kernel_idx].r;
-                k->data[kernel_idx].g = (c == 1) ? val : k->data[kernel_idx].g;
-                k->data[kernel_idx].b = (c == 2) ? val : k->data[kernel_idx].b;
-
-                if (c == 0) sum[0] += val;
-                if (c == 1) sum[1] += val;
-                if (c == 2) sum[2] += val;
-            }
+            k->data[kernel_idx] = (ColorRGB){val_r, val_g, val_b};
+            sum[0] += val_r;
+            sum[1] += val_g;
+            sum[2] += val_b;
         }
     }
+
 
     // --- Normalize Kernel ---
     // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
@@ -99,6 +93,7 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
     return k;
 }
 
+
 // --- Free 2D Kernel ---
 void free_kernel2d(Kernel2D *k)
 {
@@ -108,6 +103,7 @@ void free_kernel2d(Kernel2D *k)
         free(k);
     }
 }
+
 
 // --- Symmetric Boundary Handling Helper ---
 // Scipy 'symm': reflect about the *center* of the edge pixel.
@@ -121,7 +117,6 @@ static void get_symmetric_coords(int W, int H, int x, int y, int *sx, int *sy)
     else { *sx = x; }
     // Clamp just in case reflection logic goes wrong (shouldn't happen with correct logic)
     *sx = fmax(0, fmin(W - 1, *sx));
-
 
     // Handle Y coordinate
     if (y < 0) { *sy = -y - 1; }
