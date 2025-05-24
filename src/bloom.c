@@ -8,18 +8,14 @@
 // --- Airy Disk Function ---
 // Approximates (2*J1(x)/x)^2
 // Handles the limit at x=0 where the value should be 1.0
-static double airy_disk_func(double x) {
-    if (fabs(x) < EPSILON_STRICT) { // Handle x close to 0
-        return 1.0;
-    }
-    // Ensure math.h provides j1 or _j1 depending on the system
-    // On POSIX/Linux/macOS, j1 should be available.
-    // On Windows with MSVC, it might be _j1.
-    #if defined(_WIN32) && !defined(__CYGWIN__)
-        double bessel_j1 = _j1(x);
-    #else
-        double bessel_j1 = j1(x);
-    #endif
+static double airy_disk_func(double x)
+{
+    if (fabs(x) < EPSILON_STRICT) { return 1.0; }
+#if defined(_WIN32) && !defined(__CYGWIN__)
+    double bessel_j1 = _j1(x);
+#else
+    double bessel_j1 = j1(x);
+#endif
     double val = 2.0 * bessel_j1 / x;
     return val * val;
 }
@@ -56,8 +52,6 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
             double y = (double)j;
             double r = sqrt(x*x + y*y);
 
-            // Add small epsilon like Python code to avoid r=0 if needed,
-            // although airy_disk_func handles it. Let's keep it for consistency.
             r += EPSILON_STRICT;
 
             int kernel_idx = (j + size) * k->width + (i + size); // Index in kernel data array
@@ -69,7 +63,6 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
                 k->data[kernel_idx].g = (c == 1) ? val : k->data[kernel_idx].g;
                 k->data[kernel_idx].b = (c == 2) ? val : k->data[kernel_idx].b;
 
-                // Accumulate sum for normalization
                 if (c == 0) sum[0] += val;
                 if (c == 1) sum[1] += val;
                 if (c == 2) sum[2] += val;
@@ -82,8 +75,6 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size) {
     for (int c = 0; c < 3; ++c) {
         if (fabs(sum[c]) < EPSILON_STRICT) {
             fprintf(stderr, "Warning: Kernel sum for channel %d is close to zero. Normalization skipped for this channel.\n", c);
-            // Optional: Set kernel to an identity for this channel? Or leave as is?
-            // Let's leave it as calculated, convolution will just yield zero.
             sum[c] = 1.0; // Avoid division by zero, result will be unnormalized (likely all zero anyway)
         }
     }
@@ -107,8 +98,6 @@ void free_kernel2d(Kernel2D* k) {
 }
 
 // --- Symmetric Boundary Handling Helper ---
-// Given image dimensions (W, H) and requested coords (x, y),
-// return the valid coords (sx, sy) using symmetric reflection.
 // Scipy 'symm': reflect about the *center* of the edge pixel.
 // x_reflected = -x - 1 for x < 0
 // x_reflected = 2*W - x - 1 for x >= W
@@ -153,17 +142,18 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k) {
     int k_size = k->size; // Kernel radius
     int k_width = k->width;
 
-    // Iterate over each pixel in the destination/source image
-    // Use OpenMP for parallelization if desired (add compiler flags like -fopenmp)
-    // #pragma omp parallel for schedule(dynamic) collapse(2) // Example parallelization
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
+    for (int y = 0; y < H; ++y)
+    {
+        for (int x = 0; x < W; ++x)
+        {
 
             ColorRGB accumulator = {0.0, 0.0, 0.0};
 
             // Apply the kernel centered at (x, y)
-            for (int ky = -k_size; ky <= k_size; ++ky) {
-                for (int kx = -k_size; kx <= k_size; ++kx) {
+            for (int ky = -k_size; ky <= k_size; ++ky)
+            {
+                for (int kx = -k_size; kx <= k_size; ++kx)
+                {
                     // Calculate the corresponding source image coordinates
                     int src_x_raw = x - kx; // Kernel is flipped for convolution vs correlation
                     int src_y_raw = y - ky;
@@ -191,14 +181,15 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k) {
             int dst_idx = y * W + x;
             dst->pixels[dst_idx] = accumulator;
         }
-        // Optional: Progress indicator
-        if (y % 10 == 0) {
-            // printf("Convolution progress: %d / %d rows\n", y, H);
-            // fflush(stdout); // Ensure it prints immediately
+
+        if (y % 10 == 0)
+        {
+            printf("\rConvolution progress: %d / %d rows", y, H);
+            fflush(stdout);
         }
     }
 
-    printf("Convolution finished.\n");
+    printf("\nConvolution finished.\n");
     return true;
 }
 
