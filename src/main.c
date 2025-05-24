@@ -64,11 +64,19 @@ int main(int argc, char *argv[])
     ImageF* postproc_buffer = create_imagef(W, H); // Temporary work buffer
     ImageF* pre_bloom_copy = create_imagef(W, H);  // Buffer to hold state before bloom (source for blur)
 
-    if (!postproc_buffer || !pre_bloom_copy) {
-        fprintf(stderr, "Failed to create post-processing buffers.\n");
+    // Check postproc_buffer first
+    if (!postproc_buffer) {
+        fprintf(stderr, "Failed to create post-processing buffer.\n");
         free_imagef(output_image);
-        free_imagef(postproc_buffer); // Free whichever was allocated
-        free_imagef(pre_bloom_copy);
+        free_config_textures(&config);
+        return EXIT_FAILURE;
+    }
+
+    // Check pre_bloom_copy next
+    if (!pre_bloom_copy) {
+        fprintf(stderr, "Failed to create pre-bloom copy buffer.\n");
+        free_imagef(output_image);
+        free_imagef(postproc_buffer);
         free_config_textures(&config);
         return EXIT_FAILURE;
     }
@@ -273,20 +281,23 @@ int main(int argc, char *argv[])
 
     // Create output directory
     struct stat st = {0};
-    if (stat("out", &st) == -1) {
-        #ifdef _WIN32
-            if (_mkdir("out") != 0) {
-                perror("Error creating 'out' directory");
-                free(base_name);
-                return EXIT_FAILURE;
-            }
-        #else
-            if (mkdir("out", 0775) != 0 && errno != EEXIST) {
-                perror("Error creating 'out' directory");
-                free(base_name);
-                return EXIT_FAILURE;
-            }
-        #endif
+    if (stat("out", &st) == -1)
+    {
+#ifdef _WIN32
+        if (_mkdir("out") != 0)
+        {
+            perror("Error creating 'out' directory");
+            free(base_name);
+            return EXIT_FAILURE;
+        }
+#else
+        if (mkdir("out", 0775) != 0 && errno != EEXIST)
+        {
+            perror("Error creating 'out' directory");
+            free(base_name);
+            return EXIT_FAILURE;
+        }
+#endif
     }
 
     // Find first available file name
