@@ -6,6 +6,8 @@
 #include "core_constants.h"
 
 
+#define AIRY_CONVOLUTION_TILE_SIZE 64
+
 // --- Airy Disk Function ---
 // Approximates (2*J1(x)/x)^2
 // Handles the limit at x=0 where the value should be 1.0
@@ -150,50 +152,49 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     int k_size = k->size; // Kernel radius
     int k_width = k->width;
 
-    for (int y = 0; y < H; ++y)
+    for (int tile_y = 0; tile_y < H; tile_y += AIRY_CONVOLUTION_TILE_SIZE)
     {
-        for (int x = 0; x < W; ++x)
+        for (int tile_x = 0; tile_x < W; tile_x += AIRY_CONVOLUTION_TILE_SIZE)
         {
-            ColorRGB accumulator = {0.0, 0.0, 0.0};
+            int max_y = fmin(H, tile_y + AIRY_CONVOLUTION_TILE_SIZE);
+            int max_x = fmin(W, tile_x + AIRY_CONVOLUTION_TILE_SIZE);
 
-            // Apply the kernel centered at (x, y)
-            for (int ky = -k_size; ky <= k_size; ++ky)
+            for (int y = tile_y; y < max_y; ++y)
             {
-                for (int kx = -k_size; kx <= k_size; ++kx)
+                for (int x = tile_x; x < max_x; ++x)
                 {
-                    // Calculate the corresponding source image coordinates
-                    int src_x_raw = x - kx; // Kernel is flipped for convolution vs correlation
-                    int src_y_raw = y - ky;
+                    ColorRGB accumulator = {0.0, 0.0, 0.0};
 
-                    // Apply symmetric boundary conditions
-                    int src_x, src_y;
-                    get_symmetric_coords(W, H, src_x_raw, src_y_raw, &src_x, &src_y);
+                    for (int ky = -k_size; ky <= k_size; ++ky)
+                    {
+                        for (int kx = -k_size; kx <= k_size; ++kx)
+                        {
+                            ColorRGB kernel_val = k->data[(ky + k_size) * k_width + (kx + k_size)];
 
-                    // Get kernel value (kernel coords are relative to center)
-                    int kernel_idx = (ky + k_size) * k_width + (kx + k_size);
-                    ColorRGB kernel_val = k->data[kernel_idx];
+                            if (kernel_val.r < EPSILON_LOOSE && kernel_val.g < EPSILON_LOOSE && kernel_val.b < EPSILON_LOOSE) { continue; }
 
-                    if (kernel_val.r < EPSILON_LOOSE && kernel_val.g < EPSILON_LOOSE && kernel_val.b < EPSILON_LOOSE) { continue; }
+                            int src_x_raw = x - kx;
+                            int src_y_raw = y - ky;
 
-                    // Get source pixel value
-                    int src_idx = src_y * W + src_x;
-                    ColorRGB src_val = src->pixels[src_idx];
+                            int src_x, src_y;
+                            get_symmetric_coords(W, H, src_x_raw, src_y_raw, &src_x, &src_y);
 
-                    // Accumulate: C = C + S * K
-                    accumulator.r += src_val.r * kernel_val.r;
-                    accumulator.g += src_val.g * kernel_val.g;
-                    accumulator.b += src_val.b * kernel_val.b;
+                            int src_idx = src_y * W + src_x;
+                            ColorRGB src_val = src->pixels[src_idx];
+
+                            accumulator.r += src_val.r * kernel_val.r;
+                            accumulator.g += src_val.g * kernel_val.g;
+                            accumulator.b += src_val.b * kernel_val.b;
+                        }
+                    }
+                    dst->pixels[y * W + x] = accumulator;
                 }
             }
-
-            // Store the result in the destination image
-            int dst_idx = y * W + x;
-            dst->pixels[dst_idx] = accumulator;
         }
 
-        if (y % 10 == 0)
+        if (tile_y % AIRY_CONVOLUTION_TILE_SIZE == 0)
         {
-            printf("\r  Convolution progress: %d / %d rows", y, H);
+            printf("\r  Tiled convolution progress: %d / %d rows", tile_y, H);
             fflush(stdout);
         }
     }
@@ -250,7 +251,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     }
 
     // Normalize the discrete kernel sum to 1.0
-    if (sum > 1e-9)
+    if (sum > EPSILON_STRICT)
     {
         for (int i = 0; i < k->length; ++i) { k->data[i] /= sum; }
     }
