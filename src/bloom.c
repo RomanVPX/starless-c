@@ -76,7 +76,6 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
         }
     }
 
-
     // --- Normalize Kernel ---
     // Prevent division by zero if sum is zero (e.g., size=0 and scale results in NaN/Inf)
     for (int c = 0; c < 3; ++c)
@@ -155,7 +154,6 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     {
         for (int x = 0; x < W; ++x)
         {
-
             ColorRGB accumulator = {0.0, 0.0, 0.0};
 
             // Apply the kernel centered at (x, y)
@@ -203,6 +201,7 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     printf("\n  Convolution finished.\n");
     return true;
 }
+
 
 // --- Generate 1D Gaussian Kernel ---
 Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
@@ -270,6 +269,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     return k;
 }
 
+
 // --- Free 1D Kernel ---
 void free_kernel1d(Kernel1D *k)
 {
@@ -279,6 +279,7 @@ void free_kernel1d(Kernel1D *k)
         free(k);
     }
 }
+
 
 // --- 1D Horizontal Convolution ---
 bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
