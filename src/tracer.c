@@ -621,7 +621,6 @@ bool run_tracer(Config *config, ImageF *output_image)
     }
 
     // Wait for threads to complete
-    printf("Waiting for %d threads to finish...\n", n_threads);
     int threads_failed = 0;
     for (int i = 0; i < n_threads; ++i)
     {
