@@ -22,8 +22,6 @@ int main(int argc, char *argv[])
 
     Config config; // Will hold all settings
 
-    srand(time(NULL));
-
     // --- 1. Load Configuration ---
     printf("Loading configuration...\n");
     if (!load_config(argc, argv, &config)) {
