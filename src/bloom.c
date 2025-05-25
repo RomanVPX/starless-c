@@ -201,8 +201,7 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     clock_t end_time = clock();
     double elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
-    printf("\n  Convolution finished.\n");
-    printf("  Convolution took %.4f seconds.\n", elapsed_time);
+    printf("\n  Convolution finished in %.4f seconds.\n", elapsed_time);
     return true;
 }
 
@@ -261,7 +260,6 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     else
     {
         fprintf(stderr, "Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
-        // Maybe set center element to 1.0?
         if (k->length > 0)
         {
             memset(k->data, 0, k->length * sizeof(double));

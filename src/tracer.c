@@ -396,8 +396,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
             break;
         case ST_NONE: // Fallthrough
         default:
-            // bg_color is already black
-            break;
+            break;    // bg_color is already black
     }
     // Apply sky brightness scaling AFTER lookup/calculation
     return color_mul_scalar(bg_color, cfg->sky_disk_ratio);
@@ -502,20 +501,14 @@ static void *trace_pixel_range(void *thread_arg)
     ImageF *image = data->image;
     int W = image->width;
 
-    printf("Thread %d: Tracing pixels %d to %d (SSAA Level: %d)\n", data->thread_id, data->start_pixel_index, data->end_pixel_index,
-           cfg->ssaa_level);
+    printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
     clock_t start_time = clock(); // Simple timing per thread
 
     for (int idx = data->start_pixel_index; idx < data->end_pixel_index; ++idx)
     {
         int px = idx % W;
         int py = idx / W;
-        // if (cfg->ssaa_level > 0)
-        // {
-        //     // SSAA: Jittered stratified sampling
-        //     px += (int)(rand() % cfg->ssaa_level);
-        //     py += (int)(rand() % cfg->ssaa_level);
-        // }
+
         ColorRGB accumulated_color = COLOR_BLACK;
         int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
         int total_samples = num_samples_axis * num_samples_axis;
@@ -572,9 +565,10 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     if (n_threads <= 0) n_threads = 1; // Ensure at least one thread
 
-    printf("Starting ray tracing with %d threads... (SSAA: %dx%d = %d samples/pixel)\n", n_threads,
-           config->ssaa_level > 0 ? config->ssaa_level : 1, config->ssaa_level > 0 ? config->ssaa_level : 1,
-           (config->ssaa_level > 0 ? config->ssaa_level : 1) * (config->ssaa_level > 0 ? config->ssaa_level : 1));
+    int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
+    int total_samples = samples_per_axis * samples_per_axis;
+    printf("Starting ray tracing with %d threads...\n", n_threads);
+    printf("SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
     printf("Total pixels: %d\n", num_pixels);
 
     // Allocate thread handles and data structures
