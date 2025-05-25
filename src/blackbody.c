@@ -4,11 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "color.h"
-#include "core_constants.h"
 
 
-#define SHAKURA_SUNYAEV_TEMP_EXP 0.375  // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
-#define LOGSHIFT 0.823959216501         // Logarithmic shift for temperature (see original Starless, blackbody.c)
+#define SHAKURA_SUNYAEV_TEMP_EXP 0.375          // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
+#define LOGSHIFT                 0.823959216501 // Logarithmic shift for temperature (see original Starless, blackbody.c)
+
+// Should match values in ramp file:
+#define RAMP_TEMP_MIN            1000.0  // Minimum temperature for blackbody ramp (K)
+#define RAMP_TEMP_MAX            50000.0 // Maximum temperature for blackbody ramp (K)
 
 
 // --- Function to count valid data lines in a file ---
@@ -34,8 +37,8 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     *ramp_data_out = NULL;
     *ramp_size_out = 0;
 
-    int samples_to_load = count_ramp_samples(filename);
-    if (samples_to_load <= 0)
+    int smp_to_load = count_ramp_samples(filename);
+    if (smp_to_load <= 0)
     {
         fprintf(stderr, "Error: Failed to determine sample count in '%s' or file is empty/invalid.\n", filename);
         return false;
@@ -51,51 +54,51 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     }
 
     // Allocate memory
-    ColorRGB *loaded_data = (ColorRGB *)malloc(samples_to_load * sizeof(ColorRGB));
+    ColorRGB *loaded_data = (ColorRGB *)malloc(smp_to_load * sizeof(ColorRGB));
     if (!loaded_data)
     {
-        fprintf(stderr, "\nError: Failed to allocate memory for blackbody ramp (%d samples).\n", samples_to_load);
+        fprintf(stderr, "\nError: Failed to allocate memory for blackbody ramp (%d samples).\n", smp_to_load);
         fclose(file);
         return false;
     }
 
     char line_buffer[256];
-    int samples_read = 0;
-    while (samples_read < samples_to_load && fgets(line_buffer, sizeof(line_buffer), file))
+    int smp_read = 0;
+    while (smp_read < smp_to_load && fgets(line_buffer, sizeof(line_buffer), file))
     {
         // Skip empty lines or comment lines again during actual read
         if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
 
-        if (sscanf(line_buffer, "%lf %lf %lf", &loaded_data[samples_read].r, &loaded_data[samples_read].g, &loaded_data[samples_read].b) == 3)
+        if (sscanf(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
         {
             // Optional: Validate loaded data here (NaN, negative checks)
-            ColorRGB *color = &loaded_data[samples_read];
+            ColorRGB *color = &loaded_data[smp_read];
             if (isnan(color->r) || isnan(color->g) || isnan(color->b) || color->r < 0.0 || color->g < 0.0 || color->b < 0.0)
             {
-                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", samples_read, filename);
+                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", smp_read, filename);
                 color->r = fmax(0.0, color->r);
                 color->g = fmax(0.0, color->g);
                 color->b = fmax(0.0, color->b);
             }
-            samples_read++;
+            smp_read++;
         }
-        else { fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", samples_read + 1, filename); }
+        else { fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", smp_read + 1, filename); }
     }
 
     fclose(file);
 
-    if (samples_read != samples_to_load)
+    if (smp_read != smp_to_load)
     {
         fprintf(stderr,
                 "\nError: Read %d samples, but expected %d based on initial count from file '%s'. File might have changed or is "
                 "inconsistent.\n",
-                samples_read, samples_to_load, filename);
+                smp_read, smp_to_load, filename);
         free(loaded_data); // Free partially allocated/read data
         return false;
     }
 
     *ramp_data_out = loaded_data;
-    *ramp_size_out = samples_read;
+    *ramp_size_out = smp_read;
     printf("OK (%d samples loaded).\n", *ramp_size_out);
     return true;
 }

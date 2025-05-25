@@ -8,15 +8,6 @@
 #define EPSILON_STRICT 1e-9   // Used in airy_disk_func, kernel generation, normalizations
 #define EPSILON_LOOSE  1e-6   // Used for "almost zero" checks elsewhere
 
-// Minimum temperature for blackbody ramp (K)
-#define RAMP_TEMP_MIN 1000.0
-// Maximum temperature for blackbody ramp (K)
-#define RAMP_TEMP_MAX 50000.0
-
-#define USE_ORIGINAL_OUTER_TAPER_CALCULATION 1 // Use original outer taper calculation logic
-#define TEMP_CUTOFF_LOW 1000.0 // Temperature low cutoff for blackbody visibility (K)
-#define TEMP_CUTOFF_HIGH 15000.0 // Temperature high cutoff for blackbody visibility (K)
-
 // Scale for Airy bloom (see main.c, comment: "the float constant is 1.22 * 650nm / (4 mm)")
 // 1.22 — diffraction limit, 650nm — red wavelength, 4mm — pupil diameter
 #define AIRY_RAD_SCALE 0.00019825

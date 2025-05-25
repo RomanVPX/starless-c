@@ -1,49 +1,54 @@
 #include "tracer.h"
 #include <math.h>
-#include <pthread.h> // For threading later
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>      // For progress timing later
+#include <time.h> // For progress timing later
 #include "blackbody.h"
 #include "color.h"
-#include "config.h"    // Already included via tracer.h
+#include "config.h" // Already included via tracer.h
 #include "core_constants.h"
-#include "image.h"     // Already included via tracer.h
+#include "image.h"  // Already included via tracer.h
 #include "vector.h"
 
 
 // --- Physics & Geometry Constants ---
-#define EVENT_HORIZON_RADIUS_SQR   1.0
-#define SCHWARZSCHILD_RADIUS_SQR   1.0   // Alias for clarity
-#define SINGULARITY_THRESHOLD      1e-12 // Threshold for r_sqr near singularity in RK4
-#define MIN_GRAV_REDSHIFT_R_SQR    1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
-#define MIN_VEL_R_SQR              0.1   // Min r^2 for disk velocity calculation
+#define EVENT_HORIZON_RADIUS_SQR             1.0
+#define SCHWARZSCHILD_RADIUS_SQR             1.0   // Alias for clarity
+#define SINGULARITY_THRESHOLD                1e-12 // Threshold for r_sqr near singularity in RK4
+#define MIN_GRAV_REDSHIFT_R_SQR              1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
+#define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP   false  // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA              0.9999 // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA             0.95   // Set stop ray in disk handling if alpha exceeds this
+#define OPAQUE_RAY_ALPHA_ON_STOP             0      // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA                        0.9999 // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA                       0.95   // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
-#define GRID_PHI_STEP              (M_PI / 6.0)   // ~0.52359... For disk grid pattern
-#define GRID_HORIZON_PHI_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_HORIZON_ALT_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_ANGLE_OFFSET          (100.0 * M_PI) // Large offset for fmod with negative angles
+#define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
+#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_ANGLE_OFFSET                    (100.0 * M_PI) // Large offset for fmod with negative angles
 
 // --- Blackbody & Disk Constants ---
-#define DEFAULT_LOG_T0_ISCO        9.210340371976184 // log(10000 K), default temp scale at ISCO
-#define BBODY_SPEED_FACTOR         (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
-#define BBODY_ISCO_TAPER_FACTOR    0.3               // Taper factor from inner disk radius
-#define BBODY_TEMP_TAPER_THRESHOLD 1000.0            // Temperature threshold for outer taper
+#define DEFAULT_LOG_T0_ISCO                  9.210340371976184 // log(10000 K), default temp scale at ISCO
+#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
+#define BBODY_ISCO_TAPER_FACTOR              0.3               // Taper factor from inner disk radius
+#define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
+
+// --- Blackbody Rendering Settings ---
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION 1       // Use original outer taper calculation logic
+#define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
-#define FOG_TAPER_FACTOR           0.8 // Factor for fog intensity taper near horizon
+#define FOG_TAPER_FACTOR                     0.8 // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
-#define DEBUG_SINGLE_PIXEL_X       1300
-#define DEBUG_SINGLE_PIXEL_Y       950
+#define DEBUG_SINGLE_PIXEL_X                 1300
+#define DEBUG_SINGLE_PIXEL_Y                 950
 
 // --- Vector/Color Constants ---
 static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
