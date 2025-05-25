@@ -12,6 +12,7 @@
 #include "core_constants.h"
 #include "image.h"  // Already included via tracer.h
 #include "vector.h"
+#include "interpolation.h"
 
 
 // --- Physics & Geometry Constants ---
@@ -22,9 +23,9 @@
 #define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP             0      // Set ray.alpha to 1.0 on stop
+#define OPAQUE_RAY_ALPHA_ON_STOP             false  // Set ray.alpha to 1.0 on stop
 #define MAX_RAY_ALPHA                        0.9999 // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA                       0.95   // Set stop ray in disk handling if alpha exceeds this
+#define MAX_DISC_ALPHA                       0.98   // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
 #define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
@@ -39,7 +40,7 @@
 #define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
 
 // --- Blackbody Rendering Settings ---
-#define USE_ORIGINAL_OUTER_TAPER_CALCULATION 1       // Use original outer taper calculation logic
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false    // Use original outer taper calculation logic
 #define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
 #define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
 
@@ -251,14 +252,16 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             else { disk_color = bb_col; }
 
             // --- Alpha calculation ---
-            double isco_taper = fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR));
+            double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
+            double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
 
 #if USE_ORIGINAL_OUTER_TAPER_CALCULATION
-            double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
 #else
-            double outer_taper = (temp > TEMP_CUTOFF_HIGH)  ? 1.0
-                                 : (temp < TEMP_CUTOFF_LOW) ? 0.0
-                                                            : (temp - TEMP_CUTOFF_LOW) / (TEMP_CUTOFF_HIGH - TEMP_CUTOFF_LOW);
+            outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.55), col_point_sqr);
+            // outer_taper *= smoothstep(cfg->disk_outer_radius, lerp(cfg->disk_inner_radius, cfg->disk_outer_radius, 0.75), R);
+            // double outer_taper = (temp > TEMP_CUTOFF_HIGH)  ? 1.0
+            //                      : (temp < TEMP_CUTOFF_LOW) ? 0.0
+            //                                                 : (temp - TEMP_CUTOFF_LOW) / (TEMP_CUTOFF_HIGH - TEMP_CUTOFF_LOW);
 #endif
             disk_alpha = isco_taper * outer_taper;
 
