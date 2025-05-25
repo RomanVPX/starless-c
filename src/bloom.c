@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // For memset
+#include <time.h>
 #include "core_constants.h"
 
 
@@ -51,8 +52,9 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
         return NULL;
     }
     memset(k->data, 0, k->width * k->height * sizeof(ColorRGB)); // Initialize
-
     double sum[3] = {0.0, 0.0, 0.0};                             // For normalization
+
+    clock_t start_time = clock();
 
     for (int j = -size; j <= size; ++j)
     {
@@ -96,7 +98,10 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
         k->data[idx].b /= sum[2];
     }
 
+    clock_t end_time = clock();
+    double elapsed_time_ms = (double)(end_time - start_time) / CLOCKS_PER_SEC * 1000.0;
     printf("  Generated %dx%d Airy kernel.\n", k->width, k->height);
+    printf("  Airy kernel generation took %.3f ms.\n", elapsed_time_ms);
     return k;
 }
 
@@ -152,6 +157,8 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     int k_size = k->size; // Kernel radius
     int k_width = k->width;
 
+    clock_t start_time = clock();
+
     for (int tile_y = 0; tile_y < H; tile_y += AIRY_CONVOLUTION_TILE_SIZE)
     {
         for (int tile_x = 0; tile_x < W; tile_x += AIRY_CONVOLUTION_TILE_SIZE)
@@ -199,7 +206,11 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
         }
     }
 
+    clock_t end_time = clock();
+    double elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+
     printf("\n  Convolution finished.\n");
+    printf("  Convolution took %.4f seconds.\n", elapsed_time);
     return true;
 }
 
@@ -266,7 +277,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
         }
     }
 
-    printf("Generated %d-element 1D Gaussian kernel (sigma=%.2f, size=%d).\n", k->length, sigma, size);
+    printf("  Generated %d-element 1D Gaussian kernel (sigma=%.2f, size=%d).\n", k->length, sigma, size);
     return k;
 }
 
@@ -326,7 +337,7 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
             dst->pixels[dst_idx] = accumulator;
         }
     }
-    printf("Horizontal 1D convolution finished.\n");
+    printf("  Horizontal 1D convolution finished.\n");
     return true;
 }
 
@@ -375,6 +386,6 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
             dst->pixels[dst_idx] = accumulator;
         }
     }
-    printf("Vertical 1D convolution finished.\n");
+    printf("  Vertical 1D convolution finished.\n");
     return true;
 }

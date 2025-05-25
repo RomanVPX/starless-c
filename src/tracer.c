@@ -650,7 +650,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     printf("All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
     printf("Final image size: %d x %d\n", W, H);
     printf("Total pixels processed: %d\n", num_pixels);
-    printf("Average time per pixel: %.4f seconds\n", total_time_spent / num_pixels);
+    printf("Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
     printf("Ray tracing completed successfully.\n");
     return true;
 }
