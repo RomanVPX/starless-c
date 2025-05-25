@@ -22,7 +22,7 @@ Stepsize=0.32
 Resolution=2048,1572
 Iterations=250
 Stepsize=0.16
-SSAA=3
+SSAA=2
 
 # From now on, settings apply to both tests and full renders
 
@@ -50,16 +50,12 @@ Diskouter=14.
 
 
 [materials]
-
 #whether to convert sRGB -> linear RGB when loading textures
 sRGBIn=1
-
 #whether to convert back RGB -> sRGB after postprocessing, before saving
 sRGBOut=1
-
 #Whether to draw a grid on the horizon (0/1)
 Horizongrid=0
-
 #Disk rendering mode
 #	none:		don't draw
 #	texture:	use texture adisk.jpg for both colour and alpha
@@ -67,12 +63,10 @@ Horizongrid=0
 #	solid:		draw solid white
 #	blackbody:	use the realistic 'blackbody' model
 Disktexture=blackbody
-
 #blackbody disc options
 Redshift=1.1
 #multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=2048.
-
+Diskmultiplier=550.0
 #Sky rendering mode
 #	none:		solid black
 #	texture:	use texture bgedit.png
@@ -98,18 +92,16 @@ Fogmult=0.03
 #Whether to perform Airy disk bloom
 Airy_bloom=1
 #this parameter rescales the resolution (1.0 = standard size)
-Airy_radius=0.5
-
+Airy_radius=0.75
 
 #image done until now is called 'postbloom.png'
-
 
 #Wide gaussian (lit up dust effect)
 #a convolution pass with a pretty wide gaussian which is add-blended
 #simulates dust lit up by bright objects (very scenographic)
 Blurdo=1
 
-ACESExposure = 0.65
+ACESExposure = 0.85
 
 #Gain
 Gain=1
