@@ -266,7 +266,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         else if (strcmp(name, "Fogmult") == 0) { cfg->fog_mult = atof(value); }
         else if (strcmp(name, "Fogskip") == 0) { cfg->fog_skip = (atoi(value) <= 0) ? 1 : atoi(value); }
         else if (strcmp(name, "Blurdo") == 0) { cfg->blur_do = string_to_bool(value); }
-        else if (strcmp(name, "Bloomcut") == 0) { cfg->bloom_cut = atof(value); }
         else if (strcmp(name, "Airy_bloom") == 0) { cfg->airy_bloom = string_to_bool(value); }
         else if (strcmp(name, "Airy_radius") == 0) { cfg->airy_radius = atof(value); }
         else if (strcmp(name, "Gain") == 0) { cfg->gain = atof(value); }
@@ -317,7 +316,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->fog_mult = DEFAULT_FOG_MULT;
     cfg->fog_skip = DEFAULT_FOG_SKIP;
     cfg->blur_do = DEFAULT_BLUR_DO;
-    cfg->bloom_cut = DEFAULT_BLOOM_CUT;
     cfg->airy_bloom = DEFAULT_AIRY_BLOOM;
     cfg->airy_radius = DEFAULT_AIRY_RADIUS;
     cfg->gain = DEFAULT_GAIN;
