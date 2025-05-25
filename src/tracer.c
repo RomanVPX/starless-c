@@ -256,7 +256,8 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
 
 #if !USE_ORIGINAL_OUTER_TAPER_CALCULATION
-            outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.55), col_point_sqr);
+            // outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.75), col_point_sqr);
+            outer_taper *= smoothstep(cfg->disk_outer_sqr * 0.95, cfg->disk_outer_sqr * 0.85, col_point_sqr);
 #endif
             disk_alpha = isco_taper * outer_taper;
 
