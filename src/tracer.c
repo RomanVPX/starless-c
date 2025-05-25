@@ -1,11 +1,12 @@
 #include "tracer.h"
 #include <math.h>
 #include <pthread.h> // For threading later
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>      // For progress timing later
-#include "blackbody.h" // For disk blackbody calculations
+#include "blackbody.h"
 #include "color.h"
 #include "config.h"    // Already included via tracer.h
 #include "core_constants.h"
@@ -247,7 +248,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             // --- Alpha calculation ---
             double isco_taper = fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR));
 
-#ifdef USE_ORIGINAL_OUTER_TAPER_CALCULATION
+#if USE_ORIGINAL_OUTER_TAPER_CALCULATION
             double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
 #else
             double outer_taper = (temp > TEMP_CUTOFF_HIGH)  ? 1.0
@@ -255,9 +256,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                                                             : (temp - TEMP_CUTOFF_LOW) / (TEMP_CUTOFF_HIGH - TEMP_CUTOFF_LOW);
 #endif
             disk_alpha = isco_taper * outer_taper;
-            // TODO: ADD RADIAL FALLOFF HERE. Some higher-order function of radius, e.g. r^3(10 - 15*r + 6*r^2) for r in [0,1]
-            // disk_alpha *= pow(fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) / (cfg->disk_outer_sqr -
-            // cfg->disk_inner_sqr))), 3.0); double radius_taper_outer = ... ; disk_alpha *= radius_taper_outer;
+
             if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
             break;
         }
@@ -266,7 +265,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     }
 
     // Blend disk color (cb=disk, ca=ray)
-    if (log_this_pixel && disk_alpha > 1e-6)
+    if (log_this_pixel && disk_alpha > EPSILON_LOOSE)
     {
         printf("--- Blending Disk: Ray (%.3f,%.3f,%.3f a=%.3f) + Disk (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b,
                ray->alpha, disk_color.r, disk_color.g, disk_color.b, disk_alpha);
@@ -274,7 +273,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     ray->color = BLEND_COLORS(disk_color, disk_alpha, ray->color, ray->alpha);
     ray->alpha = blend_alpha(disk_alpha, ray->alpha);
 
-    if (log_this_pixel && disk_alpha > 1e-6)
+    if (log_this_pixel && disk_alpha > EPSILON_LOOSE)
     {
         printf("--- Result: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, ray->alpha);
     }

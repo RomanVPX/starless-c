@@ -1,37 +1,42 @@
 #include "blackbody.h"
-#include "core_constants.h"
-#include "color.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "color.h"
+#include "core_constants.h"
+
+
+#define SHAKURA_SUNYAEV_TEMP_EXP 0.375  // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
+#define LOGSHIFT 0.823959216501         // Logarithmic shift for temperature (see original Starless, blackbody.c)
 
 
 // --- Function to count valid data lines in a file ---
-static int count_ramp_samples(const char *filename) {
+static int count_ramp_samples(const char *filename)
+{
     FILE *file = fopen(filename, "r");
-    if (!file) {
-        return -1;
-    }
+    if (!file) { return -1; }
     int count = 0;
     char line[512]; // It's 33 characters for RGB values, but allow some extra space for comments or whatever
     double r, g, b;
-    while (fgets(line, sizeof(line), file)) {
-        if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') continue;
-        if (sscanf(line, "%lf %lf %lf", &r, &g, &b) == 3) {
-            count++;
-        }
+    while (fgets(line, sizeof(line), file))
+    {
+        if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') { continue; }
+        if (sscanf(line, "%lf %lf %lf", &r, &g, &b) == 3) { count++; }
     }
     fclose(file);
     return count;
 }
 
-bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out) {
+
+bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out)
+{
     *ramp_data_out = NULL;
     *ramp_size_out = 0;
 
     int samples_to_load = count_ramp_samples(filename);
-    if (samples_to_load <= 0) {
+    if (samples_to_load <= 0)
+    {
         fprintf(stderr, "Error: Failed to determine sample count in '%s' or file is empty/invalid.\n", filename);
         return false;
     }
@@ -39,14 +44,16 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     fflush(stdout);
 
     FILE *file = fopen(filename, "r");
-    if (!file) {
+    if (!file)
+    {
         perror("Error opening ramp file");
         return false;
     }
 
     // Allocate memory
     ColorRGB *loaded_data = (ColorRGB *)malloc(samples_to_load * sizeof(ColorRGB));
-    if (!loaded_data) {
+    if (!loaded_data)
+    {
         fprintf(stderr, "\nError: Failed to allocate memory for blackbody ramp (%d samples).\n", samples_to_load);
         fclose(file);
         return false;
@@ -54,35 +61,35 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     char line_buffer[256];
     int samples_read = 0;
-    while (samples_read < samples_to_load && fgets(line_buffer, sizeof(line_buffer), file)) {
-         // Skip empty lines or comment lines again during actual read
+    while (samples_read < samples_to_load && fgets(line_buffer, sizeof(line_buffer), file))
+    {
+        // Skip empty lines or comment lines again during actual read
         if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
 
-        if (sscanf(line_buffer, "%lf %lf %lf",
-                    &loaded_data[samples_read].r,
-                    &loaded_data[samples_read].g,
-                    &loaded_data[samples_read].b) == 3)
+        if (sscanf(line_buffer, "%lf %lf %lf", &loaded_data[samples_read].r, &loaded_data[samples_read].g, &loaded_data[samples_read].b) == 3)
         {
             // Optional: Validate loaded data here (NaN, negative checks)
-             ColorRGB *color = &loaded_data[samples_read];
-            if (isnan(color->r) || isnan(color->g) || isnan(color->b) ||
-                color->r < 0.0 || color->g < 0.0 || color->b < 0.0) {
-                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n",
-                        samples_read, filename);
+            ColorRGB *color = &loaded_data[samples_read];
+            if (isnan(color->r) || isnan(color->g) || isnan(color->b) || color->r < 0.0 || color->g < 0.0 || color->b < 0.0)
+            {
+                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", samples_read, filename);
                 color->r = fmax(0.0, color->r);
                 color->g = fmax(0.0, color->g);
                 color->b = fmax(0.0, color->b);
             }
             samples_read++;
-        } else {
-            fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", samples_read + 1, filename);
         }
+        else { fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", samples_read + 1, filename); }
     }
 
     fclose(file);
 
-    if (samples_read != samples_to_load) {
-        fprintf(stderr, "\nError: Read %d samples, but expected %d based on initial count from file '%s'. File might have changed or is inconsistent.\n", samples_read, samples_to_load, filename);
+    if (samples_read != samples_to_load)
+    {
+        fprintf(stderr,
+                "\nError: Read %d samples, but expected %d based on initial count from file '%s'. File might have changed or is "
+                "inconsistent.\n",
+                samples_read, samples_to_load, filename);
         free(loaded_data); // Free partially allocated/read data
         return false;
     }
@@ -93,17 +100,22 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     return true;
 }
 
+
 // --- Temperature calculation function (no change) ---
-double bb_log_temperature(double sqr_radius, double log_T0_isco) {
+double bb_log_temperature(double sqr_radius, double log_T0_isco)
+{
     if (sqr_radius <= 0) return -INFINITY;
     double A = log_T0_isco + LOGSHIFT;
     return A - SHAKURA_SUNYAEV_TEMP_EXP * log(sqr_radius);
 }
 
+
 // --- Color lookup function ---
-ColorRGB bb_color_from_temp(const Config *cfg, double temperature) {
+ColorRGB bb_color_from_temp(const Config *cfg, double temperature)
+{
     // Access ramp data via cfg pointer
-    if (!cfg || !cfg->blackbody_ramp_data || cfg->blackbody_ramp_size == 0) {
+    if (!cfg || !cfg->blackbody_ramp_data || cfg->blackbody_ramp_size == 0)
+    {
         // This check should ideally not be hit if loading is conditional,
         // but it's good defensive programming.
         fprintf(stderr, "Warning: Blackbody ramp data not available in config!\n");
