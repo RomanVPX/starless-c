@@ -49,9 +49,4 @@ double bb_log_temperature(double sqr_radius, double log_T0_isco);
 ColorRGB bb_color_from_temp(const Config *cfg, double temperature);
 
 
-// Lookup color from the ramp based on absolute temperature (K)
-// Corresponds to Python's colour
-//ColorRGB bb_color_from_temp(double temperature); // TODO: REMOVE THIS IF NOT NEEDED
-
-
 #endif // BLACKBODY_H
