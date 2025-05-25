@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include "vector.h" // Include for potential color vector operations if needed
 
-typedef struct {
+typedef struct
+{
     double r, g, b;
 } ColorRGB;
 
@@ -35,7 +36,8 @@ ColorRGB color_linear_to_srgb(ColorRGB c);
 ColorRGB color_srgb_to_linear(ColorRGB c);
 
 // Utility to convert to output format
-typedef struct {
+typedef struct
+{
     uint8_t r, g, b;
 } ColorRGB_u8;
 

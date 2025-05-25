@@ -122,8 +122,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     if (strcmp(section, "lofi") == 0 || strcmp(section, "hifi") == 0)
     {
         // Skip processing if we're in the wrong section for our mode
-        bool is_correct_section =
-                (cfg->lofi && strcmp(section, "lofi") == 0) || (!cfg->lofi && strcmp(section, "hifi") == 0);
+        bool is_correct_section = (cfg->lofi && strcmp(section, "lofi") == 0) || (!cfg->lofi && strcmp(section, "hifi") == 0);
 
         if (!is_correct_section) { return 1; } // Skip this section
 
@@ -157,25 +156,16 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     {
         if (strcmp(name, "Cameraposition") == 0)
         {
-            if (!parse_vec3d(value, &cfg->camera_pos))
-            {
-                fprintf(stderr, "Warning: Invalid format for Cameraposition '%s'\n", value);
-            }
+            if (!parse_vec3d(value, &cfg->camera_pos)) { fprintf(stderr, "Warning: Invalid format for Cameraposition '%s'\n", value); }
         }
         else if (strcmp(name, "Fieldofview") == 0) { cfg->tan_fov = atof(value); }
         else if (strcmp(name, "Lookat") == 0)
         {
-            if (!parse_vec3d(value, &cfg->look_at))
-            {
-                fprintf(stderr, "Warning: Invalid format for Lookat '%s'\n", value);
-            }
+            if (!parse_vec3d(value, &cfg->look_at)) { fprintf(stderr, "Warning: Invalid format for Lookat '%s'\n", value); }
         }
         else if (strcmp(name, "Upvector") == 0)
         {
-            if (!parse_vec3d(value, &cfg->up_vector))
-            {
-                fprintf(stderr, "Warning: Invalid format for Upvector '%s'\n", value);
-            }
+            if (!parse_vec3d(value, &cfg->up_vector)) { fprintf(stderr, "Warning: Invalid format for Upvector '%s'\n", value); }
         }
         else if (strcmp(name, "Distort") == 0) { cfg->distort = string_to_bool(value); }
         else if (strcmp(name, "Diskinner") == 0) { cfg->disk_inner_radius = atof(value); }
@@ -354,8 +344,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
             cfg->lofi = true;
             printf("  Found -d: Enabling Lo-Fi mode defaults\n");
         }
-        else if (strcmp(argv[i], "--no-graph") == 0 || strcmp(argv[i], "--no-display") == 0 ||
-                 strcmp(argv[i], "--no-shuffle") == 0 || strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--no-bs") == 0)
+        else if (strcmp(argv[i], "--no-graph") == 0 || strcmp(argv[i], "--no-display") == 0 || strcmp(argv[i], "--no-shuffle") == 0 ||
+                 strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--no-bs") == 0)
         {
             printf("  Found %s: (Ignoring, not implemented or relevant)\n", argv[i]);
         }
@@ -435,8 +425,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             cfg->disk_texture = load_texture(cfg->disk_texture_path);
             if (!cfg->disk_texture)
             {
-                fprintf(stderr, "Warning: Failed to load disk texture '%s'. Check path and file.\n",
-                        cfg->disk_texture_path);
+                fprintf(stderr, "Warning: Failed to load disk texture '%s'. Check path and file.\n", cfg->disk_texture_path);
             }
         }
         else { fprintf(stderr, "Warning: Disk texture mode is TEXTURE, but no valid path was found.\n"); }
@@ -450,8 +439,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             original_sky_texture = load_texture(cfg->sky_texture_path);
             if (!original_sky_texture)
             {
-                fprintf(stderr, "Warning: Failed to load sky texture '%s'. Check path and file.\n",
-                        cfg->sky_texture_path);
+                fprintf(stderr, "Warning: Failed to load sky texture '%s'. Check path and file.\n", cfg->sky_texture_path);
             }
         }
         else { fprintf(stderr, "Warning: Sky texture mode is TEXTURE, but no valid path was found.\n"); }
@@ -491,8 +479,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
         {
             printf("Loading blackbody ramp (required by Disktexture mode): %s...\n", cfg->blackbody_ramp_path);
             // Pass pointers to store the results in the config struct
-            if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data,
-                                               &cfg->blackbody_ramp_size))
+            if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size))
             {
                 fprintf(stderr, "Error: Failed to load required blackbody ramp.\n");
                 free_config_textures(cfg); // Cleans up textures and paths
