@@ -36,9 +36,9 @@ sRGBOut=1
 
 Horizongrid=0
 
-Disktexture=textures/adisk.jpg
+Disktexture=texture
 
-Skytexture=textures/bgedit.jpg
+Skytexture=texture
 
 Skydiskratio=0.06
 

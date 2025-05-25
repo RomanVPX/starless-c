@@ -19,7 +19,7 @@ Upvector=-0.,1.,0.
 
 [materials]
 
-Horizongrid=0
+Horizongrid=1
 Disktexture=texture
 Skytexture=texture
 Skydiskratio=0.05

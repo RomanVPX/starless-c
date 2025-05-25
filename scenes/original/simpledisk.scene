@@ -23,8 +23,8 @@ Diskouter=6.
 [materials]
 
 Horizongrid=1
-Disktexture=textures/adisk.jpg
-Skytexture=textures/bgedit.jpg
+Disktexture=grid
+Skytexture=none
 Skydiskratio=0.2
 Fogdo=0
 Fogmult=0.2

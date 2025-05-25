@@ -67,7 +67,7 @@ Horizongrid=1
 #	grid:		draw blue/white checkered
 #	solid:		draw solid white
 #	blackbody:	use the realistic 'blackbody' model
-Disktexture=textures/adisk.jpg
+Disktexture=none
 
 #blackbody disc options
 #these options are ignored when Disktexture != blackbody
@@ -82,7 +82,7 @@ Diskalphamultiplier=2000.
 #	none:		solid black
 #	texture:	use texture bgedit.png
 #	final:		normalized final ray direction
-Skytexture=textures/bgedit.jpg
+Skytexture=texture
 
 #Ratio of sky brightness / disk brightness
 Skydiskratio=0.07
