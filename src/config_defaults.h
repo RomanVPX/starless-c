@@ -37,11 +37,10 @@
 #define DEFAULT_FOG_MULT 0.02
 #define DEFAULT_FOG_SKIP 1
 #define DEFAULT_BLUR_DO true
-#define DEFAULT_BLOOM_CUT 2.0
 #define DEFAULT_AIRY_BLOOM true
 #define DEFAULT_AIRY_RADIUS 1.0
 #define DEFAULT_GAIN 1.0
-#define DEFAULT_ACES_EXPOSURE 0.5
+#define DEFAULT_ACES_EXPOSURE 1.0
 #define DEFAULT_NORMALIZE -1.0 // Off by default
 #define DEFAULT_SRGB_OUT true
 #define DEFAULT_SRGB_IN true

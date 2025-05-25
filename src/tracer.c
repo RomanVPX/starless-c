@@ -396,8 +396,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
             break;
         case ST_NONE: // Fallthrough
         default:
-            // bg_color is already black
-            break;
+            break;    // bg_color is already black
     }
     // Apply sky brightness scaling AFTER lookup/calculation
     return color_mul_scalar(bg_color, cfg->sky_disk_ratio);
@@ -502,20 +501,14 @@ static void *trace_pixel_range(void *thread_arg)
     ImageF *image = data->image;
     int W = image->width;
 
-    printf("Thread %d: Tracing pixels %d to %d (SSAA Level: %d)\n", data->thread_id, data->start_pixel_index, data->end_pixel_index,
-           cfg->ssaa_level);
+    printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
     clock_t start_time = clock(); // Simple timing per thread
 
     for (int idx = data->start_pixel_index; idx < data->end_pixel_index; ++idx)
     {
         int px = idx % W;
         int py = idx / W;
-        // if (cfg->ssaa_level > 0)
-        // {
-        //     // SSAA: Jittered stratified sampling
-        //     px += (int)(rand() % cfg->ssaa_level);
-        //     py += (int)(rand() % cfg->ssaa_level);
-        // }
+
         ColorRGB accumulated_color = COLOR_BLACK;
         int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
         int total_samples = num_samples_axis * num_samples_axis;
@@ -532,8 +525,8 @@ static void *trace_pixel_range(void *thread_arg)
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)rand() / RAND_MAX;
-                    double jitter_y = (double)rand() / RAND_MAX;
+                    double jitter_x = (double)rand_r(&data->rand_seed) / RAND_MAX;
+                    double jitter_y = (double)rand_r(&data->rand_seed) / RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -572,9 +565,10 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     if (n_threads <= 0) n_threads = 1; // Ensure at least one thread
 
-    printf("Starting ray tracing with %d threads... (SSAA: %dx%d = %d samples/pixel)\n", n_threads,
-           config->ssaa_level > 0 ? config->ssaa_level : 1, config->ssaa_level > 0 ? config->ssaa_level : 1,
-           (config->ssaa_level > 0 ? config->ssaa_level : 1) * (config->ssaa_level > 0 ? config->ssaa_level : 1));
+    int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
+    int total_samples = samples_per_axis * samples_per_axis;
+    printf("Starting ray tracing with %d threads...\n", n_threads);
+    printf("SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
     printf("Total pixels: %d\n", num_pixels);
 
     // Allocate thread handles and data structures
@@ -600,6 +594,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     {
         thread_data[i].thread_id = i;
         thread_data[i].config = config;
+        thread_data[i].rand_seed = (unsigned int)(time(NULL) + i); // Unique seed per thread
         thread_data[i].image = output_image;
         thread_data[i].start_pixel_index = current_pixel_index;
 
@@ -620,7 +615,6 @@ bool run_tracer(Config *config, ImageF *output_image)
     }
 
     // Wait for threads to complete
-    printf("Waiting for %d threads to finish...\n", n_threads);
     int threads_failed = 0;
     for (int i = 0; i < n_threads; ++i)
     {
@@ -649,7 +643,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     printf("All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
     printf("Final image size: %d x %d\n", W, H);
     printf("Total pixels processed: %d\n", num_pixels);
-    printf("Average time per pixel: %.4f seconds\n", total_time_spent / num_pixels);
+    printf("Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
     printf("Ray tracing completed successfully.\n");
     return true;
 }

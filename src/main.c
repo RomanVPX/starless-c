@@ -22,8 +22,6 @@ int main(int argc, char *argv[])
 
     Config config; // Will hold all settings
 
-    srand(time(NULL));
-
     // --- 1. Load Configuration ---
     printf("Loading configuration...\n");
     if (!load_config(argc, argv, &config)) {
@@ -64,11 +62,19 @@ int main(int argc, char *argv[])
     ImageF* postproc_buffer = create_imagef(W, H); // Temporary work buffer
     ImageF* pre_bloom_copy = create_imagef(W, H);  // Buffer to hold state before bloom (source for blur)
 
-    if (!postproc_buffer || !pre_bloom_copy) {
-        fprintf(stderr, "Failed to create post-processing buffers.\n");
+    // Check postproc_buffer first
+    if (!postproc_buffer) {
+        fprintf(stderr, "Failed to create post-processing buffer.\n");
         free_imagef(output_image);
-        free_imagef(postproc_buffer); // Free whichever was allocated
-        free_imagef(pre_bloom_copy);
+        free_config_textures(&config);
+        return EXIT_FAILURE;
+    }
+
+    // Check pre_bloom_copy next
+    if (!pre_bloom_copy) {
+        fprintf(stderr, "Failed to create pre-bloom copy buffer.\n");
+        free_imagef(output_image);
+        free_imagef(postproc_buffer);
         free_config_textures(&config);
         return EXIT_FAILURE;
     }
@@ -167,18 +173,17 @@ int main(int argc, char *argv[])
             // Pass 1: Horizontal (blur_source -> h_pass_dest)
             // Input: B=S0. Output: next_image = H(B).
             printf("  Applying horizontal Gaussian pass (Source: pre_bloom_copy, Dest: next_image)...\n");
-            if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel)) {
+            if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel))
+            {
                 fprintf(stderr, "Warning: Horizontal Gaussian convolution failed.\n");
-                // If H pass fails, V pass input will be wrong, so maybe skip rest?
-                // For now, continue, result will be incorrect.
             }
 
             // Pass 2: Vertical (h_pass_dest -> v_pass_dest)
             // Input: next_image = H(B). Output: B = V(H(B)) = S2.
             printf("  Applying vertical Gaussian pass (Source: next_image, Dest: pre_bloom_copy)...\n");
-            if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel)) {
+            if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel))
+            {
                 fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
-                // If V pass fails, additive step input will be wrong.
             }
 
             // Now:
@@ -213,32 +218,43 @@ int main(int argc, char *argv[])
     // At this point, current_image holds the final result before normalization.
 
     // --- 4d. Normalization ---
-    if (config.normalize > 0) {
+    if (config.normalize > 0)
+    {
         printf("Applying Normalization (target max %f)...\n", config.normalize);
         double current_max = 0.0;
-        for (int i = 0; i < W * H; ++i) { // Use W * H
+        for (int i = 0; i < W * H; ++i)
+        { // Use W * H
             current_max = fmax(current_max, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
         }
         printf("  Current max intensity: %f\n", current_max);
-        if (current_max > 1e-6) {
+        if (current_max > EPSILON_LOOSE)
+        {
             double norm_factor = config.normalize / current_max;
             printf("  Normalization factor: %f\n", norm_factor);
-            for (int i = 0; i < W * H; ++i) { // Use W * H
+            for (int i = 0; i < W * H; ++i)
+            { // Use W * H
                 current_image->pixels[i] = color_mul_scalar(current_image->pixels[i], norm_factor);
             }
-        } else {
+        }
+        else
+        {
             printf("  Skipping normalization as max intensity is near zero.\n");
         }
-    } else {
+    }
+    else
+    {
         printf("Normalization is disabled, skipping.\n");
     }
 
     // --- Final Image Preparation ---
     ImageF* final_image = NULL;
-    if (current_image == output_image) {
+    if (current_image == output_image)
+    {
         final_image = output_image;
         printf("Final image is in original buffer.\n");
-    } else {
+    }
+    else
+    {
         // current_image must be postproc_buffer
         final_image = postproc_buffer; // Point to the buffer holding the result
         printf("Final image is in postproc buffer. Copying back to output_image for consistency before saving...\n");
@@ -248,7 +264,8 @@ int main(int argc, char *argv[])
 
     // --- 4e. ACES Tonemapping ---
     printf("Applying ACES tonemapping (exposure = %f)...\n", config.aces_exposure);
-    for (int i = 0; i < W * H; ++i) {
+    for (int i = 0; i < W * H; ++i)
+    {
         ColorRGB hdr = final_image->pixels[i];
         ColorRGB mapped = aces_fitted(color_mul_scalar(hdr, config.aces_exposure));
         final_image->pixels[i] = mapped;
@@ -273,20 +290,23 @@ int main(int argc, char *argv[])
 
     // Create output directory
     struct stat st = {0};
-    if (stat("out", &st) == -1) {
-        #ifdef _WIN32
-            if (_mkdir("out") != 0) {
-                perror("Error creating 'out' directory");
-                free(base_name);
-                return EXIT_FAILURE;
-            }
-        #else
-            if (mkdir("out", 0775) != 0 && errno != EEXIST) {
-                perror("Error creating 'out' directory");
-                free(base_name);
-                return EXIT_FAILURE;
-            }
-        #endif
+    if (stat("out", &st) == -1)
+    {
+#ifdef _WIN32
+        if (_mkdir("out") != 0)
+        {
+            perror("Error creating 'out' directory");
+            free(base_name);
+            return EXIT_FAILURE;
+        }
+#else
+        if (mkdir("out", 0775) != 0 && errno != EEXIST)
+        {
+            perror("Error creating 'out' directory");
+            free(base_name);
+            return EXIT_FAILURE;
+        }
+#endif
     }
 
     // Find first available file name

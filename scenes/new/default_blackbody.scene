@@ -111,10 +111,6 @@ Blurdo=1
 
 ACESExposure = 0.65
 
-
-#Deprecated option
-Bloomcut=0.8
-
 #Gain
 Gain=1
 

@@ -110,6 +110,7 @@ bool parse_resolution(const char *res_str, int resolution[2])
     return false;
 }
 
+
 // --- INI Parsing Callback ---
 static int scene_ini_callback(void *user, const char *section, const char *name, const char *value)
 {
@@ -150,6 +151,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             return 1;
         }
     }
+
     // --- Geometry Section ---
     else if (strcmp(section, "geometry") == 0)
     {
@@ -264,7 +266,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         else if (strcmp(name, "Fogmult") == 0) { cfg->fog_mult = atof(value); }
         else if (strcmp(name, "Fogskip") == 0) { cfg->fog_skip = (atoi(value) <= 0) ? 1 : atoi(value); }
         else if (strcmp(name, "Blurdo") == 0) { cfg->blur_do = string_to_bool(value); }
-        else if (strcmp(name, "Bloomcut") == 0) { cfg->bloom_cut = atof(value); }
         else if (strcmp(name, "Airy_bloom") == 0) { cfg->airy_bloom = string_to_bool(value); }
         else if (strcmp(name, "Airy_radius") == 0) { cfg->airy_radius = atof(value); }
         else if (strcmp(name, "Gain") == 0) { cfg->gain = atof(value); }
@@ -279,6 +280,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
     return 1; // Success (even for unknown keys)
 }
+
 
 // --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg)
@@ -314,7 +316,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->fog_mult = DEFAULT_FOG_MULT;
     cfg->fog_skip = DEFAULT_FOG_SKIP;
     cfg->blur_do = DEFAULT_BLUR_DO;
-    cfg->bloom_cut = DEFAULT_BLOOM_CUT;
     cfg->airy_bloom = DEFAULT_AIRY_BLOOM;
     cfg->airy_radius = DEFAULT_AIRY_RADIUS;
     cfg->gain = DEFAULT_GAIN;
@@ -535,6 +536,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     return true;
 }
 
+
 // Calculate derived configuration values
 void compute_derived_config(Config *cfg)
 {
@@ -551,6 +553,7 @@ void compute_derived_config(Config *cfg)
     cfg->view_matrix[1] = new_up;
     cfg->view_matrix[2] = front;
 }
+
 
 // Free allocated resources
 void free_config_textures(Config *cfg)

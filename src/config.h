@@ -53,7 +53,6 @@ typedef struct Config {
 
     // Post-Processing
     bool blur_do;
-    double bloom_cut;
     bool airy_bloom;
     double airy_radius;
     double gain;
