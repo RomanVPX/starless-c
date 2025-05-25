@@ -24,8 +24,8 @@ Diskouter=30.
 [materials]
 
 Horizongrid=0
-Disktexture=textures/adisk.jpg
-Skytexture=textures/bgedit.jpg
+Disktexture=blackbody
+Skytexture=texture
 Skydiskratio=0.05
 Fogmult=0.4
 
