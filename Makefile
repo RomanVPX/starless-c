@@ -18,12 +18,20 @@ OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 # Executable name
 TARGET = $(BUILDDIR)/blackhole_tracer
 
+ifeq ($(OS),Windows_NT)
+	MKDIR = if not exist $(BUILDDIR) mkdir $(BUILDDIR)
+	RMDIR = if exist $(BUILDDIR) rmdir /s /q $(BUILDDIR)
+else
+	MKDIR = mkdir -p $(BUILDDIR)
+	RMDIR = rm -rf $(BUILDDIR)
+endif
+
 # Default target
 all: $(BUILDDIR) $(TARGET)
 
 # Create build directory
 $(BUILDDIR):
-	mkdir -p $(BUILDDIR)
+	$(MKDIR)
 
 # Link the executable
 $(TARGET): $(OBJS)
@@ -35,6 +43,6 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
 
 # Clean up build files
 clean:
-	rm -rf $(BUILDDIR)
+	$(RMDIR)
 
 # Phony targets
