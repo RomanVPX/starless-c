@@ -269,21 +269,10 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         else if (strcmp(name, "ACESExposure") == 0) { cfg->aces_exposure = atof(value); }
 
         else if (strcmp(name, "Diskaddstructure") == 0) { cfg->disk_add_structure = string_to_bool(value); }
-        else if (strcmp(name, "Diskstructure_spiral_arms") == 0)
-        {
-            cfg->disk_structure_spiral_arms = atoi(value);
-            if (cfg->disk_structure_spiral_arms < 0) { cfg->disk_structure_spiral_arms = 0; }
-        }
-        else if (strcmp(name, "Diskstructure_spiral_pitch") == 0)
-        {
-            cfg->disk_structure_spiral_pitch = atof(value);
-            if (cfg->disk_structure_spiral_pitch < 0.0) { cfg->disk_structure_spiral_pitch = 0.0; }
-        }
-        else if (strcmp(name, "Diskstructure_modulation") == 0)
-        {
-            cfg->disk_structure_modulation = atof(value);
-            if (cfg->disk_structure_modulation < 0.0) { cfg->disk_structure_modulation = 0.0; }
-        }
+        else if (strcmp(name, "Diskstructure_spiral_arms") == 0) { cfg->disk_structure_spiral_arms = atoi(value); }
+        else if (strcmp(name, "Diskstructure_spiral_pitch") == 0) { cfg->disk_structure_spiral_pitch = atof(value); }
+        else if (strcmp(name, "Diskstructure_position_variation") == 0) { cfg->disk_structure_position_variation = atof(value); }
+        else if (strcmp(name, "Diskstructure_modulation") == 0) { cfg->disk_structure_modulation = atof(value); }
     }
 
     return 1; // Success (even for unknown keys)
@@ -342,6 +331,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->disk_add_structure = DEFAULT_DISK_ADD_STRUCTURE;
     cfg->disk_structure_spiral_arms = DEFAULT_DISK_STRUCTURE_SPIRAL_ARMS;
     cfg->disk_structure_spiral_pitch = DEFAULT_DISK_STRUCTURE_SPIRAL_PITCH;
+    cfg->disk_structure_position_variation = DEFAULT_DISK_STRUCTURE_POSITION_VARIATION;
     cfg->disk_structure_modulation = DEFAULT_DISK_STRUCTURE_MODULATION;
 
     const char *scene_fname = DEFAULT_SCENE_FILENAME;

@@ -73,6 +73,7 @@ typedef struct Config {
     bool disk_add_structure;
     int disk_structure_spiral_arms;
     double disk_structure_spiral_pitch;
+    double disk_structure_position_variation;
     double disk_structure_modulation;
 
     // Derived / Internal

@@ -161,6 +161,43 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
     ray->h2 = vec3d_norm_sqr(initial_momentum);
 }
 
+
+static double calculate_disk_color_pattern(const Vec3d col_point, double R, const Config *cfg)
+{
+    double phi = atan2(col_point.x, col_point.z);
+    double normalized_r = (R - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
+
+    // Spiral pattern parameters
+    int spiral_arms = cfg->disk_structure_spiral_arms;
+    double spiral_pitch = cfg->disk_structure_spiral_pitch;
+    double spiral_pattern = sin(spiral_arms * phi + R * spiral_pitch) * 0.5 + 0.5;
+
+    // Combine ring patterns
+    double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
+    double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
+    double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
+
+    double position_variation = sin(phi * 7.0 + R * 3.0) * cfg->disk_structure_position_variation + 1.0;
+
+    double ring_mixed = fabs(ring_thin - ring_medium * position_variation) * 0.6 + 0.5; // Additional mixed pattern
+
+    ring_thin = smoothstep(0.45, 0.55 + position_variation, ring_thin) * (0.5 + position_variation);
+    ring_medium = smoothstep(0.3, 0.7, ring_medium) * (0.8 - (spiral_pattern * 0.2));
+    ring_thick = smoothstep(0.1 + spiral_pattern * 0.14, 0.9 - spiral_pattern * 0.1, ring_thick);
+
+    ring_mixed = smoothstep(0.2, 0.8, ring_mixed) * (0.5 + position_variation * 0.5);
+
+    double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
+
+    double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
+    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity * position_variation;
+
+    double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
+    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
+                 1.0 + cfg->disk_structure_modulation); // Limit modulation
+}
+
+
 // --- Helper: Handle Accretion Disk Hit ---
 // Determines color and alpha based on disk mode and blends it.
 // Returns true if the ray should stop after this hit.
@@ -251,55 +288,18 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             if (cfg->disk_intensity_do) { disk_color = color_mul_scalar(bb_col, cfg->disk_multiplier); }
             else { disk_color = bb_col; }
 
+            // --- Add structure if enabled ---
+            if (cfg->disk_add_structure) { disk_color = color_mul_scalar(disk_color, calculate_disk_color_pattern(col_point, R, cfg)); }
+
             // --- Alpha calculation ---
             double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
             double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
-
-            if (cfg->disk_add_structure)
-            {
-                double r = R;
-                double phi = atan2(col_point.x, col_point.z);
-                double normalized_r = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
-
-                // Spiral pattern parameters
-                int spiral_arms = cfg->disk_structure_spiral_arms;
-                double spiral_pitch = cfg->disk_structure_spiral_pitch;
-                double spiral_pattern = sin(spiral_arms * phi + r * spiral_pitch) * 0.5 + 0.5;
-
-                // Combine ring patterns
-                double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
-                double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
-                double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
-
-                double ring_mixed = fabs(ring_thin - ring_medium) * 0.5 + 0.5; // Additional mixed pattern
-
-                double position_variation = sin(phi * 7.0 + r * 3.0) * 0.15 + 1.0;
-
-                ring_thin = smoothstep(0.45, 0.55 + position_variation, ring_thin) * (0.6 + position_variation);
-                ring_medium = smoothstep(0.3, 0.7, ring_medium) * (0.8 - (spiral_pattern * 0.2));
-                ring_thick = smoothstep(0.1 + spiral_pattern * 0.14, 0.9 - spiral_pattern * 0.1, ring_thick) * 1.0;
-
-                ring_mixed = smoothstep(0.2, 0.8, ring_mixed) * (0.5 + position_variation * 0.5);
-
-                double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
-
-                double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
-                double final_pattern = (spiral_pattern * 0.2 + combined_rings * 0.6) * radial_intensity * position_variation;
-
-                double intensity_modulation = 1.0 + 0.4 * (final_pattern - 1.0);
-                intensity_modulation = clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
-                                             1.0 + cfg->disk_structure_modulation); // Limit modulation
-
-                disk_color = color_mul_scalar(disk_color, intensity_modulation);
-            }
-
 #if !USE_ORIGINAL_OUTER_TAPER_CALCULATION
             // outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.75), col_point_sqr);
             outer_taper *= smoothstep(cfg->disk_outer_sqr * 0.95, cfg->disk_outer_sqr * 0.85, col_point_sqr);
 #endif
             disk_alpha = isco_taper * outer_taper;
-
-            if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
+            if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; }
             break;
         }
         default:
