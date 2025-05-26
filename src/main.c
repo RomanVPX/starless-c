@@ -8,6 +8,10 @@
 #include <string.h>
 #include <math.h>
 #include "config.h"
+
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "core_constants.h"
 #include "config_defaults.h"
 #include "tracer.h"
