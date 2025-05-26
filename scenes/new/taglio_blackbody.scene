@@ -1,9 +1,9 @@
 [lofi]
 
-Resolution=160,120
+Resolution=960,540
 
-Iterations=750
-Stepsize=0.08
+Iterations=500
+Stepsize=0.16
 
 
 [hifi]
@@ -11,7 +11,7 @@ Stepsize=0.08
 Resolution=1920,1080
 Iterations=750
 Stepsize=0.08
-
+SSAA=3
 
 [geometry]
 
@@ -29,18 +29,16 @@ sRGBIn=1
 sRGBOut=1
 Horizongrid=0
 Disktexture=blackbody
-Redshift=2.0
+Redshift=1.5
+
 #multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=500
-#multiplier for impact of computed planckian brightness in disc alpha
-Diskalphamultiplier=2000
-Skytexture=textures/bgedit.jpg
+Diskmultiplier=1000
+Skytexture=textures/starmap_2020_8k.png
 Skydiskratio=0.16
 ACESExposure = 0.5
 Fogdo=1
 Fogmult=0.02
 Airy_bloom=1
-Bloomcut=0.8
 Gain=1
 Normalize=-1
 

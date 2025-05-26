@@ -1,48 +1,55 @@
 #include "tracer.h"
 #include <math.h>
-#include <pthread.h> // For threading later
+#include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>      // For progress timing later
-#include "blackbody.h" // For disk blackbody calculations
+#include <time.h> // For progress timing later
+#include "blackbody.h"
 #include "color.h"
-#include "config.h"    // Already included via tracer.h
+#include "config.h" // Already included via tracer.h
 #include "core_constants.h"
-#include "image.h"     // Already included via tracer.h
+#include "image.h"  // Already included via tracer.h
+#include "interpolation.h"
 #include "vector.h"
 
 
 // --- Physics & Geometry Constants ---
-#define EVENT_HORIZON_RADIUS_SQR   1.0
-#define SCHWARZSCHILD_RADIUS_SQR   1.0   // Alias for clarity
-#define SINGULARITY_THRESHOLD      1e-12 // Threshold for r_sqr near singularity in RK4
-#define MIN_GRAV_REDSHIFT_R_SQR    1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
-#define MIN_VEL_R_SQR              0.1   // Min r^2 for disk velocity calculation
+#define EVENT_HORIZON_RADIUS_SQR             1.0
+#define SCHWARZSCHILD_RADIUS_SQR             1.0   // Alias for clarity
+#define SINGULARITY_THRESHOLD                1e-12 // Threshold for r_sqr near singularity in RK4
+#define MIN_GRAV_REDSHIFT_R_SQR              1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
+#define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP   false  // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA              0.9999 // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA             0.95   // Set stop ray in disk handling if alpha exceeds this
+#define OPAQUE_RAY_ALPHA_ON_STOP             false              // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA                        1 - EPSILON_STRICT // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA                       1 - EPSILON_LOOSE  // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
-#define GRID_PHI_STEP              (M_PI / 6.0)   // ~0.52359... For disk grid pattern
-#define GRID_HORIZON_PHI_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_HORIZON_ALT_STEP      (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_ANGLE_OFFSET          (100.0 * M_PI) // Large offset for fmod with negative angles
+#define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
+#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
+#define GRID_ANGLE_OFFSET                    (100.0 * M_PI) // Large offset for fmod with negative angles
 
 // --- Blackbody & Disk Constants ---
-#define DEFAULT_LOG_T0_ISCO        9.210340371976184 // log(10000 K), default temp scale at ISCO
-#define BBODY_SPEED_FACTOR         (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
-#define BBODY_ISCO_TAPER_FACTOR    0.3               // Taper factor from inner disk radius
-#define BBODY_TEMP_TAPER_THRESHOLD 1000.0            // Temperature threshold for outer taper
+#define DEFAULT_LOG_T0_ISCO                  9.210340371976184 // log(10000 K), default temp scale at ISCO
+#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
+#define BBODY_ISCO_TAPER_FACTOR              0.3               // Taper factor from inner disk radius
+#define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
+
+// --- Blackbody Rendering Settings ---
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false   // Use original outer taper calculation logic
+#define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
-#define FOG_TAPER_FACTOR           0.8 // Factor for fog intensity taper near horizon
+#define FOG_TAPER_FACTOR                     0.8 // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
-#define DEBUG_SINGLE_PIXEL_X       1300
-#define DEBUG_SINGLE_PIXEL_Y       950
+#define DEBUG_SINGLE_PIXEL_X                 1300
+#define DEBUG_SINGLE_PIXEL_Y                 950
 
 // --- Vector/Color Constants ---
 static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
@@ -154,6 +161,43 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
     ray->h2 = vec3d_norm_sqr(initial_momentum);
 }
 
+
+static double calculate_disk_color_pattern(const Vec3d col_point, double R, const Config *cfg)
+{
+    double phi = atan2(col_point.x, col_point.z);
+    double normalized_r = (R - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
+
+    // Spiral pattern parameters
+    int spiral_arms = cfg->disk_structure_spiral_arms;
+    double spiral_pitch = cfg->disk_structure_spiral_pitch;
+    double spiral_pattern = sin(spiral_arms * phi + R * spiral_pitch) * 0.5 + 0.5;
+
+    // Combine ring patterns
+    double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
+    double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
+    double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
+
+    double position_variation = sin(phi * 7.0 + R * 3.0) * cfg->disk_structure_position_variation + 1.0;
+
+    double ring_mixed = fabs(ring_thin - ring_medium * position_variation) * 0.6 + 0.5; // Additional mixed pattern
+
+    ring_thin = smoothstep(0.45, 0.55 + position_variation, ring_thin) * (0.5 + position_variation);
+    ring_medium = smoothstep(0.3, 0.7, ring_medium) * (0.8 - (spiral_pattern * 0.2));
+    ring_thick = smoothstep(0.1 + spiral_pattern * 0.14, 0.9 - spiral_pattern * 0.1, ring_thick);
+
+    ring_mixed = smoothstep(0.2, 0.8, ring_mixed) * (0.5 + position_variation * 0.5);
+
+    double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
+
+    double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
+    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity * position_variation;
+
+    double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
+    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
+                 1.0 + cfg->disk_structure_modulation); // Limit modulation
+}
+
+
 // --- Helper: Handle Accretion Disk Hit ---
 // Determines color and alpha based on disk mode and blends it.
 // Returns true if the ray should stop after this hit.
@@ -244,21 +288,18 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             if (cfg->disk_intensity_do) { disk_color = color_mul_scalar(bb_col, cfg->disk_multiplier); }
             else { disk_color = bb_col; }
 
-            // --- Alpha calculation ---
-            double isco_taper = fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR));
+            // --- Add structure if enabled ---
+            if (cfg->disk_add_structure) { disk_color = color_mul_scalar(disk_color, calculate_disk_color_pattern(col_point, R, cfg)); }
 
-#ifdef USE_ORIGINAL_OUTER_TAPER_CALCULATION
-            double outer_taper = fmax(0.0, fmin(1.0, temp / BBODY_TEMP_TAPER_THRESHOLD));
-#else
-            double outer_taper = (temp > TEMP_CUTOFF_HIGH)  ? 1.0
-                                 : (temp < TEMP_CUTOFF_LOW) ? 0.0
-                                                            : (temp - TEMP_CUTOFF_LOW) / (TEMP_CUTOFF_HIGH - TEMP_CUTOFF_LOW);
+            // --- Alpha calculation ---
+            double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
+            double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
+#if !USE_ORIGINAL_OUTER_TAPER_CALCULATION
+            // outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.75), col_point_sqr);
+            outer_taper *= smoothstep(cfg->disk_outer_sqr * 0.95, cfg->disk_outer_sqr * 0.85, col_point_sqr);
 #endif
             disk_alpha = isco_taper * outer_taper;
-            // TODO: ADD RADIAL FALLOFF HERE. Some higher-order function of radius, e.g. r^3(10 - 15*r + 6*r^2) for r in [0,1]
-            // disk_alpha *= pow(fmax(0.0, fmin(1.0, (col_point_sqr - cfg->disk_inner_sqr) / (cfg->disk_outer_sqr -
-            // cfg->disk_inner_sqr))), 3.0); double radius_taper_outer = ... ; disk_alpha *= radius_taper_outer;
-            if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; } // Stop if alpha is high enough
+            if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; }
             break;
         }
         default:
@@ -266,7 +307,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     }
 
     // Blend disk color (cb=disk, ca=ray)
-    if (log_this_pixel && disk_alpha > 1e-6)
+    if (log_this_pixel && disk_alpha > EPSILON_LOOSE)
     {
         printf("--- Blending Disk: Ray (%.3f,%.3f,%.3f a=%.3f) + Disk (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b,
                ray->alpha, disk_color.r, disk_color.g, disk_color.b, disk_alpha);
@@ -274,7 +315,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     ray->color = BLEND_COLORS(disk_color, disk_alpha, ray->color, ray->alpha);
     ray->alpha = blend_alpha(disk_alpha, ray->alpha);
 
-    if (log_this_pixel && disk_alpha > 1e-6)
+    if (log_this_pixel && disk_alpha > EPSILON_LOOSE)
     {
         printf("--- Result: (%.3f,%.3f,%.3f a=%.3f)\n", ray->color.r, ray->color.g, ray->color.b, ray->alpha);
     }
