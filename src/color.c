@@ -1,3 +1,7 @@
+#if defined(_MSC_VER)
+    #define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
 #include "color.h"
 #include <math.h>
 #include <stdio.h>

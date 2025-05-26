@@ -1,7 +1,4 @@
 #include "image.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> // for memset
 #include "config.h"
 
 // Define STB implementation modes *before* including the headers in *one* C file

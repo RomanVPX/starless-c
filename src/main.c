@@ -1,3 +1,7 @@
+#if defined(_MSC_VER)
+    #define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
