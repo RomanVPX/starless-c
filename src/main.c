@@ -281,10 +281,17 @@ int main(int argc, char *argv[])
         scene_name = scene_path;
     }
 
-    // Remove .scene extension if present
-    char* base_name = strdup(scene_name);
+    char* base_name = malloc(strlen(scene_name) + 1);
+    if (base_name == NULL)
+    {
+        fprintf(stderr, "Error: Memory allocation failed.\n");
+        return EXIT_FAILURE;
+    }
+    strcpy(base_name, scene_name);
+
     char* dot = strrchr(base_name, '.');
-    if (dot && strcmp(dot, ".scene") == 0) {
+    if (dot && strcmp(dot, ".scene") == 0)
+    {
         *dot = '\0';
     }
 
