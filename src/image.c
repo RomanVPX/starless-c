@@ -12,6 +12,7 @@
 #include <string.h>
 #include "stb_image_resize.h"
 
+// For the finicky Linux compiler
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
@@ -35,12 +36,9 @@ static char *config_to_json(const Config *cfg)
 
     // Camera
     pos += snprintf(json + pos, 4096 - pos, "\"camera\": {\n");
-    pos += snprintf(json + pos, 4096 - pos, "  \"position\": [%f, %f, %f],\n", cfg->camera_pos.x, cfg->camera_pos.y,
-                    cfg->camera_pos.z);
-    pos += snprintf(json + pos, 4096 - pos, "  \"look_at\": [%f, %f, %f],\n", cfg->look_at.x, cfg->look_at.y,
-                    cfg->look_at.z);
-    pos += snprintf(json + pos, 4096 - pos, "  \"up\": [%f, %f, %f],\n", cfg->up_vector.x, cfg->up_vector.y,
-                    cfg->up_vector.z);
+    pos += snprintf(json + pos, 4096 - pos, "  \"position\": [%f, %f, %f],\n", cfg->camera_pos.x, cfg->camera_pos.y, cfg->camera_pos.z);
+    pos += snprintf(json + pos, 4096 - pos, "  \"look_at\": [%f, %f, %f],\n", cfg->look_at.x, cfg->look_at.y, cfg->look_at.z);
+    pos += snprintf(json + pos, 4096 - pos, "  \"up\": [%f, %f, %f],\n", cfg->up_vector.x, cfg->up_vector.y, cfg->up_vector.z);
     pos += snprintf(json + pos, 4096 - pos, "  \"fov\": %f\n", atan(cfg->tan_fov) * 2 * 180 / M_PI);
     pos += snprintf(json + pos, 4096 - pos, "  },\n");
 
@@ -55,8 +53,7 @@ static char *config_to_json(const Config *cfg)
                     : cfg->disk_texture_mode == DT_GRID      ? "grid"
                     : cfg->disk_texture_mode == DT_BLACKBODY ? "blackbody"
                                                              : "unknown");
-    if (cfg->disk_texture_path)
-        pos += snprintf(json + pos, 4096 - pos, "  \"texture_path\": \"%s\",\n", cfg->disk_texture_path);
+    if (cfg->disk_texture_path) pos += snprintf(json + pos, 4096 - pos, "  \"texture_path\": \"%s\",\n", cfg->disk_texture_path);
     pos += snprintf(json + pos, 4096 - pos, "  \"horizon_grid\": %s\n", cfg->horizon_grid ? "true" : "false");
     pos += snprintf(json + pos, 4096 - pos, "  },\n");
 
@@ -122,8 +119,7 @@ Texture *load_texture(const char *filename)
     }
     // Always set channels to 3 since we requested 3 components.
     tex->channels = 3;
-    printf("Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height,
-           tex->channels);
+    printf("Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height, tex->channels);
 
     return tex;
 }
@@ -272,8 +268,7 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
         return false;
     }
     // Setup metadata
-    PngMetadata metadata[] = {
-            {"Title", "Black Hole Raytracer Output"}, {"Software", "starless-c"}, {"Comment", metadata_json}};
+    PngMetadata metadata[] = {{"Title", "Black Hole Raytracer Output"}, {"Software", "starless-c"}, {"Comment", metadata_json}};
 
     int success = stbi_write_png_with_metadata(filename, width, height, 3, output_data, width * 3, metadata,
                                                sizeof(metadata) / sizeof(metadata[0]));
