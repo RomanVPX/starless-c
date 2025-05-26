@@ -19,8 +19,8 @@ OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 TARGET = $(BUILDDIR)/blackhole_tracer
 
 ifeq ($(OS),Windows_NT)
-	MKDIR = if not exist $(BUILDDIR) mkdir $(BUILDDIR)
-	RMDIR = if exist $(BUILDDIR) rmdir /s /q $(BUILDDIR)
+	MKDIR = powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
+	RMDIR = powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)' }"
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
