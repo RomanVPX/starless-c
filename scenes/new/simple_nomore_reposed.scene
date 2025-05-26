@@ -15,27 +15,27 @@ SSAA=2
 
 [geometry]
 
-Cameraposition=0.,0.,-10.
+Cameraposition=0.0,1.4,-18.0
 Fieldofview=1.5
 Lookat=0.,0.,0.
 Upvector=-0.,1.,0.
 
-Diskinner=2.0
-Diskouter=18.
+Diskinner=2.5
+Diskouter=11.
 
 
 [materials]
 
 Horizongrid=0
-Disktexture=textures/adisk.jpg
-Diskmultiplier=1500.
-Diskalphamultiplier=10.
-Redshift=2.0
-Skytexture=textures/bgedit.jpg
-Skydiskratio=1.0
+Disktexture=blackbody
+Diskmultiplier=2500.
+Redshift=1.6
+Skytexture=textures/starmap_2020_8k.png
+Skydiskratio=1.5
+Gain=1
 Fogdo=0
 Fogmult=0.2
 Blurdo=1
-Airy_bloom=1
+Airy_bloom=0
 Airy_radius=1.
 ACESExposure = 0.75
