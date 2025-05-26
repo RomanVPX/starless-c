@@ -11,8 +11,8 @@
 #include "config.h" // Already included via tracer.h
 #include "core_constants.h"
 #include "image.h"  // Already included via tracer.h
-#include "vector.h"
 #include "interpolation.h"
+#include "vector.h"
 
 
 // --- Physics & Geometry Constants ---
@@ -23,7 +23,7 @@
 #define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP             false  // Set ray.alpha to 1.0 on stop
+#define OPAQUE_RAY_ALPHA_ON_STOP             false              // Set ray.alpha to 1.0 on stop
 #define MAX_RAY_ALPHA                        1 - EPSILON_STRICT // Stop tracing if alpha exceeds this
 #define MAX_DISC_ALPHA                       1 - EPSILON_LOOSE  // Set stop ray in disk handling if alpha exceeds this
 
@@ -40,7 +40,7 @@
 #define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
 
 // --- Blackbody Rendering Settings ---
-#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false    // Use original outer taper calculation logic
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false   // Use original outer taper calculation logic
 #define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
 #define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
 
@@ -254,6 +254,43 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             // --- Alpha calculation ---
             double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
             double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
+
+            if (true)
+            {
+                double r = sqrt(col_point_sqr);
+                double phi = atan2(col_point.x, col_point.z);
+                double normalized_r = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
+
+                // Spiral pattern parameters
+                int spiral_arms = 5;
+                double spiral_pitch = 0.3;
+                double spiral_pattern = sin(spiral_arms * phi + r * spiral_pitch) * 0.5 + 0.5;
+
+                // Combine ring patterns
+                double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
+                double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
+                double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
+
+                double ring_mixed = fabs(ring_thin - ring_medium) * 0.5 + 0.5; // Additional mixed pattern
+
+                double position_variation = sin(phi * 7.0 + r * 3.0) * 0.15 + 1.0;
+
+                ring_thin = smoothstep(0.45, 0.55 + position_variation, ring_thin) * (0.6 + position_variation);
+                ring_medium = smoothstep(0.3, 0.7, ring_medium) * (0.8 - (spiral_pattern * 0.2));
+                ring_thick = smoothstep(0.1 + spiral_pattern * 0.14, 0.9 - spiral_pattern * 0.1, ring_thick) * 1.0;
+
+                ring_mixed = smoothstep(0.2, 0.8, ring_mixed) * (0.5 + position_variation * 0.5);
+
+                double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
+
+                double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
+                double final_pattern = (spiral_pattern * 0.2 + combined_rings * 0.6) * radial_intensity * position_variation;
+
+                double intensity_modulation = 1.0 + 0.4 * (final_pattern - 1.0);
+                intensity_modulation = clamp(intensity_modulation, 0.4, 1.6); // Limit modulation to a reasonable range
+
+                disk_color = color_mul_scalar(disk_color, intensity_modulation);
+            }
 
 #if !USE_ORIGINAL_OUTER_TAPER_CALCULATION
             // outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.75), col_point_sqr);
