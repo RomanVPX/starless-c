@@ -9,7 +9,6 @@
 #include <stdlib.h> // For EXIT_SUCCESS
 #include <string.h>
 #include <math.h>
-#include <unistd.h> // For access()
 #include "config.h"
 #include "core_constants.h"
 #include "config_defaults.h"
@@ -18,6 +17,14 @@
 #include "bloom.h"
 #include "color.h"
 #include <time.h>
+#if defined(_WIN32)
+    #include <io.h>
+    #ifndef F_OK
+        #define F_OK 0
+    #endif
+#else
+    #include <unistd.h>
+#endif
 
 
 int main(int argc, char *argv[])
@@ -324,8 +331,13 @@ int main(int argc, char *argv[])
     char output_path[256];
     int index = 0;
     do {
+#if defined(_WIN32)
+        snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
+    } while (_access(output_path, F_OK) != -1 && index < 100);
+#else
         snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
     } while (access(output_path, F_OK) != -1 && index < 100);
+#endif
 
     if (index >= 100) {
         fprintf(stderr, "Error: Too many output files for scene %s\n", base_name);

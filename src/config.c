@@ -3,11 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "blackbody.h"
 #include "config_defaults.h"
 #include "image.h"
 #include "ini.h"
+#if defined(_WIN32)
+    #include <io.h>
+    #ifndef F_OK
+        #define F_OK 0
+    #endif
+#else
+    #include <unistd.h>
+#endif
 
 // --- Function Prototypes ---
 bool string_to_bool(const char *str);
@@ -408,7 +415,11 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Check if scene file exists
+#if defined(_WIN32)
+    if (_access(scene_fname, F_OK) == -1)
+#else
     if (access(scene_fname, F_OK) == -1)
+#endif
     {
         fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
         return false;
