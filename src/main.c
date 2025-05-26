@@ -2,8 +2,6 @@
     #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h> // For EXIT_SUCCESS
@@ -19,11 +17,14 @@
 #include <time.h>
 #if defined(_WIN32)
     #include <io.h>
+    #include <direct.h>
     #ifndef F_OK
         #define F_OK 0
     #endif
 #else
     #include <unistd.h>
+    #include <sys/stat.h>
+    #include <sys/types.h>
 #endif
 
 
@@ -310,7 +311,7 @@ int main(int argc, char *argv[])
     struct stat st = {0};
     if (stat("out", &st) == -1)
     {
-#ifdef _WIN32
+#if defined(_WIN32)
         if (_mkdir("out") != 0)
         {
             perror("Error creating 'out' directory");
