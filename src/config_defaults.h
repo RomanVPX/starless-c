@@ -51,6 +51,13 @@
 #define DEFAULT_DISK_INTENSITY_DO true
 #define DEFAULT_REDSHIFT 1.0
 
+// Blackbody Disk Structure
+#define DEFAULT_DISK_ADD_STRUCTURE false
+#define DEFAULT_DISK_STRUCTURE_SPIRAL_ARMS 5
+#define DEFAULT_DISK_STRUCTURE_SPIRAL_PITCH 0.3
+#define DEFAULT_DISK_STRUCTURE_MODULATION 0.6
+
+
 // Scene File
 #define DEFAULT_SCENE_FILENAME "scenes/default.scene"
 

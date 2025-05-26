@@ -255,15 +255,15 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
             double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
 
-            if (true)
+            if (cfg->disk_add_structure)
             {
-                double r = sqrt(col_point_sqr);
+                double r = R;
                 double phi = atan2(col_point.x, col_point.z);
                 double normalized_r = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
 
                 // Spiral pattern parameters
-                int spiral_arms = 5;
-                double spiral_pitch = 0.3;
+                int spiral_arms = cfg->disk_structure_spiral_arms;
+                double spiral_pitch = cfg->disk_structure_spiral_pitch;
                 double spiral_pattern = sin(spiral_arms * phi + r * spiral_pitch) * 0.5 + 0.5;
 
                 // Combine ring patterns
@@ -287,7 +287,8 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double final_pattern = (spiral_pattern * 0.2 + combined_rings * 0.6) * radial_intensity * position_variation;
 
                 double intensity_modulation = 1.0 + 0.4 * (final_pattern - 1.0);
-                intensity_modulation = clamp(intensity_modulation, 0.4, 1.6); // Limit modulation to a reasonable range
+                intensity_modulation = clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
+                                             1.0 + cfg->disk_structure_modulation); // Limit modulation
 
                 disk_color = color_mul_scalar(disk_color, intensity_modulation);
             }
