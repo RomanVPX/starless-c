@@ -1,11 +1,6 @@
 #include "image.h"
 #include "config.h"
 
-#if defined(_MSC_VER)
-    #define _USE_MATH_DEFINES
-#endif
-#define _GNU_SOURCE
-#include <math.h>
 // Define STB implementation modes *before* including the headers in *one* C file
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -16,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stb_image_resize.h"
+
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
 
 
 static char *config_to_json(const Config *cfg)
