@@ -1,6 +1,11 @@
 #include "image.h"
 #include "config.h"
 
+#if defined(_MSC_VER)
+    #define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
+#include <math.h>
 // Define STB implementation modes *before* including the headers in *one* C file
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
