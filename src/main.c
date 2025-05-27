@@ -23,11 +23,11 @@
     #ifndef F_OK
         #define F_OK 0
     #endif
-    #define STRCPY strcpy_s
 #else
     #include <unistd.h>
-    #define STRCPY strcpy
 #endif
+
+#define STRCPY(dest, src, size) snprintf(dest, size, "%s", src)
 
 
 int main(int argc, char *argv[])
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Memory allocation failed.\n");
         return EXIT_FAILURE;
     }
-    STRCPY(base_name, scene_name);
+    STRCPY(base_name, scene_name, strlen(scene_name) + 1);
 
     char* dot = strrchr(base_name, '.');
     if (dot && strcmp(dot, ".scene") == 0)
