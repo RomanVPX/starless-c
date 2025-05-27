@@ -470,7 +470,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (dot && dot != cfg->scene_base_name && (strcmp(dot, ".scene") == 0 || strcmp(dot, ".SCENE") == 0)) { *dot = '\0'; }
 
     printf("  Using scene file: %s\n", cfg->scene_file_path);
-    printf("  Using scene base name: %s\n", cfg->scene_base_name);
 
     // Parse INI file
     printf("Parsing INI file: %s...\n", cfg->scene_file_path);
@@ -580,6 +579,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
 
     // Print summary of final configuration
     printf("Configuration loaded successfully:\n");
+    printf("  Scene base name: %s\n", cfg->scene_base_name);
     printf("  Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
     printf("  Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
     printf("  SSAA Level: %d\n", cfg->ssaa_level);
@@ -589,6 +589,22 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (cfg->sky_texture_path) printf("  Sky Path: %s\n", cfg->sky_texture_path);
     if (cfg->blackbody_ramp_path) printf("  Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path);
     if (cfg->blackbody_ramp_data) printf("  Blackbody Ramp Data: Loaded (%d samples)\n", cfg->blackbody_ramp_size);
+    if (cfg->disk_texture_mode == DT_BLACKBODY)
+    {
+        printf("  Blackbody:\n");
+        printf("    Disk Multiplier: %f\n", cfg->disk_multiplier);
+        printf("    Redshift: %f\n", cfg->redshift);
+        if (cfg->disk_add_structure)
+        {
+            printf("    Disk Structure: Enabled\n");
+            printf("     Spiral Arms: %d\n", cfg->disk_structure_spiral_arms);
+            printf("     Rings Frequency: (%f, %f, %f)\n", cfg->disk_structure_rings_freq.x, cfg->disk_structure_rings_freq.y, cfg->disk_structure_rings_freq.z);
+            printf("     Spiral Pitch: %f\n", cfg->disk_structure_spiral_pitch);
+            printf("     Position Variation: %f\n", cfg->disk_structure_position_variation);
+            printf("     Modulation: %f\n", cfg->disk_structure_modulation);
+        }
+        else { printf("    Disk Structure: Disabled\n"); }
+    }
 
     return true;
 }
