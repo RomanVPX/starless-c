@@ -1,14 +1,14 @@
 #if defined(_MSC_VER)
-    #define _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
+#include "tracer.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h> // For progress timing later
-#include "tracer.h"
 #include "blackbody.h"
 #include "color.h"
 #include "config.h" // Already included via tracer.h
@@ -21,7 +21,7 @@
     #include <windows.h>
     typedef HANDLE thread_handle_t;
     #define THREAD_FUNC_RETURN DWORD WINAPI
-    #define THREAD_FUNC_CALL __stdcall
+    #define THREAD_FUNC_CALL   __stdcall
 #else
     #include <pthread.h>
     typedef pthread_t thread_handle_t;
@@ -549,6 +549,14 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 }
 
 
+// --- Thread-safe random number generator (LCG) ---
+static unsigned int thread_safe_rand(unsigned int *seed)
+{
+    // LCG parameters are taken from POSIX rand_r
+    *seed = (*seed * 1103515245u + 12345u) & 0x7fffffff;
+    return *seed;
+}
+
 // --- Trace a range of pixels (for threading) ---
 THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
 {
@@ -581,8 +589,8 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)rand_r(&data->rand_seed) / RAND_MAX;
-                    double jitter_y = (double)rand_r(&data->rand_seed) / RAND_MAX;
+                    double jitter_x = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
+                    double jitter_y = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -678,8 +686,6 @@ bool run_tracer(Config *config, ImageF *output_image)
         }
 #endif
     }
-
-    // Wait for threads to complete
     int threads_failed = 0;
     for (int i = 0; i < n_threads; ++i)
     {
