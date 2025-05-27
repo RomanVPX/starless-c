@@ -1,6 +1,6 @@
 [lofi]
 
-Resolution=320,240
+Resolution=960,540
 Iterations=150
 Stepsize=0.08
 
@@ -9,6 +9,7 @@ Stepsize=0.08
 Resolution=1920,1080
 Iterations=300
 Stepsize=0.04
+SSAA=3
 
 [geometry]
 
@@ -18,15 +19,22 @@ Lookat=0.,.8,0.
 Upvector=-0.,1.,0.
 
 [materials]
+Diskinner=1.8
+Diskouter=6.
 
 Horizongrid=0
 Disktexture=blackbody
-Skytexture=texture
-Skydiskratio=0.05
+
+Skytexture=textures/starmap_2020_8k.png
+Skydiskratio=1.0
+
+Diskaddstructure=true
+Diskstructure_spiral_arms=4
+Diskstructure_spiral_pitch=0.4
+Diskstructure_position_variation=0.1
+Diskstructure_modulation=0.6
+
 Fogdo=1
 Fogmult=0.02
 Blurdo=1
-ACESExposure = 0.2
-
-Diskinner=1.8
-Diskouter=6.
+ACESExposure = 0.33
