@@ -45,7 +45,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     int smp_to_load = count_ramp_samples(filename);
     if (smp_to_load <= 0)
     {
-        fprintf(stderr, "Error: Failed to determine sample count in '%s' or file is empty/invalid.\n", filename);
+        fprintf(stderr, "! Error: Failed to determine sample count in '%s' or file is empty/invalid.\n", filename);
         return false;
     }
 
@@ -54,7 +54,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     FILE *file = fopen(filename, "r");
     if (!file)
     {
-        perror("Error opening ramp file");
+        perror("! Error opening ramp file");
         return false;
     }
 
@@ -62,7 +62,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     ColorRGB *loaded_data = (ColorRGB *)malloc(smp_to_load * sizeof(ColorRGB));
     if (!loaded_data)
     {
-        fprintf(stderr, "\nError: Failed to allocate memory for blackbody ramp (%d samples).\n", smp_to_load);
+        fprintf(stderr, "\n! Error: Failed to allocate memory for blackbody ramp (%d samples).\n", smp_to_load);
         fclose(file);
         return false;
     }
@@ -80,14 +80,14 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
             ColorRGB *color = &loaded_data[smp_read];
             if (isnan(color->r) || isnan(color->g) || isnan(color->b) || color->r < 0.0 || color->g < 0.0 || color->b < 0.0)
             {
-                fprintf(stderr, "\nWarning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", smp_read, filename);
+                fprintf(stderr, "\n  Warning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", smp_read, filename);
                 color->r = fmax(0.0, color->r);
                 color->g = fmax(0.0, color->g);
                 color->b = fmax(0.0, color->b);
             }
             smp_read++;
         }
-        else { fprintf(stderr, "\nWarning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", smp_read + 1, filename); }
+        else { fprintf(stderr, "\n  Warning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", smp_read + 1, filename); }
     }
 
     fclose(file);
@@ -95,7 +95,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     if (smp_read != smp_to_load)
     {
         fprintf(stderr,
-                "\nError: Read %d samples, but expected %d based on initial count from file '%s'. File might have changed or is "
+                "\n! Error: Read %d samples, but expected %d based on initial count from file '%s'. File might have changed or is "
                 "inconsistent.\n",
                 smp_read, smp_to_load, filename);
         free(loaded_data); // Free partially allocated/read data
@@ -104,7 +104,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     *ramp_data_out = loaded_data;
     *ramp_size_out = smp_read;
-    printf("OK (%d samples loaded).\n", *ramp_size_out);
+    printf("  OK (%d samples loaded).\n", *ramp_size_out);
     return true;
 }
 

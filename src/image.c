@@ -104,20 +104,20 @@ Texture *load_texture(const char *filename)
     Texture *tex = (Texture *)malloc(sizeof(Texture));
     if (!tex)
     {
-        fprintf(stderr, "Error: Could not allocate memory for Texture struct.\n");
+        fprintf(stderr, "! Error: Could not allocate memory for Texture struct.\n");
         return NULL;
     }
     // Force 3 components (RGB) for simplicity, even if alpha exists
     tex->data = stbi_load(filename, &tex->width, &tex->height, &tex->channels, 3);
     if (!tex->data)
     {
-        fprintf(stderr, "Error loading texture '%s': %s\n", filename, stbi_failure_reason());
+        fprintf(stderr, "! Error loading texture '%s': %s\n", filename, stbi_failure_reason());
         free(tex);
         return NULL;
     }
     // Always set channels to 3 since we requested 3 components.
     tex->channels = 3;
-    printf("Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height, tex->channels);
+    printf("  Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height, tex->channels);
 
     return tex;
 }
@@ -127,12 +127,12 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
 {
     if (!input_tex || !input_tex->data || scale_factor <= 0)
     {
-        fprintf(stderr, "Error: Invalid input to resize_texture.\n");
+        fprintf(stderr, "! Error: Invalid input to resize_texture.\n");
         return NULL;
     }
     if (scale_factor == 1.0f)
     {
-        fprintf(stderr, "Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
+        fprintf(stderr, "  Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
 
         return NULL; // Or return a copy if the caller expects a new texture always?
     }
@@ -147,18 +147,18 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
 
     if (out_w <= 0 || out_h <= 0)
     {
-        fprintf(stderr, "Error: Calculated output dimensions for resize are invalid (%dx%d).\n", out_w, out_h);
+        fprintf(stderr, "! Error: Calculated output dimensions for resize are invalid (%dx%d).\n", out_w, out_h);
         return NULL;
     }
 
-    printf("Resizing texture from %dx%d to %dx%d (scale: %.2f)...\n", in_w, in_h, out_w, out_h, scale_factor);
+    printf("  Resizing texture from %dx%d to %dx%d (scale: %.2f)...\n", in_w, in_h, out_w, out_h, scale_factor);
 
     // Allocate memory for the output texture data
     size_t output_size = (size_t)out_w * out_h * channels;
     unsigned char *output_data = (unsigned char *)malloc(output_size);
     if (!output_data)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
+        fprintf(stderr, "! Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
         return NULL;
     }
     // Perform the resize operation
@@ -168,7 +168,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
                                      channels);
     if (!success)
     {
-        fprintf(stderr, "Error: stbir_resize_uint8 failed.\n");
+        fprintf(stderr, "! Error: stbir_resize_uint8 failed.\n");
         free(output_data);
         return NULL;
     }
@@ -177,7 +177,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     Texture *output_tex = (Texture *)malloc(sizeof(Texture));
     if (!output_tex)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for resized Texture struct.\n");
+        fprintf(stderr, "! Error: Failed to allocate memory for resized Texture struct.\n");
         free(output_data);
         return NULL;
     }
@@ -187,7 +187,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     output_tex->channels = channels;
     output_tex->data = output_data;
 
-    printf("Texture resizing successful.\n");
+    printf("    Texture resizing successful.\n");
     return output_tex;
 }
 
@@ -221,7 +221,7 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
     // Ensure index is within bounds (should be due to clamping, but belt-and-suspenders)
     if (index < 0 || index + 2 >= tex->width * tex->height * tex->channels)
     {
-        fprintf(stderr, "Warning: Texture lookup out of bounds (%d, %d) -> index %d\n", x, y, index);
+        fprintf(stderr, "  Warning: Texture lookup out of bounds (%d, %d) -> index %d\n", x, y, index);
         return COLOR_BLACK;
     }
 

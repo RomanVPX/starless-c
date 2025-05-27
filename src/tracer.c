@@ -295,6 +295,14 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 
                 double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
+
+                if (log_this_pixel)
+                {
+                    printf("--- Mode=DT_BLACKBODY\n");
+                    printf("--- Collision Point: (%.3f, %.3f, %.3f)\n", col_point.x, col_point.y, col_point.z);
+                    printf("--- R=%.4f, log_temp=%.4f, temp=%.4f\n", R, log_temp, temp);
+                    printf("--- Doppler factor: %.4f, Gravitational factor: %.4f, Total opz: %.4f\n", opz_doppler, opz_grav, total_opz);
+                }
             }
 
             ColorRGB bb_col = bb_color_from_temp(cfg, temp);
@@ -467,10 +475,6 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
     if (log_this_pixel)
     {
         printf("\n--- Logging for pixel (%d, %d), SAMPLE %d\n", px, py, sample_idx_for_log);
-        printf("--- Disk inner radius: %f\n", cfg->disk_inner_radius);
-        printf("--- Disk outer radius: %f\n", cfg->disk_outer_radius);
-        printf("--- Redshift: %f\n", cfg->redshift);
-        printf("--- Disk multiplier: %f\n", cfg->disk_multiplier);
     }
 
     // 1. Initialize Ray
