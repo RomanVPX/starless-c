@@ -20,7 +20,7 @@
     #include <unistd.h>
     #define SSCANF sscanf
     #define STRDUP strdup
-    #define STRTOK strtok
+    #define STRTOK strtok_r
     #define STRCASECMP strcasecmp
 #endif
 
@@ -33,7 +33,7 @@ bool parse_int_list(const char *str, int *arr, int expected_count);
 // --- Helper Functions ---
 bool parse_vec3d(const char *str, Vec3d *vec)
 {
-    if (!str || !vec) return false;
+    if (!str || !vec) { return false; }
     double x, y, z;
     if (SSCANF(str, "%lf,%lf,%lf", &x, &y, &z) == 3)
     {
@@ -47,16 +47,18 @@ bool parse_vec3d(const char *str, Vec3d *vec)
 
 bool parse_int_list(const char *str, int *arr, int expected_count)
 {
-    if (!str || !arr || expected_count <= 0) return false;
+    if (!str || !arr || expected_count <= 0) { return false; }
 
     char *str_copy = STRDUP(str);
-    if (!str_copy) return false;
+    if (!str_copy) { return false; }
 
     char *token;
     const char *delim = ",";
     int count = 0;
 
-    token = STRTOK(str_copy, delim);
+    char *saveptr = NULL;
+
+    token = STRTOK(str_copy, delim, &saveptr);
     while (token != NULL && count < expected_count)
     {
         // Trim whitespace
@@ -72,21 +74,24 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
             if (*endptr == '\0') { arr[count++] = (int)val; }
             else
             {
-                count = -1; // Error
+                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, endptr);
+                count = -1;
                 break;
             }
         }
         else
         {
-            count = -1; // Error on empty token
+            printf("Error: empty token found after trim.\n");
+            count = -1;
             break;
         }
-        token = STRTOK(NULL, delim);
+        token = STRTOK(NULL, delim, &saveptr);
     }
 
     free(str_copy);
     return count == expected_count;
 }
+
 
 bool string_to_bool(const char *str)
 {
@@ -104,7 +109,7 @@ bool parse_resolution(const char *res_str, int resolution[2])
     if (!x_pos || x_pos == res_str || *(x_pos + 1) == '\0') { return false; }
 
     int width = 0, height = 0;
-    if (sscanf(res_str, "%dx%d", &width, &height) == 2)
+    if (SSCANF(res_str, "%dx%d", &width, &height) == 2)
     {
         if (width > 0 && height > 0)
         {
