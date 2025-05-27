@@ -16,12 +16,14 @@
     #define STRDUP _strdup
     #define STRTOK strtok_s
     #define STRCASECMP _stricmp
+    #define ACCESS _access
 #else
     #include <unistd.h>
     #define SSCANF sscanf
     #define STRDUP strdup
     #define STRTOK strtok_r
     #define STRCASECMP strcasecmp
+    #define ACCESS access
 #endif
 
 // --- Function Prototypes ---
@@ -428,11 +430,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Check if scene file exists
-#if defined(_WIN32)
-    if (_access(scene_fname, F_OK) == -1)
-#else
-    if (access(scene_fname, F_OK) == -1)
-#endif
+    if (ACCESS(scene_fname, F_OK) == -1)
     {
         fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
         return false;
