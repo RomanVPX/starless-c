@@ -3,11 +3,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "blackbody.h"
 #include "config_defaults.h"
 #include "image.h"
 #include "ini.h"
+#if defined(_WIN32)
+    #include <io.h>
+    #ifndef F_OK
+        #define F_OK 0
+    #endif
+    #define SSCANF sscanf_s
+    #define STRDUP _strdup
+    #define STRTOK strtok_s
+    #define STRCASECMP _stricmp
+#else
+    #include <unistd.h>
+    #define SSCANF sscanf
+    #define STRDUP strdup
+    #define STRTOK strtok_r
+    #define STRCASECMP strcasecmp
+#endif
 
 // --- Function Prototypes ---
 bool string_to_bool(const char *str);
@@ -18,9 +33,9 @@ bool parse_int_list(const char *str, int *arr, int expected_count);
 // --- Helper Functions ---
 bool parse_vec3d(const char *str, Vec3d *vec)
 {
-    if (!str || !vec) return false;
+    if (!str || !vec) { return false; }
     double x, y, z;
-    if (sscanf(str, "%lf,%lf,%lf", &x, &y, &z) == 3)
+    if (SSCANF(str, "%lf,%lf,%lf", &x, &y, &z) == 3)
     {
         vec->x = x;
         vec->y = y;
@@ -32,16 +47,18 @@ bool parse_vec3d(const char *str, Vec3d *vec)
 
 bool parse_int_list(const char *str, int *arr, int expected_count)
 {
-    if (!str || !arr || expected_count <= 0) return false;
+    if (!str || !arr || expected_count <= 0) { return false; }
 
-    char *str_copy = strdup(str);
-    if (!str_copy) return false;
+    char *str_copy = STRDUP(str);
+    if (!str_copy) { return false; }
 
     char *token;
     const char *delim = ",";
     int count = 0;
 
-    token = strtok(str_copy, delim);
+    char *saveptr = NULL;
+
+    token = STRTOK(str_copy, delim, &saveptr);
     while (token != NULL && count < expected_count)
     {
         // Trim whitespace
@@ -57,35 +74,29 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
             if (*endptr == '\0') { arr[count++] = (int)val; }
             else
             {
-                count = -1; // Error
+                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, endptr);
+                count = -1;
                 break;
             }
         }
         else
         {
-            count = -1; // Error on empty token
+            printf("Error: empty token found after trim.\n");
+            count = -1;
             break;
         }
-        token = strtok(NULL, delim);
+        token = STRTOK(NULL, delim, &saveptr);
     }
 
     free(str_copy);
     return count == expected_count;
 }
 
+
 bool string_to_bool(const char *str)
 {
     if (!str) { return false; }
-
-#ifdef _WIN32
-    #define STRCASECMP _stricmp
-#else
-    #define STRCASECMP strcasecmp
-#endif
-
     if (strcmp(str, "1") == 0 || STRCASECMP(str, "true") == 0 || STRCASECMP(str, "yes") == 0) { return true; }
-
-#undef STRCASECMP
     return false;
 }
 
@@ -98,7 +109,7 @@ bool parse_resolution(const char *res_str, int resolution[2])
     if (!x_pos || x_pos == res_str || *(x_pos + 1) == '\0') { return false; }
 
     int width = 0, height = 0;
-    if (sscanf(res_str, "%dx%d", &width, &height) == 2)
+    if (SSCANF(res_str, "%dx%d", &width, &height) == 2)
     {
         if (width > 0 && height > 0)
         {
@@ -181,14 +192,14 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             free((void *)cfg->disk_texture_path); // Free old path if any
             cfg->disk_texture_path = NULL;
 
-            if (strcasecmp(value, "none") == 0) { cfg->disk_texture_mode = DT_NONE; }
-            else if (strcasecmp(value, "solid") == 0) { cfg->disk_texture_mode = DT_SOLID; }
-            else if (strcasecmp(value, "grid") == 0) { cfg->disk_texture_mode = DT_GRID; }
-            else if (strcasecmp(value, "blackbody") == 0) { cfg->disk_texture_mode = DT_BLACKBODY; }
-            else if (strcasecmp(value, "texture") == 0)
+            if (STRCASECMP(value, "none") == 0) { cfg->disk_texture_mode = DT_NONE; }
+            else if (STRCASECMP(value, "solid") == 0) { cfg->disk_texture_mode = DT_SOLID; }
+            else if (STRCASECMP(value, "grid") == 0) { cfg->disk_texture_mode = DT_GRID; }
+            else if (STRCASECMP(value, "blackbody") == 0) { cfg->disk_texture_mode = DT_BLACKBODY; }
+            else if (STRCASECMP(value, "texture") == 0)
             {
                 cfg->disk_texture_mode = DT_TEXTURE;
-                cfg->disk_texture_path = strdup(DEFAULT_DISK_TEXTURE_PATH);
+                cfg->disk_texture_path = STRDUP(DEFAULT_DISK_TEXTURE_PATH);
                 if (!cfg->disk_texture_path)
                 {
                     fprintf(stderr, "Error: Memory allocation failed for default disk texture path\n");
@@ -200,7 +211,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             {
                 // Assume it's a path for texture mode
                 cfg->disk_texture_mode = DT_TEXTURE;
-                cfg->disk_texture_path = strdup(value);
+                cfg->disk_texture_path = STRDUP(value);
                 if (!cfg->disk_texture_path)
                 {
                     fprintf(stderr, "Error: Memory allocation failed for disk texture path\n");
@@ -214,12 +225,12 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             free((void *)cfg->sky_texture_path); // Free old path if any
             cfg->sky_texture_path = NULL;
 
-            if (strcasecmp(value, "none") == 0) { cfg->sky_texture_mode = ST_NONE; }
-            else if (strcasecmp(value, "final") == 0) { cfg->sky_texture_mode = ST_FINAL; }
-            else if (strcasecmp(value, "texture") == 0)
+            if (STRCASECMP(value, "none") == 0) { cfg->sky_texture_mode = ST_NONE; }
+            else if (STRCASECMP(value, "final") == 0) { cfg->sky_texture_mode = ST_FINAL; }
+            else if (STRCASECMP(value, "texture") == 0)
             {
                 cfg->sky_texture_mode = ST_TEXTURE;
-                cfg->sky_texture_path = strdup(DEFAULT_SKY_TEXTURE_PATH);
+                cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
                 if (!cfg->sky_texture_path) { return 0; }
                 printf("Info: Using default sky texture path: %s\n", DEFAULT_SKY_TEXTURE_PATH);
             }
@@ -227,7 +238,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             {
                 // Assume it's a path for texture mode
                 cfg->sky_texture_mode = ST_TEXTURE;
-                cfg->sky_texture_path = strdup(value);
+                cfg->sky_texture_path = STRDUP(value);
                 if (!cfg->sky_texture_path) { return 0; }
                 printf("Info: Using custom sky texture path: %s\n", value);
             }
@@ -239,14 +250,14 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
             if (value && strlen(value) > 0)
             {
-                cfg->blackbody_ramp_path = strdup(value);    // Use custom path
+                cfg->blackbody_ramp_path = STRDUP(value);    // Use custom path
                 if (!cfg->blackbody_ramp_path) { return 0; } // Allocation error
                 printf("Info: Using custom blackbody ramp path: %s\n", value);
             }
             else
             {
                 // If value is empty or missing, revert to default explicitly
-                cfg->blackbody_ramp_path = strdup(DEFAULT_BLACKBODY_RAMP_PATH);
+                cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
                 if (!cfg->blackbody_ramp_path) { return 0; } // Allocation error
                 printf("Info: Blackbodyramp value invalid/empty, using default: %s\n", DEFAULT_BLACKBODY_RAMP_PATH);
             }
@@ -304,8 +315,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->horizon_grid = DEFAULT_HORIZON_GRID;
     cfg->disk_texture_mode = DEFAULT_DISK_TEXTURE_MODE;
     cfg->sky_texture_mode = DEFAULT_SKY_TEXTURE_MODE;
-    cfg->disk_texture_path = strdup(DEFAULT_DISK_TEXTURE_PATH);
-    cfg->sky_texture_path = strdup(DEFAULT_SKY_TEXTURE_PATH);
+    cfg->disk_texture_path = STRDUP(DEFAULT_DISK_TEXTURE_PATH);
+    cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
     cfg->disk_texture = NULL;
     cfg->sky_texture = NULL;
     cfg->sky_disk_ratio = DEFAULT_SKY_DISK_RATIO;
@@ -321,7 +332,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->srgb_out = DEFAULT_SRGB_OUT;
     cfg->srgb_in = DEFAULT_SRGB_IN;
 
-    cfg->blackbody_ramp_path = strdup(DEFAULT_BLACKBODY_RAMP_PATH);
+    cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
     cfg->blackbody_ramp_data = NULL;
     cfg->blackbody_ramp_size = 0;
     cfg->disk_multiplier = DEFAULT_DISK_MULTIPLIER;
@@ -408,7 +419,11 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Check if scene file exists
+#if defined(_WIN32)
+    if (_access(scene_fname, F_OK) == -1)
+#else
     if (access(scene_fname, F_OK) == -1)
+#endif
     {
         fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
         return false;

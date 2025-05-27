@@ -1,11 +1,14 @@
+#if defined(_MSC_VER)
+    #define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
+#include <math.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h> // For EXIT_SUCCESS
 #include <string.h>
-#include <math.h>
-#include <unistd.h> // For access()
 #include "config.h"
 #include "core_constants.h"
 #include "config_defaults.h"
@@ -14,6 +17,17 @@
 #include "bloom.h"
 #include "color.h"
 #include <time.h>
+#if defined(_WIN32)
+    #include <io.h>
+    #include <direct.h>
+    #ifndef F_OK
+        #define F_OK 0
+    #endif
+#else
+    #include <unistd.h>
+#endif
+
+#define STRCPY(dest, src, size) snprintf(dest, size, "%s", src)
 
 
 int main(int argc, char *argv[])
@@ -281,10 +295,17 @@ int main(int argc, char *argv[])
         scene_name = scene_path;
     }
 
-    // Remove .scene extension if present
-    char* base_name = strdup(scene_name);
+    char* base_name = malloc(strlen(scene_name) + 1);
+    if (base_name == NULL)
+    {
+        fprintf(stderr, "Error: Memory allocation failed.\n");
+        return EXIT_FAILURE;
+    }
+    STRCPY(base_name, scene_name, strlen(scene_name) + 1);
+
     char* dot = strrchr(base_name, '.');
-    if (dot && strcmp(dot, ".scene") == 0) {
+    if (dot && strcmp(dot, ".scene") == 0)
+    {
         *dot = '\0';
     }
 
@@ -292,7 +313,7 @@ int main(int argc, char *argv[])
     struct stat st = {0};
     if (stat("out", &st) == -1)
     {
-#ifdef _WIN32
+#if defined(_WIN32)
         if (_mkdir("out") != 0)
         {
             perror("Error creating 'out' directory");
@@ -313,8 +334,13 @@ int main(int argc, char *argv[])
     char output_path[256];
     int index = 0;
     do {
+#if defined(_WIN32)
+        snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
+    } while (_access(output_path, F_OK) != -1 && index < 100);
+#else
         snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
     } while (access(output_path, F_OK) != -1 && index < 100);
+#endif
 
     if (index >= 100) {
         fprintf(stderr, "Error: Too many output files for scene %s\n", base_name);

@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "color.h"
+#if defined(_WIN32)
+    #define SSCANF sscanf_s
+#else
+    #define SSCANF sscanf
+#endif
 
 
 #define SHAKURA_SUNYAEV_TEMP_EXP 0.375          // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
@@ -25,7 +30,7 @@ static int count_ramp_samples(const char *filename)
     while (fgets(line, sizeof(line), file))
     {
         if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') { continue; }
-        if (sscanf(line, "%lf %lf %lf", &r, &g, &b) == 3) { count++; }
+        if (SSCANF(line, "%lf %lf %lf", &r, &g, &b) == 3) { count++; }
     }
     fclose(file);
     return count;
@@ -69,7 +74,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
         // Skip empty lines or comment lines again during actual read
         if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
 
-        if (sscanf(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
+        if (SSCANF(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
         {
             // Optional: Validate loaded data here (NaN, negative checks)
             ColorRGB *color = &loaded_data[smp_read];

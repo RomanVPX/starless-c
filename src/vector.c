@@ -1,5 +1,9 @@
+#if defined(_MSC_VER)
+    #define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
+#include <math.h>
 #include "vector.h"
-#include <math.h> // Make sure math.h is included
 
 Vec3d vec3d_add(Vec3d a, Vec3d b) { return (Vec3d){a.x + b.x, a.y + b.y, a.z + b.z}; }
 Vec3d vec3d_sub(Vec3d a, Vec3d b) { return (Vec3d){a.x - b.x, a.y - b.y, a.z - b.z}; }

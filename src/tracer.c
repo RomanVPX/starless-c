@@ -1,6 +1,9 @@
+#if defined(_MSC_VER)
+#    define _USE_MATH_DEFINES
+#endif
+#define _GNU_SOURCE
 #include "tracer.h"
 #include <math.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +16,18 @@
 #include "image.h"  // Already included via tracer.h
 #include "interpolation.h"
 #include "vector.h"
+// Сross-platform threading types and macros
+#if defined(_WIN32)
+    #include <windows.h>
+    typedef HANDLE thread_handle_t;
+    #define THREAD_FUNC_RETURN DWORD WINAPI
+    #define THREAD_FUNC_CALL   __stdcall
+#else
+    #include <pthread.h>
+    typedef pthread_t thread_handle_t;
+    #define THREAD_FUNC_RETURN void *
+    #define THREAD_FUNC_CALL
+#endif
 
 
 // --- Physics & Geometry Constants ---
@@ -534,8 +549,16 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 }
 
 
+// --- Thread-safe random number generator (LCG) ---
+static unsigned int thread_safe_rand(unsigned int *seed)
+{
+    // LCG parameters are taken from POSIX rand_r
+    *seed = (*seed * 1103515245u + 12345u) & 0x7fffffff;
+    return *seed;
+}
+
 // --- Trace a range of pixels (for threading) ---
-static void *trace_pixel_range(void *thread_arg)
+THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
 {
     ThreadData *data = (ThreadData *)thread_arg;
     const Config *cfg = data->config;
@@ -566,8 +589,8 @@ static void *trace_pixel_range(void *thread_arg)
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)rand_r(&data->rand_seed) / RAND_MAX;
-                    double jitter_y = (double)rand_r(&data->rand_seed) / RAND_MAX;
+                    double jitter_x = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
+                    double jitter_y = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -586,7 +609,7 @@ static void *trace_pixel_range(void *thread_arg)
     clock_t end_time = clock();
     double time_spent = (double)(end_time - start_time) / CLOCKS_PER_SEC;
     printf("Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
-    return NULL;
+    return 0;
 }
 
 
@@ -613,7 +636,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     printf("Total pixels: %d\n", num_pixels);
 
     // Allocate thread handles and data structures
-    pthread_t *threads = (pthread_t *)malloc(n_threads * sizeof(pthread_t));
+    thread_handle_t *threads = (thread_handle_t *)malloc(n_threads * sizeof(thread_handle_t));
     ThreadData *thread_data = (ThreadData *)malloc(n_threads * sizeof(ThreadData));
 
     if (!threads || !thread_data)
@@ -645,26 +668,43 @@ bool run_tracer(Config *config, ImageF *output_image)
         current_pixel_index += pixels_for_this_thread;
 
         // Create thread
+#if defined(_WIN32)
+        threads[i] = CreateThread(NULL, 0, trace_pixel_range, &thread_data[i], 0, NULL);
+        if (threads[i] == NULL)
+        {
+            fprintf(stderr, "Error creating thread %d\n", i);
+            n_threads = i;
+            break;
+        }
+#else
         int ret = pthread_create(&threads[i], NULL, trace_pixel_range, &thread_data[i]);
         if (ret != 0)
         {
             fprintf(stderr, "Error creating thread %d: %s\n", i, strerror(ret));
-            // Should ideally try to join already created threads before failing
-            n_threads = i; // Only wait for threads up to this point
-            break;         // Stop creating more threads
+            n_threads = i;
+            break;
         }
+#endif
     }
-
-    // Wait for threads to complete
     int threads_failed = 0;
     for (int i = 0; i < n_threads; ++i)
     {
+#if defined(_WIN32)
+        DWORD wait_result = WaitForSingleObject(threads[i], INFINITE);
+        if (wait_result != WAIT_OBJECT_0)
+        {
+            fprintf(stderr, "Error joining thread %d\n", i);
+            threads_failed++;
+        }
+        CloseHandle(threads[i]);
+#else
         int ret = pthread_join(threads[i], NULL);
         if (ret != 0)
         {
             fprintf(stderr, "Error joining thread %d: %s\n", i, strerror(ret));
             threads_failed++;
         }
+#endif
     }
 
     clock_t total_end_time = clock();

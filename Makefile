@@ -1,7 +1,17 @@
+ifeq ($(OS),Windows_NT)
+	MKDIR = powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
+	RMDIR = powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)' }"
+	LIBS=
+else
+	MKDIR = mkdir -p $(BUILDDIR)
+	RMDIR = rm -rf $(BUILDDIR)
+	LIBS=-lm -lpthread
+endif
+
 # Compiler and flags
 CC = clang
 CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native # -g for debugging, -O3 for release
-LDFLAGS = -lm -lpthread
+LDFLAGS = $(LIBS)
 
 # Directories
 SRCDIR = src
@@ -17,14 +27,6 @@ OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
 # Executable name
 TARGET = $(BUILDDIR)/blackhole_tracer
-
-ifeq ($(OS),Windows_NT)
-	MKDIR = if not exist $(BUILDDIR) mkdir $(BUILDDIR)
-	RMDIR = if exist $(BUILDDIR) rmdir /s /q $(BUILDDIR)
-else
-	MKDIR = mkdir -p $(BUILDDIR)
-	RMDIR = rm -rf $(BUILDDIR)
-endif
 
 # Default target
 all: $(BUILDDIR) $(TARGET)
@@ -45,4 +47,4 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
 clean:
 	$(RMDIR)
 
-# Phony targets
+.PHONY: all clean
