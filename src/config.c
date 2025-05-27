@@ -456,7 +456,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
 #endif
 
     if (name_start_ptr) { name_start_ptr++; } // Skip the slash
-    else { name_start_ptr = scene_fname; } // No slash found, use the whole string
+    else { name_start_ptr = scene_fname; }    // No slash found, use the whole string
 
     if (cfg->scene_base_name) { free(cfg->scene_base_name); }
     cfg->scene_base_name = STRDUP(name_start_ptr);
@@ -598,7 +598,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
         {
             printf("    Disk Structure: Enabled\n");
             printf("     Spiral Arms: %d\n", cfg->disk_structure_spiral_arms);
-            printf("     Rings Frequency: (%f, %f, %f)\n", cfg->disk_structure_rings_freq.x, cfg->disk_structure_rings_freq.y, cfg->disk_structure_rings_freq.z);
+            printf("     Rings Frequency: (%f, %f, %f)\n",
+                                            cfg->disk_structure_rings_freq.x,
+                                            cfg->disk_structure_rings_freq.y,
+                                            cfg->disk_structure_rings_freq.z);
             printf("     Spiral Pitch: %f\n", cfg->disk_structure_spiral_pitch);
             printf("     Position Variation: %f\n", cfg->disk_structure_position_variation);
             printf("     Modulation: %f\n", cfg->disk_structure_modulation);
