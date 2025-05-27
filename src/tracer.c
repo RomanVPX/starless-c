@@ -187,10 +187,11 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double spiral_pitch = cfg->disk_structure_spiral_pitch;
     double spiral_pattern = sin(spiral_arms * phi + R * spiral_pitch) * 0.5 + 0.5;
 
+    Vec3d freqs = cfg->disk_structure_rings_freq;
     // Combine ring patterns
-    double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
-    double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
-    double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
+    double ring_thin = sin(normalized_r * 16.0 * freqs.x * M_PI) * 0.5 + 0.5;
+    double ring_medium = sin(normalized_r * 8.0 * freqs.y * M_PI) * 0.5 + 0.5;
+    double ring_thick = sin(normalized_r * 4.0 * freqs.z * M_PI) * 0.5 + 0.5;
 
     double position_variation = sin(phi * 7.0 + R * 3.0) * cfg->disk_structure_position_variation + 1.0;
 
@@ -205,7 +206,7 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
 
     double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
-    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity * position_variation;
+    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity;
 
     double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
     return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,

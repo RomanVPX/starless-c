@@ -14,7 +14,8 @@ typedef enum { ST_NONE, ST_TEXTURE, ST_FINAL } SkyTextureMode;
 typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextureMode;
 
 // --- Config Structure ---
-typedef struct Config {
+typedef struct Config
+{
     // Resolution & Performance
     int resolution[2];
     int n_iterations;
@@ -72,6 +73,7 @@ typedef struct Config {
     // Blackbody Disk Structure
     bool disk_add_structure;
     int disk_structure_spiral_arms;
+    Vec3d disk_structure_rings_freq; // Frequency multipliers of (thin, medium, thick) rings
     double disk_structure_spiral_pitch;
     double disk_structure_position_variation;
     double disk_structure_modulation;
@@ -81,7 +83,8 @@ typedef struct Config {
 } Config;
 
 // --- UserData for ini_parse callbacks ---
-typedef struct {
+typedef struct
+{
     Config *cfg;                // Pointer to the main config struct
     bool *override_res_flag;    // Pointer to the command-line override flag for resolution
 } IniParseUserData;

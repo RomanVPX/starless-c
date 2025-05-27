@@ -281,6 +281,14 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
         else if (strcmp(name, "Diskaddstructure") == 0) { cfg->disk_add_structure = string_to_bool(value); }
         else if (strcmp(name, "Diskstructure_spiral_arms") == 0) { cfg->disk_structure_spiral_arms = atoi(value); }
+        else if (strcmp(name, "Diskstructure_rings_freq") == 0)
+        {
+            if (!parse_vec3d(value, &cfg->disk_structure_rings_freq))
+            {
+                fprintf(stderr, "  Warning: Invalid format for Diskstructure_rings_freq '%s'. Using defaults.\n", value);
+                cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
+            }
+        }
         else if (strcmp(name, "Diskstructure_spiral_pitch") == 0) { cfg->disk_structure_spiral_pitch = atof(value); }
         else if (strcmp(name, "Diskstructure_position_variation") == 0) { cfg->disk_structure_position_variation = atof(value); }
         else if (strcmp(name, "Diskstructure_modulation") == 0) { cfg->disk_structure_modulation = atof(value); }
@@ -341,6 +349,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
 
     cfg->disk_add_structure = DEFAULT_DISK_ADD_STRUCTURE;
     cfg->disk_structure_spiral_arms = DEFAULT_DISK_STRUCTURE_SPIRAL_ARMS;
+    cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
     cfg->disk_structure_spiral_pitch = DEFAULT_DISK_STRUCTURE_SPIRAL_PITCH;
     cfg->disk_structure_position_variation = DEFAULT_DISK_STRUCTURE_POSITION_VARIATION;
     cfg->disk_structure_modulation = DEFAULT_DISK_STRUCTURE_MODULATION;
