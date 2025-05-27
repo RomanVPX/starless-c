@@ -5,12 +5,13 @@
 #include <string.h>
 #include "color.h"
 #if defined(_WIN32)
-    #define FOPEN fopen_s
+    #define FOPEN fopen
     #define SSCANF sscanf_s
 #else
     #define FOPEN fopen
     #define SSCANF sscanf
 #endif
+
 
 #define SHAKURA_SUNYAEV_TEMP_EXP 0.375          // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
 #define LOGSHIFT                 0.823959216501 // Logarithmic shift for temperature (see original Starless, blackbody.c)
