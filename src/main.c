@@ -2,13 +2,13 @@
     #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
+#include <math.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h> // For EXIT_SUCCESS
 #include <string.h>
-#include <math.h>
 #include "config.h"
 #include "core_constants.h"
 #include "config_defaults.h"

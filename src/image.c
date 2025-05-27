@@ -1,6 +1,5 @@
 #include "image.h"
 #include "config.h"
-
 // Define STB implementation modes *before* including the headers in *one* C file
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -11,8 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stb_image_resize.h"
-
-// For the finicky Linux compiler
+// For the finicky Linux compiler:
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif

@@ -2,12 +2,12 @@
     #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
-#include "bloom.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // For memset
 #include <time.h>
+#include "bloom.h"
 #include "core_constants.h"
 
 
