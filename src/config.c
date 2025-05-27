@@ -299,11 +299,15 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     return 1; // Success (even for unknown keys)
 }
 
-
 // --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg)
 {
+    if (!cfg) { return false; }
+
     // Initialize with defaults
+    cfg->scene_file_path = NULL;
+    cfg->scene_base_name = NULL;
+
     cfg->resolution[0] = DEFAULT_RESOLUTION_WIDTH;
     cfg->resolution[1] = DEFAULT_RESOLUTION_HEIGHT;
     cfg->n_iterations = DEFAULT_ITERATIONS;
@@ -435,14 +439,45 @@ bool load_config(int argc, char *argv[], Config *cfg)
         fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
         return false;
     }
-    printf("Using scene file: %s\n", scene_fname);
+
+    // Set scene file path and base name
+    if (cfg->scene_file_path) { free(cfg->scene_file_path); }
+    cfg->scene_file_path = STRDUP(scene_fname);
+    if (!cfg->scene_file_path)
+    {
+        fprintf(stderr, "Error: Memory allocation failed for scene file path.\n");
+        return false;
+    }
+
+    // Extract base name from scene file path
+    const char *name_start_ptr = strrchr(scene_fname, '/');
+#ifdef _WIN32
+    if (!name_start_ptr) { name_start_ptr = strrchr(scene_fname, '\\'); }
+#endif
+
+    if (name_start_ptr) { name_start_ptr++; } // Skip the slash
+    else { name_start_ptr = scene_fname; } // No slash found, use the whole string
+
+    if (cfg->scene_base_name) { free(cfg->scene_base_name); }
+    cfg->scene_base_name = STRDUP(name_start_ptr);
+    if (!cfg->scene_base_name)
+    {
+        fprintf(stderr, "Error: Memory allocation failed for scene base name.\n");
+        free(cfg->scene_file_path);
+        return false;
+    }
+    char *dot = strrchr(cfg->scene_base_name, '.');
+    if (dot && dot != cfg->scene_base_name && (strcmp(dot, ".scene") == 0 || strcmp(dot, ".SCENE") == 0)) { *dot = '\0'; }
+
+    printf("  Using scene file: %s\n", cfg->scene_file_path);
+    printf("  Using scene base name: %s\n", cfg->scene_base_name);
 
     // Parse INI file
-    printf("  Parsing INI file: %s...\n", scene_fname);
+    printf("Parsing INI file: %s...\n", cfg->scene_file_path);
     IniParseUserData user_data = {cfg, &override_res};
-    if (ini_parse(scene_fname, scene_ini_callback, &user_data) < 0)
+    if (ini_parse(cfg->scene_file_path, scene_ini_callback, &user_data) < 0)
     {
-        fprintf(stderr, "! Error: Can't load or parse scene file '%s'\n", scene_fname);
+        fprintf(stderr, "! Error: Can't load or parse scene file '%s'\n", cfg->scene_file_path);
         free_config_textures(cfg); // Free everything allocated so far
         return false;
     }

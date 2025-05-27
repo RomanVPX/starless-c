@@ -16,6 +16,10 @@ typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextur
 // --- Config Structure ---
 typedef struct Config
 {
+    // File & Scene
+    char *scene_file_path; // Path to the scene file (or NULL if not loaded from file)
+    char *scene_base_name; // Base name of the scene file (without path and extension)
+
     // Resolution & Performance
     int resolution[2];
     int n_iterations;
