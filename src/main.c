@@ -2,16 +2,14 @@
     #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h> // For EXIT_SUCCESS
 #include <string.h>
 #include <math.h>
 #include "config.h"
-
-#include <sys/stat.h>
-#include <sys/types.h>
-
 #include "core_constants.h"
 #include "config_defaults.h"
 #include "tracer.h"
@@ -27,8 +25,6 @@
     #endif
 #else
     #include <unistd.h>
-    #include <sys/stat.h>
-    #include <sys/types.h>
 #endif
 
 
