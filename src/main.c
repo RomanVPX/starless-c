@@ -24,9 +24,11 @@
         #define F_OK 0
     #endif
     #define ACCESS _access
+    #define STRDUP _strdup
 #else
     #include <unistd.h>
     #define ACCESS access
+    #define STRDUP strdup
 #endif
 
 #define STRCPY(dest, src, size) snprintf(dest, size, "%s", src)
@@ -300,25 +302,20 @@ int main(int argc, char *argv[])
     }
 
     // --- 5. Save Image ---
-    // Get scene name from input file path
-    const char *scene_path = (argc > 1) ? argv[1] : "default.scene";
-    const char *scene_name = strrchr(scene_path, '/');
-    if (scene_name)
-    {
-        scene_name++; // Skip the slash
-    }
-    else { scene_name = scene_path; }
+    const char *base_name_for_output;
+    if (config.scene_base_name && strlen(config.scene_base_name) > 0) { base_name_for_output = config.scene_base_name; }
+    else { base_name_for_output = "output"; }
 
-    char *base_name = malloc(strlen(scene_name) + 1);
-    if (base_name == NULL)
+    char *base_name_copy = STRDUP(base_name_for_output);
+    if (!base_name_copy)
     {
-        fprintf(stderr, "Error: Memory allocation failed.\n");
+        fprintf(stderr, "Error: Failed to allocate memory for base name copy.\n");
+        free_imagef(postproc_buffer);
+        free_imagef(pre_bloom_copy);
+        free_imagef(output_image);
+        free_config_textures(&config);
         return EXIT_FAILURE;
     }
-    STRCPY(base_name, scene_name, strlen(scene_name) + 1);
-
-    char *dot = strrchr(base_name, '.');
-    if (dot && strcmp(dot, ".scene") == 0) { *dot = '\0'; }
 
     // Create output directory
     struct stat st = {0};
@@ -328,14 +325,14 @@ int main(int argc, char *argv[])
         if (_mkdir("out") != 0)
         {
             perror("Error creating 'out' directory");
-            free(base_name);
+            free(base_name_copy);
             return EXIT_FAILURE;
         }
 #else
         if (mkdir("out", 0775) != 0 && errno != EEXIST)
         {
             perror("Error creating 'out' directory");
-            free(base_name);
+            free(base_name_copy);
             return EXIT_FAILURE;
         }
 #endif
@@ -345,18 +342,18 @@ int main(int argc, char *argv[])
     char output_path[256];
     int index = 0;
     do {
-        snprintf(output_path, sizeof(output_path), "out/%s_%02d.png", base_name, index++);
-    } while (ACCESS(output_path, F_OK) != -1 && index < 100);
+        snprintf(output_path, sizeof(output_path), "out/%s_%s_%03d.png", base_name_copy, config.lofi ? "(L)" : "(H)", index++);
+    } while (ACCESS(output_path, F_OK) != -1 && index < 1000);
 
-    if (index >= 100)
+    if (index >= 1000)
     {
-        fprintf(stderr, "Error: Too many output files for scene %s\n", base_name);
-        free(base_name);
+        fprintf(stderr, "Error: Too many output files for scene %s\n", base_name_copy);
+        free(base_name_copy);
         return EXIT_FAILURE;
     }
 
     printf("Saving final image to %s...\n", output_path);
-    free(base_name);
+    free(base_name_copy);
 
     // Clamp final image pixels *before* saving
     for (int i = 0; i < W * H; ++i)
