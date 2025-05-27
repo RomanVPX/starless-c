@@ -4,7 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "color.h"
-
+#if defined(_WIN32)
+    #define FOPEN fopen_s
+    #define SSCANF sscanf_s
+#else
+    #define FOPEN fopen
+    #define SSCANF sscanf
+#endif
 
 #define SHAKURA_SUNYAEV_TEMP_EXP 0.375          // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
 #define LOGSHIFT                 0.823959216501 // Logarithmic shift for temperature (see original Starless, blackbody.c)
@@ -17,7 +23,7 @@
 // --- Function to count valid data lines in a file ---
 static int count_ramp_samples(const char *filename)
 {
-    FILE *file = fopen(filename, "r");
+    FILE *file = FOPEN(filename, "r");
     if (!file) { return -1; }
     int count = 0;
     char line[512]; // It's 33 characters for RGB values, but allow some extra space for comments or whatever
@@ -25,7 +31,7 @@ static int count_ramp_samples(const char *filename)
     while (fgets(line, sizeof(line), file))
     {
         if (line[0] == '\n' || line[0] == '#' || line[0] == '\0') { continue; }
-        if (sscanf(line, "%lf %lf %lf", &r, &g, &b) == 3) { count++; }
+        if (SSCANF(line, "%lf %lf %lf", &r, &g, &b) == 3) { count++; }
     }
     fclose(file);
     return count;
@@ -46,7 +52,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     fflush(stdout);
 
-    FILE *file = fopen(filename, "r");
+    FILE *file = FOPEN(filename, "r");
     if (!file)
     {
         perror("Error opening ramp file");
@@ -69,7 +75,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
         // Skip empty lines or comment lines again during actual read
         if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
 
-        if (sscanf(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
+        if (SSCANF(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
         {
             // Optional: Validate loaded data here (NaN, negative checks)
             ColorRGB *color = &loaded_data[smp_read];
