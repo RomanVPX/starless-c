@@ -5,10 +5,8 @@
 #include <string.h>
 #include "color.h"
 #if defined(_WIN32)
-    #define FOPEN fopen
     #define SSCANF sscanf_s
 #else
-    #define FOPEN fopen
     #define SSCANF sscanf
 #endif
 
@@ -24,7 +22,7 @@
 // --- Function to count valid data lines in a file ---
 static int count_ramp_samples(const char *filename)
 {
-    FILE *file = FOPEN(filename, "r");
+    FILE *file = fopen(filename, "r");
     if (!file) { return -1; }
     int count = 0;
     char line[512]; // It's 33 characters for RGB values, but allow some extra space for comments or whatever
@@ -53,7 +51,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     fflush(stdout);
 
-    FILE *file = FOPEN(filename, "r");
+    FILE *file = fopen(filename, "r");
     if (!file)
     {
         perror("Error opening ramp file");
