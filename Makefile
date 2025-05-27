@@ -1,7 +1,7 @@
 ifeq ($(OS),Windows_NT)
 	MKDIR = powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
 	RMDIR = powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)' }"
-	LIBS=-lpthread
+	LIBS=
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
@@ -46,3 +46,5 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
 # Clean up build files
 clean:
 	$(RMDIR)
+
+.PHONY: all clean
