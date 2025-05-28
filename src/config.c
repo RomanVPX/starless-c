@@ -304,7 +304,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (!cfg) { return false; }
 
     // Initialize with defaults
-
+    // Using x-macro to reduce code duplication
     #define INIT_INT(fieldName, cfgKey, defLiteral) cfg->fieldName = defLiteral
     #define INIT_ENUM INIT_INT
     #define INIT_DOUBLE INIT_INT

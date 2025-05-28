@@ -7,11 +7,6 @@
 // --- Default Values ---
 
 // Resolution & Performance
-#define DEFAULT_RESOLUTION_WIDTH 640
-#define DEFAULT_RESOLUTION_HEIGHT 480
-#define DEFAULT_ITERATIONS 1000
-#define DEFAULT_SSAA_LEVEL 2
-#define DEFAULT_STEPSIZE 0.02
 #define DEFAULT_THREADS 4
 #define DEFAULT_CHUNKSIZE 9000
 #define DEFAULT_LOFI false
