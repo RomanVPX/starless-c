@@ -187,10 +187,11 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double spiral_pitch = cfg->disk_structure_spiral_pitch;
     double spiral_pattern = sin(spiral_arms * phi + R * spiral_pitch) * 0.5 + 0.5;
 
+    Vec3d freqs = cfg->disk_structure_rings_freq;
     // Combine ring patterns
-    double ring_thin = sin(normalized_r * 16.0 * M_PI) * 0.5 + 0.5;
-    double ring_medium = sin(normalized_r * 8.0 * M_PI) * 0.5 + 0.5;
-    double ring_thick = sin(normalized_r * 4.0 * M_PI) * 0.5 + 0.5;
+    double ring_thin = sin(normalized_r * 16.0 * freqs.x * M_PI) * 0.5 + 0.5;
+    double ring_medium = sin(normalized_r * 8.0 * freqs.y * M_PI) * 0.5 + 0.5;
+    double ring_thick = sin(normalized_r * 4.0 * freqs.z * M_PI) * 0.5 + 0.5;
 
     double position_variation = sin(phi * 7.0 + R * 3.0) * cfg->disk_structure_position_variation + 1.0;
 
@@ -205,7 +206,7 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double radial_intensity = 1.0 + 0.75 * (1.0 - normalized_r); // Fade out towards the outer edge
 
     double combined_rings = fabs(ring_thin + ring_medium + ring_thick - ring_mixed);
-    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity * position_variation;
+    double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity;
 
     double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
     return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
@@ -295,6 +296,14 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 
                 double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
+
+                if (log_this_pixel)
+                {
+                    printf("--- Mode=DT_BLACKBODY\n");
+                    printf("--- Collision Point: (%.3f, %.3f, %.3f)\n", col_point.x, col_point.y, col_point.z);
+                    printf("--- R=%.4f, log_temp=%.4f, temp=%.4f\n", R, log_temp, temp);
+                    printf("--- Doppler factor: %.4f, Gravitational factor: %.4f, Total opz: %.4f\n", opz_doppler, opz_grav, total_opz);
+                }
             }
 
             ColorRGB bb_col = bb_color_from_temp(cfg, temp);
@@ -467,10 +476,6 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
     if (log_this_pixel)
     {
         printf("\n--- Logging for pixel (%d, %d), SAMPLE %d\n", px, py, sample_idx_for_log);
-        printf("--- Disk inner radius: %f\n", cfg->disk_inner_radius);
-        printf("--- Disk outer radius: %f\n", cfg->disk_outer_radius);
-        printf("--- Redshift: %f\n", cfg->redshift);
-        printf("--- Disk multiplier: %f\n", cfg->disk_multiplier);
     }
 
     // 1. Initialize Ray
