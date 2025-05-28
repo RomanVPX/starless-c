@@ -323,11 +323,13 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->scene_file_path = NULL;
     cfg->scene_base_name = NULL;
 
-    cfg->chunk_size = DEFAULT_CHUNKSIZE;
     cfg->lofi = DEFAULT_LOFI;
 
     cfg->disk_texture_path = STRDUP(DEFAULT_DISK_TEXTURE_PATH);
     cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
+
+    cfg->n_threads = DEFAULT_THREADS;
+    cfg->chunk_size = DEFAULT_CHUNKSIZE;
 
     cfg->disk_texture = NULL;
     cfg->sky_texture = NULL;
