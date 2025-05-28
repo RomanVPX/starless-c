@@ -61,11 +61,13 @@ For now, check the GitHub Actions workflow for build steps.
 ```
 
 **Examples:**
+
 To render a scene:
 ```bash
 ./starless_tracer scenes/new/default_blackbody.scene
 ```
 This command should produce a .png image similar to this in the `out/` directory:
+
 ![Render of the default_blackbody.scene](docs/default_blackbody_(H)_001.jpg)
 
 To render in "lo-fi" mode (uses the [lofi] section from the scene file):
