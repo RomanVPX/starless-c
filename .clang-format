@@ -8,8 +8,7 @@ AlignConsecutiveMacros:
   Enabled:         true
   AcrossEmptyLines: false
   AcrossComments:  true
-  AlignCompound: false
-  PadOperators: true
+  # AlignCompound: false
 AlignEscapedNewlines: LeftWithLastLine
 AlignOperands: Align
 AlignTrailingComments:
@@ -23,7 +22,7 @@ AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
 BreakTemplateDeclarations: MultiLine
 BinPackArguments: true
-BinPackParameters: BinPack
+BinPackParameters: false
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel: true
@@ -44,8 +43,10 @@ BraceWrapping:
   SplitEmptyNamespace: false
 BreakAfterReturnType: ExceptShortType
 BreakConstructorInitializers: AfterColon
-ColumnLimit: 160
-PackConstructorInitializers: CurrentLine
+BreakConstructorInitializersBeforeComma: false # deprecated
+ColumnLimit: 140
+ConstructorInitializerAllOnOneLineOrOnePerLine: false # deprecated
+PackConstructorInitializers: NextLine
 ContinuationIndentWidth: 8
 IncludeCategories:
   - Regex: ^<.*
