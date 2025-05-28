@@ -450,7 +450,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // Extract base name from scene file path
     const char *name_start_ptr = strrchr(scene_filename, '/');
 #ifdef _WIN32
-    if (!name_start_ptr) { name_start_ptr = strrchr(scene_fname, '\\'); }
+    if (!name_start_ptr) { name_start_ptr = strrchr(scene_filename, '\\'); }
 #endif
 
     if (name_start_ptr) { name_start_ptr++; } // Skip the slash
