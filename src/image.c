@@ -30,7 +30,6 @@ static char *config_to_json(const Config *cfg)
     // Ray tracing params
     pos += snprintf(json + pos, 4096 - pos, "\"n_iterations\": %d,\n", cfg->n_iterations);
     pos += snprintf(json + pos, 4096 - pos, "\"step_size\": %f,\n", cfg->step_size);
-    pos += snprintf(json + pos, 4096 - pos, "\"method\": \"%s\",\n", cfg->method == METH_LEAPFROG ? "leapfrog" : "rk4");
 
     // Camera
     pos += snprintf(json + pos, 4096 - pos, "\"camera\": {\n");
