@@ -1,53 +1,37 @@
-# Default starless .scene file
-
-
 # Test specifications
 # this settings apply when rendering with the -d option
 [lofi]
-
 # output resolution
-Resolution=1024,768
-
+Resolution=1024,658
 #number of raytracing steps
 Iterations=125
-
 #size of integration step
 Stepsize=0.32
-
 
 # Full render options
 # apply when rendering without the -d option
 [hifi]
-
-Resolution=2048,1572
+# From now on, settings apply to both tests and full renders
+Resolution=2048,1316
 Iterations=250
 Stepsize=0.16
 SSAA=3
 
-# From now on, settings apply to both tests and full renders
-
 [geometry]
-
 #Position of the camera in units of r_S
 #x,z are the disc's plane
 Cameraposition=0.,1.,-21.
-
 #Tangent of field of view
 Fieldofview=1.5
-
 #Self explanatory
 #fixes the view vector
-Lookat=0.,0.,0.
-
+Lookat=-1.2,0.,0.
 #The vector defining the "up" direction
 #(it's actually projected on the orthogonal subspace to the view vector)
 Upvector=.2,1.,0.
-
-
 #Disc inner/outer radii
 Diskinner=2.6
 Diskouter=14.
-
 
 [materials]
 #whether to convert sRGB -> linear RGB when loading textures
@@ -66,7 +50,7 @@ Disktexture=blackbody
 #blackbody disc options
 Redshift=1.1
 #multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=660.0
+Diskmultiplier=777.0
 #Sky rendering mode
 #	none:		solid black
 #	texture:	use texture bgedit.png
@@ -74,34 +58,27 @@ Diskmultiplier=660.0
 Skytexture=textures/starmap_2020_8k.png
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.5
+Skydiskratio=1.0
 
 #Toggle dust (0/1)
 Fogdo=1
 #Dust intensity multiplier
 Fogmult=0.03
 
+#Disk structure for blackbody
 Diskaddstructure=true
 Diskstructure_spiral_arms=6
+Diskstructure_rings_freq=2.0,1.0,2.0
 Diskstructure_spiral_pitch=0.4
 Diskstructure_position_variation=0.1
 Diskstructure_modulation=0.6
 
 #Postprocessing options
-
-#image done until now is called 'preproc.png'
-
 #Bloom (Airy convolution)
-#a 3-channel convolution with an Airy disk kernel is performed
-#the standard optical resolution is computed assuming the human eye's aperture
-
 #Whether to perform Airy disk bloom
 Airy_bloom=1
 #this parameter rescales the resolution (1.0 = standard size)
 Airy_radius=0.75
-
-#image done until now is called 'postbloom.png'
-
 #Wide gaussian (lit up dust effect)
 #a convolution pass with a pretty wide gaussian which is add-blended
 #simulates dust lit up by bright objects (very scenographic)

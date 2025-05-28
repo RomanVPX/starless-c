@@ -16,12 +16,14 @@
     #define STRDUP _strdup
     #define STRTOK strtok_s
     #define STRCASECMP _stricmp
+    #define ACCESS _access
 #else
     #include <unistd.h>
     #define SSCANF sscanf
     #define STRDUP strdup
     #define STRTOK strtok_r
     #define STRCASECMP strcasecmp
+    #define ACCESS access
 #endif
 
 // --- Function Prototypes ---
@@ -52,13 +54,12 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
     char *str_copy = STRDUP(str);
     if (!str_copy) { return false; }
 
-    char *token;
-    const char *delim = ",";
+    const char *delimiter = ",";
     int count = 0;
 
-    char *saveptr = NULL;
+    char *save_ptr = NULL;
 
-    token = STRTOK(str_copy, delim, &saveptr);
+    char *token = STRTOK(str_copy, delimiter, &save_ptr);
     while (token != NULL && count < expected_count)
     {
         // Trim whitespace
@@ -69,12 +70,12 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
 
         if (strlen(token) > 0)
         {
-            char *endptr;
-            long val = strtol(token, &endptr, 10);
-            if (*endptr == '\0') { arr[count++] = (int)val; }
+            char *end_ptr;
+            long val = strtol(token, &end_ptr, 10);
+            if (*end_ptr == '\0') { arr[count++] = (int)val; }
             else
             {
-                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, endptr);
+                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, end_ptr);
                 count = -1;
                 break;
             }
@@ -85,7 +86,7 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
             count = -1;
             break;
         }
-        token = STRTOK(NULL, delim, &saveptr);
+        token = STRTOK(NULL, delimiter, &save_ptr);
     }
 
     free(str_copy);
@@ -141,7 +142,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         {
             if (!(*override_res) && !parse_int_list(value, cfg->resolution, 2))
             {
-                fprintf(stderr, "Warning: Invalid format for Resolution '%s'. Using defaults.\n", value);
+                fprintf(stderr, "  Warning: Invalid format for Resolution '%s'. Using defaults.\n", value);
             }
             return 1;
         }
@@ -167,16 +168,16 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     {
         if (strcmp(name, "Cameraposition") == 0)
         {
-            if (!parse_vec3d(value, &cfg->camera_pos)) { fprintf(stderr, "Warning: Invalid format for Cameraposition '%s'\n", value); }
+            if (!parse_vec3d(value, &cfg->camera_pos)) { fprintf(stderr, "  Warning: Invalid format for Cameraposition '%s'\n", value); }
         }
         else if (strcmp(name, "Fieldofview") == 0) { cfg->tan_fov = atof(value); }
         else if (strcmp(name, "Lookat") == 0)
         {
-            if (!parse_vec3d(value, &cfg->look_at)) { fprintf(stderr, "Warning: Invalid format for Lookat '%s'\n", value); }
+            if (!parse_vec3d(value, &cfg->look_at)) { fprintf(stderr, "  Warning: Invalid format for Lookat '%s'\n", value); }
         }
         else if (strcmp(name, "Upvector") == 0)
         {
-            if (!parse_vec3d(value, &cfg->up_vector)) { fprintf(stderr, "Warning: Invalid format for Upvector '%s'\n", value); }
+            if (!parse_vec3d(value, &cfg->up_vector)) { fprintf(stderr, "  Warning: Invalid format for Upvector '%s'\n", value); }
         }
         else if (strcmp(name, "Distort") == 0) { cfg->distort = string_to_bool(value); }
         else if (strcmp(name, "Diskinner") == 0) { cfg->disk_inner_radius = atof(value); }
@@ -205,7 +206,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
                     fprintf(stderr, "Error: Memory allocation failed for default disk texture path\n");
                     return 0;
                 }
-                printf("Info: Using default disk texture path: %s\n", DEFAULT_DISK_TEXTURE_PATH);
+                printf("  Info: Using default disk texture path: %s\n", DEFAULT_DISK_TEXTURE_PATH);
             }
             else
             {
@@ -214,10 +215,10 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
                 cfg->disk_texture_path = STRDUP(value);
                 if (!cfg->disk_texture_path)
                 {
-                    fprintf(stderr, "Error: Memory allocation failed for disk texture path\n");
+                    fprintf(stderr, "! Error: Memory allocation failed for disk texture path\n");
                     return 0;
                 }
-                printf("Info: Assuming Disktexture value '%s' is a path for DT_TEXTURE mode.\n", value);
+                printf("  Info: Assuming Disktexture value '%s' is a path for DT_TEXTURE mode.\n", value);
             }
         }
         else if (strcmp(name, "Skytexture") == 0)
@@ -232,7 +233,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
                 cfg->sky_texture_mode = ST_TEXTURE;
                 cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
                 if (!cfg->sky_texture_path) { return 0; }
-                printf("Info: Using default sky texture path: %s\n", DEFAULT_SKY_TEXTURE_PATH);
+                printf("  Info: Using default sky texture path: %s\n", DEFAULT_SKY_TEXTURE_PATH);
             }
             else
             {
@@ -240,7 +241,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
                 cfg->sky_texture_mode = ST_TEXTURE;
                 cfg->sky_texture_path = STRDUP(value);
                 if (!cfg->sky_texture_path) { return 0; }
-                printf("Info: Using custom sky texture path: %s\n", value);
+                printf("  Info: Using custom sky texture path: %s\n", value);
             }
         }
         else if (strcmp(name, "Blackbodyramp") == 0)
@@ -252,14 +253,14 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             {
                 cfg->blackbody_ramp_path = STRDUP(value);    // Use custom path
                 if (!cfg->blackbody_ramp_path) { return 0; } // Allocation error
-                printf("Info: Using custom blackbody ramp path: %s\n", value);
+                printf("  Info: Using custom blackbody ramp path: %s\n", value);
             }
             else
             {
                 // If value is empty or missing, revert to default explicitly
                 cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
                 if (!cfg->blackbody_ramp_path) { return 0; } // Allocation error
-                printf("Info: Blackbodyramp value invalid/empty, using default: %s\n", DEFAULT_BLACKBODY_RAMP_PATH);
+                printf("  Warning: Blackbodyramp value invalid/empty, using default: %s\n", DEFAULT_BLACKBODY_RAMP_PATH);
             }
         }
         else if (strcmp(name, "Skydiskratio") == 0) { cfg->sky_disk_ratio = atof(value); }
@@ -281,6 +282,14 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
         else if (strcmp(name, "Diskaddstructure") == 0) { cfg->disk_add_structure = string_to_bool(value); }
         else if (strcmp(name, "Diskstructure_spiral_arms") == 0) { cfg->disk_structure_spiral_arms = atoi(value); }
+        else if (strcmp(name, "Diskstructure_rings_freq") == 0)
+        {
+            if (!parse_vec3d(value, &cfg->disk_structure_rings_freq))
+            {
+                fprintf(stderr, "  Warning: Invalid format for Diskstructure_rings_freq '%s'. Using defaults.\n", value);
+                cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
+            }
+        }
         else if (strcmp(name, "Diskstructure_spiral_pitch") == 0) { cfg->disk_structure_spiral_pitch = atof(value); }
         else if (strcmp(name, "Diskstructure_position_variation") == 0) { cfg->disk_structure_position_variation = atof(value); }
         else if (strcmp(name, "Diskstructure_modulation") == 0) { cfg->disk_structure_modulation = atof(value); }
@@ -289,11 +298,15 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     return 1; // Success (even for unknown keys)
 }
 
-
 // --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg)
 {
+    if (!cfg) { return false; }
+
     // Initialize with defaults
+    cfg->scene_file_path = NULL;
+    cfg->scene_base_name = NULL;
+
     cfg->resolution[0] = DEFAULT_RESOLUTION_WIDTH;
     cfg->resolution[1] = DEFAULT_RESOLUTION_HEIGHT;
     cfg->n_iterations = DEFAULT_ITERATIONS;
@@ -302,7 +315,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->n_threads = DEFAULT_THREADS;
     cfg->chunk_size = DEFAULT_CHUNKSIZE;
     cfg->lofi = DEFAULT_LOFI;
-    cfg->method = DEFAULT_METHOD;
 
     cfg->camera_pos = (Vec3d)DEFAULT_CAMERA_POS;
     cfg->tan_fov = DEFAULT_TAN_FOV;
@@ -341,11 +353,12 @@ bool load_config(int argc, char *argv[], Config *cfg)
 
     cfg->disk_add_structure = DEFAULT_DISK_ADD_STRUCTURE;
     cfg->disk_structure_spiral_arms = DEFAULT_DISK_STRUCTURE_SPIRAL_ARMS;
+    cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
     cfg->disk_structure_spiral_pitch = DEFAULT_DISK_STRUCTURE_SPIRAL_PITCH;
     cfg->disk_structure_position_variation = DEFAULT_DISK_STRUCTURE_POSITION_VARIATION;
     cfg->disk_structure_modulation = DEFAULT_DISK_STRUCTURE_MODULATION;
 
-    const char *scene_fname = DEFAULT_SCENE_FILENAME;
+    const char *scene_filename = DEFAULT_SCENE_FILENAME;
     bool override_res = false;
 
     // Check initial allocations
@@ -413,33 +426,59 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else
         {
-            scene_fname = argv[i];
-            printf("  Found scene file argument: %s\n", scene_fname);
+            scene_filename = argv[i];
+            printf("  Found scene file argument: %s\n", scene_filename);
         }
     }
 
     // Check if scene file exists
-#if defined(_WIN32)
-    if (_access(scene_fname, F_OK) == -1)
-#else
-    if (access(scene_fname, F_OK) == -1)
-#endif
+    if (ACCESS(scene_filename, F_OK) == -1)
     {
-        fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
+        fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_filename);
         return false;
     }
-    printf("Using scene file: %s\n", scene_fname);
+
+    // Set scene file path and base name
+    if (cfg->scene_file_path) { free(cfg->scene_file_path); }
+    cfg->scene_file_path = STRDUP(scene_filename);
+    if (!cfg->scene_file_path)
+    {
+        fprintf(stderr, "Error: Memory allocation failed for scene file path.\n");
+        return false;
+    }
+
+    // Extract base name from scene file path
+    const char *name_start_ptr = strrchr(scene_filename, '/');
+#ifdef _WIN32
+    if (!name_start_ptr) { name_start_ptr = strrchr(scene_filename, '\\'); }
+#endif
+
+    if (name_start_ptr) { name_start_ptr++; } // Skip the slash
+    else { name_start_ptr = scene_filename; }    // No slash found, use the whole string
+
+    if (cfg->scene_base_name) { free(cfg->scene_base_name); }
+    cfg->scene_base_name = STRDUP(name_start_ptr);
+    if (!cfg->scene_base_name)
+    {
+        fprintf(stderr, "Error: Memory allocation failed for scene base name.\n");
+        free(cfg->scene_file_path);
+        return false;
+    }
+    char *dot = strrchr(cfg->scene_base_name, '.');
+    if (dot && dot != cfg->scene_base_name && (strcmp(dot, ".scene") == 0 || strcmp(dot, ".SCENE") == 0)) { *dot = '\0'; }
+
+    printf("  Using scene file: %s\n", cfg->scene_file_path);
 
     // Parse INI file
-    printf("Parsing INI file: %s...\n", scene_fname);
+    printf("Parsing INI file: %s...\n", cfg->scene_file_path);
     IniParseUserData user_data = {cfg, &override_res};
-    if (ini_parse(scene_fname, scene_ini_callback, &user_data) < 0)
+    if (ini_parse(cfg->scene_file_path, scene_ini_callback, &user_data) < 0)
     {
-        fprintf(stderr, "Error: Can't load or parse scene file '%s'\n", scene_fname);
+        fprintf(stderr, "! Error: Can't load or parse scene file '%s'\n", cfg->scene_file_path);
         free_config_textures(cfg); // Free everything allocated so far
         return false;
     }
-    printf("Finished parsing INI file.\n");
+    printf("  Finished parsing INI file.\n");
 
     // Load textures based on config
     printf("Loading textures based on configuration...\n");
@@ -453,10 +492,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
             cfg->disk_texture = load_texture(cfg->disk_texture_path);
             if (!cfg->disk_texture)
             {
-                fprintf(stderr, "Warning: Failed to load disk texture '%s'. Check path and file.\n", cfg->disk_texture_path);
+                fprintf(stderr, "  Warning: Failed to load disk texture '%s'. Check path and file.\n", cfg->disk_texture_path);
             }
         }
-        else { fprintf(stderr, "Warning: Disk texture mode is TEXTURE, but no valid path was found.\n"); }
+        else { fprintf(stderr, "  Warning: Disk texture mode is TEXTURE, but no valid path was found.\n"); }
     }
 
     if (cfg->sky_texture_mode == ST_TEXTURE)
@@ -467,10 +506,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
             original_sky_texture = load_texture(cfg->sky_texture_path);
             if (!original_sky_texture)
             {
-                fprintf(stderr, "Warning: Failed to load sky texture '%s'. Check path and file.\n", cfg->sky_texture_path);
+                fprintf(stderr, "  Warning: Failed to load sky texture '%s'. Check path and file.\n", cfg->sky_texture_path);
             }
         }
-        else { fprintf(stderr, "Warning: Sky texture mode is TEXTURE, but no valid path was found.\n"); }
+        else { fprintf(stderr, "  Warning: Sky texture mode is TEXTURE, but no valid path was found.\n"); }
     }
 
     // Apply sky texture resizing (if HiFi and texture loaded)
@@ -487,7 +526,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else
         {
-            fprintf(stderr, "Warning: Sky texture resizing failed. Using original texture.\n");
+            fprintf(stderr, "  Warning: Sky texture resizing failed. Using original texture.\n");
             cfg->sky_texture = original_sky_texture;
             original_sky_texture = NULL;
         }
@@ -509,7 +548,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             // Pass pointers to store the results in the config struct
             if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size))
             {
-                fprintf(stderr, "Error: Failed to load required blackbody ramp.\n");
+                fprintf(stderr, "! Error: Failed to load required blackbody ramp.\n");
                 free_config_textures(cfg); // Cleans up textures and paths
                 return false;
             }
@@ -517,7 +556,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
         else
         {
             // This case should ideally not happen due to default path logic, but check anyway
-            fprintf(stderr, "Error: Disktexture mode is BLACKBODY, but no valid ramp path was configured.\n");
+            fprintf(stderr, "! Error: Disktexture mode is BLACKBODY, but no valid ramp path was configured.\n");
             free_config_textures(cfg);
             return false;
         }
@@ -531,22 +570,42 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // Final validation
     if (vec3d_norm(cfg->camera_pos) <= 1.0)
     {
-        fprintf(stderr, "Error: Observer is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
+        fprintf(stderr, "! Error: Observer is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
         free_config_textures(cfg);
         return false;
     }
 
     // Print summary of final configuration
-    printf("Configuration loaded successfully.\n");
-    printf("Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
-    printf("Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
-    printf("SSAA Level: %d\n", cfg->ssaa_level);
-    printf("Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
-    printf("Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
-    if (cfg->disk_texture_path) printf("Disk Path: %s\n", cfg->disk_texture_path);
-    if (cfg->sky_texture_path) printf("Sky Path: %s\n", cfg->sky_texture_path);
-    if (cfg->blackbody_ramp_path) printf("Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path);
-    if (cfg->blackbody_ramp_data) printf("Blackbody Ramp Data: Loaded (%d samples)\n", cfg->blackbody_ramp_size);
+    printf("Configuration loaded successfully:\n");
+    printf("  Scene base name: %s\n", cfg->scene_base_name);
+    printf("  Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
+    printf("  Iterations: %d, Step Size: %f\n", cfg->n_iterations, cfg->step_size);
+    printf("  SSAA Level: %d\n", cfg->ssaa_level);
+    printf("  Threads: %d, Chunk Size: %d\n", cfg->n_threads, cfg->chunk_size);
+    printf("  Disk Mode: %d, Sky Mode: %d\n", cfg->disk_texture_mode, cfg->sky_texture_mode);
+    if (cfg->disk_texture_path) printf("  Disk Path: %s\n", cfg->disk_texture_path);
+    if (cfg->sky_texture_path) printf("  Sky Path: %s\n", cfg->sky_texture_path);
+    if (cfg->blackbody_ramp_path) printf("  Blackbody Ramp Path: %s\n", cfg->blackbody_ramp_path);
+    if (cfg->blackbody_ramp_data) printf("  Blackbody Ramp Data: Loaded (%d samples)\n", cfg->blackbody_ramp_size);
+    if (cfg->disk_texture_mode == DT_BLACKBODY)
+    {
+        printf("  Blackbody:\n");
+        printf("    Disk Multiplier: %f\n", cfg->disk_multiplier);
+        printf("    Redshift: %f\n", cfg->redshift);
+        if (cfg->disk_add_structure)
+        {
+            printf("    Disk Structure: Enabled\n");
+            printf("     Spiral Arms: %d\n", cfg->disk_structure_spiral_arms);
+            printf("     Rings Frequency: (%f, %f, %f)\n",
+                                            cfg->disk_structure_rings_freq.x,
+                                            cfg->disk_structure_rings_freq.y,
+                                            cfg->disk_structure_rings_freq.z);
+            printf("     Spiral Pitch: %f\n", cfg->disk_structure_spiral_pitch);
+            printf("     Position Variation: %f\n", cfg->disk_structure_position_variation);
+            printf("     Modulation: %f\n", cfg->disk_structure_modulation);
+        }
+        else { printf("    Disk Structure: Disabled\n"); }
+    }
 
     return true;
 }
@@ -605,7 +664,7 @@ void free_config_textures(Config *cfg)
     // Free blackbody ramp data
     if (cfg->blackbody_ramp_data)
     {
-        printf("Freeing blackbody ramp data (%d samples)...\n", cfg->blackbody_ramp_size);
+        printf("  Freeing blackbody ramp data (%d samples)...\n", cfg->blackbody_ramp_size);
         free(cfg->blackbody_ramp_data);
         cfg->blackbody_ramp_data = NULL;
         cfg->blackbody_ramp_size = 0;
