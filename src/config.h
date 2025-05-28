@@ -9,7 +9,6 @@ typedef struct Texture Texture;
 typedef struct ImageF ImageF;
 
 // --- Enums ---
-typedef enum { METH_LEAPFROG, METH_RK4 } IntegrationMethod;
 typedef enum { ST_NONE, ST_TEXTURE, ST_FINAL } SkyTextureMode;
 typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextureMode;
 
@@ -28,7 +27,6 @@ typedef struct Config
     int n_threads;
     int chunk_size;
     bool lofi;
-    IntegrationMethod method;
 
     // Camera & View
     Vec3d camera_pos;

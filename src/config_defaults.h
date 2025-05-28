@@ -15,7 +15,6 @@
 #define DEFAULT_THREADS 4
 #define DEFAULT_CHUNKSIZE 9000
 #define DEFAULT_LOFI false
-#define DEFAULT_METHOD METH_RK4
 
 // Geometry
 #define DEFAULT_CAMERA_POS {0.0, 1.0, -10.0}
@@ -60,6 +59,6 @@
 #define DEFAULT_DISK_STRUCTURE_MODULATION 0.5
 
 // Scene File
-#define DEFAULT_SCENE_FILENAME "scenes/default.scene"
+#define DEFAULT_SCENE_FILENAME "scenes/new/default.scene"
 
 #endif // CONFIG_DEFAULTS_H

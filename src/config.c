@@ -54,13 +54,12 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
     char *str_copy = STRDUP(str);
     if (!str_copy) { return false; }
 
-    char *token;
-    const char *delim = ",";
+    const char *delimiter = ",";
     int count = 0;
 
-    char *saveptr = NULL;
+    char *save_ptr = NULL;
 
-    token = STRTOK(str_copy, delim, &saveptr);
+    char *token = STRTOK(str_copy, delimiter, &save_ptr);
     while (token != NULL && count < expected_count)
     {
         // Trim whitespace
@@ -71,12 +70,12 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
 
         if (strlen(token) > 0)
         {
-            char *endptr;
-            long val = strtol(token, &endptr, 10);
-            if (*endptr == '\0') { arr[count++] = (int)val; }
+            char *end_ptr;
+            long val = strtol(token, &end_ptr, 10);
+            if (*end_ptr == '\0') { arr[count++] = (int)val; }
             else
             {
-                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, endptr);
+                printf("Error parsing token: '%s', non-integer part: '%s'\n", token, end_ptr);
                 count = -1;
                 break;
             }
@@ -87,7 +86,7 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
             count = -1;
             break;
         }
-        token = STRTOK(NULL, delim, &saveptr);
+        token = STRTOK(NULL, delimiter, &save_ptr);
     }
 
     free(str_copy);
@@ -316,7 +315,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->n_threads = DEFAULT_THREADS;
     cfg->chunk_size = DEFAULT_CHUNKSIZE;
     cfg->lofi = DEFAULT_LOFI;
-    cfg->method = DEFAULT_METHOD;
 
     cfg->camera_pos = (Vec3d)DEFAULT_CAMERA_POS;
     cfg->tan_fov = DEFAULT_TAN_FOV;
@@ -360,7 +358,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     cfg->disk_structure_position_variation = DEFAULT_DISK_STRUCTURE_POSITION_VARIATION;
     cfg->disk_structure_modulation = DEFAULT_DISK_STRUCTURE_MODULATION;
 
-    const char *scene_fname = DEFAULT_SCENE_FILENAME;
+    const char *scene_filename = DEFAULT_SCENE_FILENAME;
     bool override_res = false;
 
     // Check initial allocations
@@ -428,21 +426,21 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else
         {
-            scene_fname = argv[i];
-            printf("  Found scene file argument: %s\n", scene_fname);
+            scene_filename = argv[i];
+            printf("  Found scene file argument: %s\n", scene_filename);
         }
     }
 
     // Check if scene file exists
-    if (ACCESS(scene_fname, F_OK) == -1)
+    if (ACCESS(scene_filename, F_OK) == -1)
     {
-        fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_fname);
+        fprintf(stderr, "Error: Scene file \"%s\" does not exist or is not accessible.\n", scene_filename);
         return false;
     }
 
     // Set scene file path and base name
     if (cfg->scene_file_path) { free(cfg->scene_file_path); }
-    cfg->scene_file_path = STRDUP(scene_fname);
+    cfg->scene_file_path = STRDUP(scene_filename);
     if (!cfg->scene_file_path)
     {
         fprintf(stderr, "Error: Memory allocation failed for scene file path.\n");
@@ -450,13 +448,13 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Extract base name from scene file path
-    const char *name_start_ptr = strrchr(scene_fname, '/');
+    const char *name_start_ptr = strrchr(scene_filename, '/');
 #ifdef _WIN32
     if (!name_start_ptr) { name_start_ptr = strrchr(scene_fname, '\\'); }
 #endif
 
     if (name_start_ptr) { name_start_ptr++; } // Skip the slash
-    else { name_start_ptr = scene_fname; }    // No slash found, use the whole string
+    else { name_start_ptr = scene_filename; }    // No slash found, use the whole string
 
     if (cfg->scene_base_name) { free(cfg->scene_base_name); }
     cfg->scene_base_name = STRDUP(name_start_ptr);
