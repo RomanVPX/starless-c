@@ -213,7 +213,7 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
     v = fmax(0.0, fmin(0.99999, v)); // Use 1.0 - v if texture origin is bottom-left
 
     int x = (int)(u * tex->width);
-    int y = (int)(v * tex->height);                   // Python code uses (v * height), assuming top-left origin
+    int y = (int)(v * tex->height); // Python code uses (v * height), assuming top-left origin
 
     int index = (y * tex->width + x) * tex->channels; // Assumes 3 channels (RGB)
 

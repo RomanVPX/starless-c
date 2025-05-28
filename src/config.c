@@ -12,18 +12,18 @@
     #ifndef F_OK
         #define F_OK 0
     #endif
-    #define SSCANF sscanf_s
-    #define STRDUP _strdup
-    #define STRTOK strtok_s
+    #define SSCANF     sscanf_s
+    #define STRDUP     _strdup
+    #define STRTOK     strtok_s
     #define STRCASECMP _stricmp
-    #define ACCESS _access
+    #define ACCESS     _access
 #else
     #include <unistd.h>
-    #define SSCANF sscanf
-    #define STRDUP strdup
-    #define STRTOK strtok_r
+    #define SSCANF     sscanf
+    #define STRDUP     strdup
+    #define STRTOK     strtok_r
     #define STRCASECMP strcasecmp
-    #define ACCESS access
+    #define ACCESS     access
 #endif
 
 // --- Function Prototypes ---
@@ -251,7 +251,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
             if (value && strlen(value) > 0)
             {
-                cfg->blackbody_ramp_path = STRDUP(value);    // Use custom path
+                cfg->blackbody_ramp_path = STRDUP(value); // Use custom path
                 if (!cfg->blackbody_ramp_path) { return 0; } // Allocation error
                 printf("  Info: Using custom blackbody ramp path: %s\n", value);
             }
@@ -454,7 +454,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
 #endif
 
     if (name_start_ptr) { name_start_ptr++; } // Skip the slash
-    else { name_start_ptr = scene_filename; }    // No slash found, use the whole string
+    else { name_start_ptr = scene_filename; } // No slash found, use the whole string
 
     if (cfg->scene_base_name) { free(cfg->scene_base_name); }
     cfg->scene_base_name = STRDUP(name_start_ptr);
@@ -606,7 +606,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else { printf("    Disk Structure: Disabled\n"); }
     }
-
     return true;
 }
 
