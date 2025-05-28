@@ -101,7 +101,9 @@ To render in "lo-fi" mode (uses the [lofi] section from the scene file):
 *   **inih (INI Parser)** by Ben Hoyt for INI file parsing.
 *   **NASA/Goddard Space Flight Center Scientific Visualization Studio** for the Milky Way panorama texture used in some example scenes.
 
+
 ## License
 
-GPL-3.0 license (to maintain compatibility with the original project).
+Copyright (c) 2025 Riccardo Antonelli (original Python project), RomanVPX (C port and further development).
+Licensed under the GNU GPL v3.0. See [LICENSE](LICENSE) for details.
 
