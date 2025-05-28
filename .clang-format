@@ -6,22 +6,24 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignConsecutiveMacros:
   Enabled:         true
-  AcrossEmptyLines: true
+  AcrossEmptyLines: false
   AcrossComments:  true
-AlignEscapedNewlines: Left
+  AlignCompound: false
+  PadOperators: true
+AlignEscapedNewlines: LeftWithLastLine
 AlignOperands: Align
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 1
 AllowShortBlocksOnASingleLine: Always
 AllowShortCaseExpressionOnASingleLine: true
-AllowShortEnumsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
 BreakTemplateDeclarations: MultiLine
 BinPackArguments: true
-BinPackParameters: false
+BinPackParameters: BinPack
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel: true
@@ -42,10 +44,8 @@ BraceWrapping:
   SplitEmptyNamespace: false
 BreakAfterReturnType: ExceptShortType
 BreakConstructorInitializers: AfterColon
-BreakConstructorInitializersBeforeComma: false # deprecated
-ColumnLimit: 140
-ConstructorInitializerAllOnOneLineOrOnePerLine: false # deprecated
-PackConstructorInitializers: NextLine
+ColumnLimit: 160
+PackConstructorInitializers: CurrentLine
 ContinuationIndentWidth: 8
 IncludeCategories:
   - Regex: ^<.*
@@ -64,24 +64,9 @@ NamespaceIndentation: All
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: false
 SpaceBeforeRangeBasedForLoopColon: false
-SpacesInParens: Never # use custom below if needed
-#SpacesInParens: Custom
-#SpacesInParensOptions:
-#  ExceptDoubleParentheses: false
-#  InConditionalStatements: false
-#  InControlConstructs: false
-#  InEmptyParentheses: false
-#  InFunctionDeclaration: false
-#  InFunctionDefinition: false
-#  InIfStatement: false
-#  InLambdaExpression: false
-#  InMacro: false
-#  InNamespaceDeclaration: false
-#  InSwitchStatement: false
-#  InWhileStatement: false
-#  InCStyleCasts: false
+SpacesInParens: Never
 SpacesInAngles: false
 TabWidth: 4
 UseTab: Never
-IndentPPDirectives: AfterHash
+IndentPPDirectives: BeforeHash
 ...
