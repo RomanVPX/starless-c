@@ -1,10 +1,12 @@
 ifeq ($(OS),Windows_NT)
 	MKDIR = powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
 	RMDIR = powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)' }"
+	EXECUTABLE_EXTENSION=.exe
 	LIBS=
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
+	EXECUTABLE_EXTENSION=
 	LIBS=-lm -lpthread
 endif
 
@@ -26,7 +28,7 @@ SRCS = $(SRCDIR)/main.c $(SRCDIR)/tracer.c $(SRCDIR)/vector.c $(SRCDIR)/color.c 
 OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
 # Executable name
-TARGET = $(BUILDDIR)/blackhole_tracer
+TARGET = $(BUILDDIR)/blackhole_tracer$(EXECUTABLE_EXTENSION)
 
 # Default target
 all: $(BUILDDIR) $(TARGET)
