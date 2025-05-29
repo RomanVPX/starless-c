@@ -1,0 +1,120 @@
+name: Release Builds and Packaging
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_and_package:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner_os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - runner_os: ubuntu-latest
+            os_display_name: Linux
+            artifact_suffix: linux-amd64
+            binary_name: blackhole_tracer
+            archive_extension: tar.gz
+          - runner_os: macos-latest
+            os_display_name: macOS
+            artifact_suffix: macos-arm64
+            binary_name: blackhole_tracer
+            archive_extension: tar.gz
+          - runner_os: windows-latest
+            os_display_name: Windows
+            artifact_suffix: windows-amd64
+            binary_name: blackhole_tracer.exe
+            archive_extension: zip
+
+    runs-on: ${{ matrix.runner_os }}
+    name: Build on ${{ matrix.os_display_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: matrix.runner_os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y build-essential make
+
+      - name: Install dependencies (macOS)
+        if: matrix.runner_os == 'macos-latest'
+        run: brew install make
+
+      - name: Install dependencies (Windows)
+        if: matrix.runner_os == 'windows-latest'
+        run: choco install make
+
+      - name: Build project
+        run: make
+
+      - name: Prepare staging directory and define archive names
+        shell: bash
+        run: |
+          ARCH_NAME="starless-c-${{ matrix.artifact_suffix }}"
+          ARCH_FILE="${ARCH_NAME}.${{ matrix.archive_extension }}"
+          echo "ARCHIVE_BASENAME=${ARCH_NAME}" >> $GITHUB_ENV
+          echo "ARCHIVE_FULL_NAME=${ARCH_FILE}" >> $GITHUB_ENV
+          
+          mkdir -p staging_area/${ARCH_NAME}
+          echo "Copying common assets..."
+          cp -r blackbody_ramp docs scenes textures README.md staging_area/${ARCH_NAME}/
+          echo "Copying binary: build/${{ matrix.binary_name }} to staging_area/${ARCH_NAME}/"
+          cp build/${{ matrix.binary_name }} staging_area/${ARCH_NAME}/
+
+      - name: Create archive
+        shell: bash
+        run: |
+          cd staging_area/${{ env.ARCHIVE_BASENAME }}
+          if [ "${{ matrix.archive_extension }}" == "tar.gz" ]; then
+            tar -czvf ../../${{ env.ARCHIVE_FULL_NAME }} .
+          elif [ "${{ matrix.archive_extension }}" == "zip" ]; then
+            # PowerShell для создания ZIP из содержимого текущей папки
+            pwsh -Command "Compress-Archive -Path '*' -DestinationPath '../../${{ env.ARCHIVE_FULL_NAME }}' -Force"
+          fi
+          cd ../.. 
+        
+      - name: Upload build artifact (archive)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_BASENAME }}
+          path: ${{ env.ARCHIVE_FULL_NAME }}
+
+  create_release:
+    needs: build_and_package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: List downloaded files (for debugging paths)
+        run: ls -R downloaded-artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: true
+          # prerelease: false
+          files: |
+            downloaded-artifacts/starless-c-linux-amd64/*.tar.gz
+            downloaded-artifacts/starless-c-macos-arm64/*.tar.gz
+            downloaded-artifacts/starless-c-windows-amd64/*.zip
+            # Примечание: download-artifact@v4 с опцией `name` (если бы она была указана)
+            # скачал бы конкретный артефакт. Без `name` он скачивает все.
+            # Каждый артефакт (названный как ${{ env.ARCHIVE_BASENAME }} при загрузке)
+            # будет скачан в подпапку внутри `downloaded-artifacts`.
+            # Например, артефакт `starless-c-linux-amd64` (который является файлом .tar.gz)
+            # будет лежать в `downloaded-artifacts/starless-c-linux-amd64/starless-c-linux-amd64.tar.gz`.
+            # Поэтому глобы выше должны сработать.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
