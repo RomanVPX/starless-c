@@ -28,7 +28,7 @@ The original "Starless" is a CPU black hole raytracer in NumPy, designed for inf
 *   **Blackbody Rendering:** The blackbody temperature calculation logic has been updated to use these new LUTs, aiming for results comportementally close to the original when using the same temperature range.
 *   **Blending Modes:** The blending for the accretion disk has been revised for more standard alpha blending (Porter-Duff "over" operator). The original blending behavior can be enabled via a compile-time define for comparison.
 *   **Disk Alpha Calculation:** The method for calculating disk alpha in Blackbody mode has been refined for better control over edge falloff. The original behavior can also be enabled via a define.
-*   **PNG Metadata:** The rendered PNG images now embed configuration parameters used for the render. Currently, this is implemented by saving a JSON representation of some settings into a comment field, with plans to improve this for better readability with EXIF viewers and more comprehensive coverage of all settings.
+*   **PNG Metadata:** The rendered PNG images now embed configuration parameters used for the render.
 
 **New Rendering Features:**
 
@@ -86,8 +86,8 @@ To render in "lo-fi" mode (uses the [lofi] section from the scene file):
 
 ## TODO / Future Work
 
-*   Improve PNG metadata storage (more fields, better format for EXIF viewers).
 *   Optionally implement saving of intermediate rendering stages.
+*   Improve PNG metadata storage (store enums, do something to have tags sorted in some way).
 *   Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
 *   Investigate more sophisticated procedural noise/turbulence for disk structures.
 *   Further performance optimizations (e.g., SIMD, Airy bloom optimization).
