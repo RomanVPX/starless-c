@@ -12,7 +12,13 @@ endif
 
 # Compiler and flags
 CC = clang
-CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native # -g for debugging, -O3 for release
+
+ifeq ($(RELEASE),1)
+    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -march=native
+else
+    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native
+endif
+
 LDFLAGS = $(LIBS)
 
 # Directories
