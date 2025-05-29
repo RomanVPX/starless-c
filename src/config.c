@@ -293,7 +293,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         else if (strcmp(name, "Diskstructure_position_variation") == 0) { cfg->disk_structure_position_variation = atof(value); }
         else if (strcmp(name, "Diskstructure_modulation") == 0) { cfg->disk_structure_modulation = atof(value); }
     }
-
     return 1; // Success (even for unknown keys)
 }
 

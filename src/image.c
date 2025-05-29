@@ -15,58 +15,103 @@
     #define M_PI 3.14159265358979323846
 #endif
 
+#define MAX_CONFIG_METADATA_ENTRIES 150
 
-static char *config_to_json(const Config *cfg)
+// metadata_array - where we write PngMetadata
+// text_buffers - array of char buffers for storing formatted values
+// current_idx_ptr - pointer to the current index in metadata_array and text_buffers
+// max_entries - maximum size of arrays
+
+static void helper_add_meta_entry(PngMetadata metadata_array[], char text_buffers[][256], int *current_idx_ptr, int max_entries,
+                                  const char *key, const char *value_str)
 {
-    char *json = (char *)malloc(4096);
-    if (!json) return NULL;
+    if (!value_str || *current_idx_ptr >= max_entries) return;
+    // Keys are assumed to be string literals, so simply assigning a pointer
+    // stbi_write_png_with_metadata expects const char*, so this is fine
+    metadata_array[*current_idx_ptr].keyword = key;
+    // Copy the formatted value to our allocated buffer
+    snprintf(text_buffers[*current_idx_ptr], 256, "%s", value_str);
+    metadata_array[*current_idx_ptr].text = text_buffers[*current_idx_ptr];
 
-    int pos = 0;
-    pos += snprintf(json + pos, 4096 - pos, "{\n");
+    (*current_idx_ptr)++;
+}
 
-    // Resolution
-    pos += snprintf(json + pos, 4096 - pos, "\"resolution\": [%d, %d],\n", cfg->resolution[0], cfg->resolution[1]);
+static void helper_add_meta_int(PngMetadata m[], char tb[][256], int *idx, int max, const char *k, int v)
+{
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%d", v);
+    helper_add_meta_entry(m, tb, idx, max, k, buffer);
+}
 
-    // Ray tracing params
-    pos += snprintf(json + pos, 4096 - pos, "\"n_iterations\": %d,\n", cfg->n_iterations);
-    pos += snprintf(json + pos, 4096 - pos, "\"step_size\": %f,\n", cfg->step_size);
+static void helper_add_meta_double(PngMetadata m[], char tb[][256], int *idx, int max, const char *k, double v)
+{
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%.7g", v);
+    helper_add_meta_entry(m, tb, idx, max, k, buffer);
+}
 
-    // Camera
-    pos += snprintf(json + pos, 4096 - pos, "\"camera\": {\n");
-    pos += snprintf(json + pos, 4096 - pos, "  \"position\": [%f, %f, %f],\n", cfg->camera_pos.x, cfg->camera_pos.y, cfg->camera_pos.z);
-    pos += snprintf(json + pos, 4096 - pos, "  \"look_at\": [%f, %f, %f],\n", cfg->look_at.x, cfg->look_at.y, cfg->look_at.z);
-    pos += snprintf(json + pos, 4096 - pos, "  \"up\": [%f, %f, %f],\n", cfg->up_vector.x, cfg->up_vector.y, cfg->up_vector.z);
-    pos += snprintf(json + pos, 4096 - pos, "  \"fov\": %f\n", atan(cfg->tan_fov) * 2 * 180 / M_PI);
-    pos += snprintf(json + pos, 4096 - pos, "  },\n");
+static void helper_add_meta_bool(PngMetadata m[], char tb[][256], int *idx, int max, const char *k, bool v)
+{
+    helper_add_meta_entry(m, tb, idx, max, k, v ? "true" : "false");
+}
 
-    // Disk
-    pos += snprintf(json + pos, 4096 - pos, "\"disk\": {\n");
-    pos += snprintf(json + pos, 4096 - pos, "  \"inner_radius\": %f,\n", cfg->disk_inner_radius);
-    pos += snprintf(json + pos, 4096 - pos, "  \"outer_radius\": %f,\n", cfg->disk_outer_radius);
-    pos += snprintf(json + pos, 4096 - pos, "  \"texture_mode\": \"%s\",\n",
-                    cfg->disk_texture_mode == DT_NONE        ? "none"
-                    : cfg->disk_texture_mode == DT_TEXTURE   ? "texture"
-                    : cfg->disk_texture_mode == DT_SOLID     ? "solid"
-                    : cfg->disk_texture_mode == DT_GRID      ? "grid"
-                    : cfg->disk_texture_mode == DT_BLACKBODY ? "blackbody"
-                                                             : "unknown");
-    if (cfg->disk_texture_path) pos += snprintf(json + pos, 4096 - pos, "  \"texture_path\": \"%s\",\n", cfg->disk_texture_path);
-    pos += snprintf(json + pos, 4096 - pos, "  \"horizon_grid\": %s\n", cfg->horizon_grid ? "true" : "false");
-    pos += snprintf(json + pos, 4096 - pos, "  },\n");
+static void helper_add_meta_vec3d(PngMetadata m[], char tb[][256], int *idx, int max, const char *k, Vec3d v)
+{
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "(%.3f, %.3f, %.3f)", v.x, v.y, v.z);
+    helper_add_meta_entry(m, tb, idx, max, k, buffer);
+}
 
-    // Effects
-    pos += snprintf(json + pos, 4096 - pos, "\"effects\": {\n");
-    pos += snprintf(json + pos, 4096 - pos, "  \"distortion\": %s,\n", cfg->distort ? "true" : "false");
-    if (cfg->fog_do) pos += snprintf(json + pos, 4096 - pos, "  \"fog_multiplier\": %f,\n", cfg->fog_mult);
-    if (cfg->blur_do) pos += snprintf(json + pos, 4096 - pos, "  \"blur\": true,\n");
-    if (cfg->airy_bloom) pos += snprintf(json + pos, 4096 - pos, "  \"airy_bloom_radius\": %f,\n", cfg->airy_radius);
-    pos += snprintf(json + pos, 4096 - pos, "  \"gain\": %f,\n", cfg->gain);
-    pos += snprintf(json + pos, 4096 - pos, "  \"aces_exposure\": %f\n", cfg->aces_exposure);
-    pos += snprintf(json + pos, 4096 - pos, "  }\n");
+static void helper_add_meta_int_array2(PngMetadata m[], char tb[][256], int *idx, int max, const char *k, const int arr[2])
+{
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "[%d, %d]", arr[0], arr[1]);
+    helper_add_meta_entry(m, tb, idx, max, k, buffer);
+}
 
-    pos += snprintf(json + pos, 4096 - pos, "}\n");
+int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char text_buffers_output[][256], int max_metadata_entries)
+{                             /* Formatted values ↓ go here */
+    if (!cfg || !metadata_output || !text_buffers_output || max_metadata_entries <= 0) { return 0; }
 
-    return json;
+    int current_entry_index = 0;
+
+    #define INIT_MACRO(fieldName, cfgKey) FIELD_DEF(fieldName, cfgKey, INIT_##fieldName, #fieldName)
+
+    #define INIT_STRING(fieldName, pngKeySuffix) if(cfg->fieldName) \
+        helper_add_meta_entry(metadata_output, text_buffers_output, \
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_INT(fieldName, pngKeySuffix) \
+        helper_add_meta_int(metadata_output, text_buffers_output,\
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_DOUBLE(fieldName, pngKeySuffix) \
+        helper_add_meta_double(metadata_output, text_buffers_output,\
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_BOOL(fieldName, pngKeySuffix) \
+        helper_add_meta_bool(metadata_output, text_buffers_output,\
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_VEC3(fieldName, pngKeySuffix) \
+        helper_add_meta_vec3d(metadata_output, text_buffers_output,\
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_INT_ARRAY2(fieldName, pngKeySuffix) \
+        helper_add_meta_int_array2(metadata_output, text_buffers_output,\
+        &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
+
+    #define INIT_ENUM(fieldName, pngKeySuffix) // TODO: implement with some sort of macro mumbojumbo
+    #define INIT_NULL(fieldName, pngKeySuffix) // Do not write those to metadata
+
+    #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey)
+
+    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Software", "Starless-C");
+    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Repo", "https://github.com/RomanVPX/starless-c");
+
+    #include "x_config_fields.h"
+
+    return current_entry_index; // Возвращаем количество добавленных записей
 }
 
 
@@ -82,21 +127,16 @@ ImageF *create_imagef(int width, int height)
         free(img);
         return NULL;
     }
-    // Initialize pixels to black
-    memset(img->pixels, 0, width * height * sizeof(ColorRGB));
+    memset(img->pixels, 0, width * height * sizeof(ColorRGB)); // Initialize pixels to black
     return img;
 }
 
-
 void free_imagef(ImageF *img)
 {
-    if (img)
-    {
-        free(img->pixels);
-        free(img);
-    }
+    if (!img) { return; }
+    free(img->pixels);
+    free(img);
 }
-
 
 Texture *load_texture(const char *filename)
 {
@@ -114,13 +154,11 @@ Texture *load_texture(const char *filename)
         free(tex);
         return NULL;
     }
-    // Always set channels to 3 since we requested 3 components.
-    tex->channels = 3;
+    tex->channels = 3; // Always set channels to 3 since we requested 3 components.
     printf("  Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height, tex->channels);
 
     return tex;
 }
-
 
 Texture *resize_texture(const Texture *input_tex, float scale_factor)
 {
@@ -132,7 +170,6 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     if (scale_factor == 1.0f)
     {
         fprintf(stderr, "  Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
-
         return NULL; // Or return a copy if the caller expects a new texture always?
     }
 
@@ -160,7 +197,6 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
         fprintf(stderr, "! Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
         return NULL;
     }
-    // Perform the resize operation
     // Use default flags/filter for now (STBIR_FILTER_DEFAULT which is Mitchell-Netravali, good quality)
     int success = stbir_resize_uint8(input_tex->data, in_w, in_h, 0, // 0 stride means default (in_w * channels)
                                      output_data, out_w, out_h, 0,   // 0 stride means default (out_w * channels)
@@ -172,8 +208,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
         return NULL;
     }
 
-    // Create a new Texture struct for the resized data
-    Texture *output_tex = (Texture *)malloc(sizeof(Texture));
+    Texture *output_tex = (Texture *)malloc(sizeof(Texture)); // A new Texture struct for the resized data
     if (!output_tex)
     {
         fprintf(stderr, "! Error: Failed to allocate memory for resized Texture struct.\n");
@@ -190,7 +225,6 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     return output_tex;
 }
 
-
 void free_texture(Texture *tex)
 {
     if (tex)
@@ -199,7 +233,6 @@ void free_texture(Texture *tex)
         free(tex);
     }
 }
-
 
 // Simple nearest neighbor lookup
 ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
@@ -230,7 +263,7 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
     color.b = tex->data[index + 2] / 255.0;
 
     if (srgb_in) { return color_srgb_to_linear(color); }
-    else { return color; }
+    return color;
 }
 
 
@@ -252,25 +285,30 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 
         // Clamp and convert to u8
         ColorRGB_u8 pixel_u8 = color_to_u8(pixel_color);
-
         output_data[i * 3 + 0] = pixel_u8.r;
         output_data[i * 3 + 1] = pixel_u8.g;
         output_data[i * 3 + 2] = pixel_u8.b;
     }
-    // Generate metadata from config
-    char *metadata_json = config_to_json(cfg);
-    if (!metadata_json)
-    {
-        free(output_data);
-        return false;
-    }
-    // Setup metadata
-    PngMetadata metadata[] = {{"Title", "Black Hole Raytracer Output"}, {"Software", "starless-c"}, {"Comment", metadata_json}};
 
-    int success = stbi_write_png_with_metadata(filename, width, height, 3, output_data, width * 3, metadata,
-                                               sizeof(metadata) / sizeof(metadata[0]));
+    PngMetadata metadata_array[MAX_CONFIG_METADATA_ENTRIES];
+    char text_value_buffers[MAX_CONFIG_METADATA_ENTRIES][256]; // Array that keeps strings with values
+    int num_metadata_entries = 0;
+
+    num_metadata_entries = assemble_png_metadata(cfg, metadata_array, text_value_buffers, MAX_CONFIG_METADATA_ENTRIES);
+
+    int success = 0;
+    if (num_metadata_entries > 0)
+    {
+        printf("  Attempting to save image with %d metadata entries...\n", num_metadata_entries);
+        success = stbi_write_png_with_metadata(filename, width, height, 3, output_data, width * 3, metadata_array, num_metadata_entries);
+    }
+    else
+    {   // Using basic stbi_write_png in this case just to be on the safe side
+        printf("  Warning: No metadata generated, saving image without custom metadata...\n");
+        success = stbi_write_png(filename, width, height, 3, output_data, width * 3);
+    }
+
     free(output_data);
-    free(metadata_json);
 
     if (!success)
     {
@@ -278,6 +316,6 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
         return false;
     }
 
-    printf("Saved image with metadata to '%s'\n", filename);
+    printf("Saved image to '%s' (metadata entries: %d)\n", filename, num_metadata_entries);
     return true;
 }
