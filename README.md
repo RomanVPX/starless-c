@@ -1,7 +1,7 @@
-# Starless-C: A Black Hole Raytracer in C
-
 [![Latest Release](https://img.shields.io/github/v/release/RomanVPX/starless-c?label=release)](https://github.com/RomanVPX/starless-c/releases/latest)
 [![Build Status](https://github.com/RomanVPX/starless-c/actions/workflows/build.yml/badge.svg)](https://github.com/RomanVPX/starless-c/actions)
+
+# Starless-C: A Black Hole Raytracer in C
 
 This project is a C port and an extension of the original Python-based black hole raytracer "Starless" by Riccardo Antonelli ([rantonels/starless](https://github.com/rantonels/starless)).
 The goal is to provide a faster, more extensible, and cross-platform version while maintaining compatibility with the original scene file format and exploring new rendering features.
