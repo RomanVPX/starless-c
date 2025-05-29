@@ -104,6 +104,6 @@ To render in "lo-fi" mode (uses the [lofi] section from the scene file):
 
 ## License
 
-Copyright (c) 2025 Riccardo Antonelli (original Python project), RomanVPX (C port and further development).
+Copyright (c) 2025 Riccardo Antonelli ([original](http://rantonels.github.io/starless/) Python project), RomanVPX ([this](https://github.com/RomanVPX/starless-c) C port development).
 Licensed under the GNU GPL v3.0. See [LICENSE](LICENSE) for details.
 
