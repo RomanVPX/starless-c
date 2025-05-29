@@ -6,18 +6,18 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignConsecutiveMacros:
   Enabled:         true
-  AcrossEmptyLines: true
+  AcrossEmptyLines: false
   AcrossComments:  true
-AlignEscapedNewlines: Left
+AlignEscapedNewlines: LeftWithLastLine
 AlignOperands: Align
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 1
 AllowShortBlocksOnASingleLine: Always
 AllowShortCaseExpressionOnASingleLine: true
-AllowShortEnumsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLoopsOnASingleLine: true
 BreakTemplateDeclarations: MultiLine
 BinPackArguments: true
@@ -64,24 +64,9 @@ NamespaceIndentation: All
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: false
 SpaceBeforeRangeBasedForLoopColon: false
-SpacesInParens: Never # use custom below if needed
-#SpacesInParens: Custom
-#SpacesInParensOptions:
-#  ExceptDoubleParentheses: false
-#  InConditionalStatements: false
-#  InControlConstructs: false
-#  InEmptyParentheses: false
-#  InFunctionDeclaration: false
-#  InFunctionDefinition: false
-#  InIfStatement: false
-#  InLambdaExpression: false
-#  InMacro: false
-#  InNamespaceDeclaration: false
-#  InSwitchStatement: false
-#  InWhileStatement: false
-#  InCStyleCasts: false
+SpacesInParens: Never
 SpacesInAngles: false
 TabWidth: 4
 UseTab: Never
-IndentPPDirectives: AfterHash
+IndentPPDirectives: BeforeHash
 ...

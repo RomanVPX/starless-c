@@ -3,7 +3,7 @@
 #include <math.h>
 
 
-static inline double clamp(double x, double lowerlimit, double upperlimit) { return fmax(lowerlimit, fmin(upperlimit, x)); }
+static inline double clamp(double x, double lower_limit, double upper_limit) { return fmax(lower_limit, fmin(upper_limit, x)); }
 
 static inline double saturate(double x) { return fmax(0.0, fmin(1.0, x)); }
 
@@ -25,6 +25,5 @@ static inline double smootherstep(double edge0, double edge1, double x)
     x = saturate((x - edge0) / (edge1 - edge0));
     return x * x * x * (x * (6.0 * x - 15.0) + 10.0);
 }
-
 
 #endif

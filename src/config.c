@@ -12,18 +12,18 @@
     #ifndef F_OK
         #define F_OK 0
     #endif
-    #define SSCANF sscanf_s
-    #define STRDUP _strdup
-    #define STRTOK strtok_s
+    #define SSCANF     sscanf_s
+    #define STRDUP     _strdup
+    #define STRTOK     strtok_s
     #define STRCASECMP _stricmp
-    #define ACCESS _access
+    #define ACCESS     _access
 #else
     #include <unistd.h>
-    #define SSCANF sscanf
-    #define STRDUP strdup
-    #define STRTOK strtok_r
+    #define SSCANF     sscanf
+    #define STRDUP     strdup
+    #define STRTOK     strtok_r
     #define STRCASECMP strcasecmp
-    #define ACCESS access
+    #define ACCESS     access
 #endif
 
 // --- Function Prototypes ---
@@ -287,14 +287,12 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             if (!parse_vec3d(value, &cfg->disk_structure_rings_freq))
             {
                 fprintf(stderr, "  Warning: Invalid format for Diskstructure_rings_freq '%s'. Using defaults.\n", value);
-                cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
             }
         }
         else if (strcmp(name, "Diskstructure_spiral_pitch") == 0) { cfg->disk_structure_spiral_pitch = atof(value); }
         else if (strcmp(name, "Diskstructure_position_variation") == 0) { cfg->disk_structure_position_variation = atof(value); }
         else if (strcmp(name, "Diskstructure_modulation") == 0) { cfg->disk_structure_modulation = atof(value); }
     }
-
     return 1; // Success (even for unknown keys)
 }
 
@@ -304,59 +302,20 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (!cfg) { return false; }
 
     // Initialize with defaults
-    cfg->scene_file_path = NULL;
-    cfg->scene_base_name = NULL;
+    #define INIT_INT(fieldName, cfgKey, defLiteral) cfg->fieldName = defLiteral
+    #define INIT_NULL INIT_INT
+    #define INIT_ENUM INIT_INT
+    #define INIT_DOUBLE INIT_INT
+    #define INIT_BOOL INIT_INT
+    #define INIT_VEC3 INIT_INT
+    #define INIT_STRING(fieldName, cfgKey, defLiteral) cfg->fieldName = STRDUP(defLiteral)
+    #define INIT_INT_ARRAY2(fieldName, cfgKey, defLiteral) \
+        do { cfg->fieldName[0] = defLiteral[0];            \
+             cfg->fieldName[1] = defLiteral[1];            \
+        } while(0)
 
-    cfg->resolution[0] = DEFAULT_RESOLUTION_WIDTH;
-    cfg->resolution[1] = DEFAULT_RESOLUTION_HEIGHT;
-    cfg->n_iterations = DEFAULT_ITERATIONS;
-    cfg->ssaa_level = DEFAULT_SSAA_LEVEL;
-    cfg->step_size = DEFAULT_STEPSIZE;
-    cfg->n_threads = DEFAULT_THREADS;
-    cfg->chunk_size = DEFAULT_CHUNKSIZE;
-    cfg->lofi = DEFAULT_LOFI;
-
-    cfg->camera_pos = (Vec3d)DEFAULT_CAMERA_POS;
-    cfg->tan_fov = DEFAULT_TAN_FOV;
-    cfg->look_at = (Vec3d)DEFAULT_LOOK_AT;
-    cfg->up_vector = (Vec3d)DEFAULT_UP_VECTOR;
-    cfg->distort = DEFAULT_DISTORT;
-    cfg->disk_inner_radius = DEFAULT_DISK_INNER_RADIUS;
-    cfg->disk_outer_radius = DEFAULT_DISK_OUTER_RADIUS;
-
-    cfg->horizon_grid = DEFAULT_HORIZON_GRID;
-    cfg->disk_texture_mode = DEFAULT_DISK_TEXTURE_MODE;
-    cfg->sky_texture_mode = DEFAULT_SKY_TEXTURE_MODE;
-    cfg->disk_texture_path = STRDUP(DEFAULT_DISK_TEXTURE_PATH);
-    cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
-    cfg->disk_texture = NULL;
-    cfg->sky_texture = NULL;
-    cfg->sky_disk_ratio = DEFAULT_SKY_DISK_RATIO;
-    cfg->fog_do = DEFAULT_FOG_DO;
-    cfg->fog_mult = DEFAULT_FOG_MULT;
-    cfg->fog_skip = DEFAULT_FOG_SKIP;
-    cfg->blur_do = DEFAULT_BLUR_DO;
-    cfg->airy_bloom = DEFAULT_AIRY_BLOOM;
-    cfg->airy_radius = DEFAULT_AIRY_RADIUS;
-    cfg->gain = DEFAULT_GAIN;
-    cfg->aces_exposure = DEFAULT_ACES_EXPOSURE;
-    cfg->normalize = DEFAULT_NORMALIZE;
-    cfg->srgb_out = DEFAULT_SRGB_OUT;
-    cfg->srgb_in = DEFAULT_SRGB_IN;
-
-    cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
-    cfg->blackbody_ramp_data = NULL;
-    cfg->blackbody_ramp_size = 0;
-    cfg->disk_multiplier = DEFAULT_DISK_MULTIPLIER;
-    cfg->disk_intensity_do = DEFAULT_DISK_INTENSITY_DO;
-    cfg->redshift = DEFAULT_REDSHIFT;
-
-    cfg->disk_add_structure = DEFAULT_DISK_ADD_STRUCTURE;
-    cfg->disk_structure_spiral_arms = DEFAULT_DISK_STRUCTURE_SPIRAL_ARMS;
-    cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
-    cfg->disk_structure_spiral_pitch = DEFAULT_DISK_STRUCTURE_SPIRAL_PITCH;
-    cfg->disk_structure_position_variation = DEFAULT_DISK_STRUCTURE_POSITION_VARIATION;
-    cfg->disk_structure_modulation = DEFAULT_DISK_STRUCTURE_MODULATION;
+    #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey, defLiteral)
+    #include "x_config_fields.h"
 
     const char *scene_filename = DEFAULT_SCENE_FILENAME;
     bool override_res = false;
@@ -454,7 +413,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
 #endif
 
     if (name_start_ptr) { name_start_ptr++; } // Skip the slash
-    else { name_start_ptr = scene_filename; }    // No slash found, use the whole string
+    else { name_start_ptr = scene_filename; } // No slash found, use the whole string
 
     if (cfg->scene_base_name) { free(cfg->scene_base_name); }
     cfg->scene_base_name = STRDUP(name_start_ptr);
@@ -606,7 +565,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else { printf("    Disk Structure: Disabled\n"); }
     }
-
     return true;
 }
 
