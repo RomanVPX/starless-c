@@ -50,7 +50,7 @@ jobs:
         run: choco install make
 
       - name: Build project
-        run: make
+        run: make RELEASE=1
 
       - name: Prepare staging directory and define archive names
         shell: bash
@@ -99,12 +99,20 @@ jobs:
       - name: List downloaded files (for debugging paths)
         run: ls -R downloaded-artifacts
 
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-configuration.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
       - name: Create GitHub Release
-        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          generate_release_notes: false
           draft: true
+          body: ${{ steps.changelog.outputs.changelog }}
           # prerelease: false
           files: |
             downloaded-artifacts/starless-c-linux-amd64/*.tar.gz
