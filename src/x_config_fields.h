@@ -1,4 +1,7 @@
+#include "config_defaults.h"
+
 /*       (field_name_in_cfg,                 ".ini param name",                  INIT_MACRO,       default_value)                          */
+/* .scene settings                                                                                                                         */
 FIELD_DEF(resolution,                        "Resolution",                       INIT_INT_ARRAY2,  ((int[2]){640, 480})                    );
 FIELD_DEF(n_iterations,                      "Iterations",                       INIT_INT,         1000                                    );
 FIELD_DEF(ssaa_level,                        "SSAA",                             INIT_INT,         2                                       );
@@ -25,6 +28,7 @@ FIELD_DEF(normalize,                         "Normalize",                       
 FIELD_DEF(aces_exposure,                     "ACESExposure",                     INIT_DOUBLE,      1.0                                     );
 FIELD_DEF(srgb_out,                          "sRGBOut",                          INIT_BOOL,        true                                    );
 FIELD_DEF(srgb_in,                           "sRGBIn",                           INIT_BOOL,        true                                    );
+FIELD_DEF(blackbody_ramp_path,               "Blackbodyramp",                    INIT_STRING,      DEFAULT_BLACKBODY_RAMP_PATH             );
 FIELD_DEF(disk_multiplier,                   "Diskmultiplier",                   INIT_DOUBLE,      100.0                                   );
 FIELD_DEF(disk_intensity_do,                 "Diskintensitydo",                  INIT_BOOL,        true                                    );
 FIELD_DEF(redshift,                          "Redshift",                         INIT_DOUBLE,      1.0                                     );
@@ -34,3 +38,36 @@ FIELD_DEF(disk_structure_rings_freq,         "Diskstructure_rings_freq",        
 FIELD_DEF(disk_structure_spiral_pitch,       "Diskstructure_spiral_pitch",       INIT_DOUBLE,      0.3                                     );
 FIELD_DEF(disk_structure_position_variation, "Diskstructure_position_variation", INIT_DOUBLE,      0.15                                    );
 FIELD_DEF(disk_structure_modulation,         "Diskstructure_modulation",         INIT_DOUBLE,      0.5                                     );
+
+/* other Config fields                                                                                                                     */
+FIELD_DEF(lofi,                                        ,                         INIT_BOOL,        false                                   );
+
+FIELD_DEF(scene_file_path,                             ,                         INIT_NULL,        NULL                                    );
+FIELD_DEF(scene_base_name,                             ,                         INIT_NULL,        NULL                                    );
+
+FIELD_DEF(disk_texture_path,                           ,                         INIT_STRING,      DEFAULT_DISK_TEXTURE_PATH               );
+FIELD_DEF(sky_texture_path,                            ,                         INIT_STRING,      DEFAULT_SKY_TEXTURE_PATH                );
+
+FIELD_DEF(disk_texture,                                ,                         INIT_NULL,        NULL                                    );
+FIELD_DEF(sky_texture,                                 ,                         INIT_NULL,        NULL                                    );
+
+FIELD_DEF(blackbody_ramp_data,                         ,                         INIT_NULL,        NULL                                    );
+FIELD_DEF(blackbody_ramp_size,                         ,                         INIT_INT,         0                                       );
+
+FIELD_DEF(n_threads,                                   ,                         INIT_INT,         4                                       );
+FIELD_DEF(chunk_size,                                  ,                         INIT_INT,         9000                                    );
+/* ========================================================================================================================================*/
+
+
+// undefine all the INIT_ macros that could be defined
+// to avoid hard-to-debug fuckups
+#undef INIT_INT_ARRAY2
+#undef INIT_VEC3
+#undef INIT_DOUBLE
+#undef INIT_BOOL
+#undef INIT_INT
+#undef INIT_STRING
+#undef INIT_NULL
+#undef INIT_ENUM
+// as well as the FIELD_DEF macro
+#undef FIELD_DEF

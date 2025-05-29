@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
         if (fabs(fov_rad) < EPSILON_LOOSE)
         {
             fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
-            fov_rad = DEFAULT_TAN_FOV; // Use a default value (from config_defaults.h)
+            fov_rad = config.tan_fov; // Use a default value (from config_defaults.h)
         }
         // the float constant is 1.22 * 650nm / (4 mm), the typical diffractive resolution
         // of the human eye for red light. It's in radians, so we rescale using field of view.

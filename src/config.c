@@ -287,7 +287,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
             if (!parse_vec3d(value, &cfg->disk_structure_rings_freq))
             {
                 fprintf(stderr, "  Warning: Invalid format for Diskstructure_rings_freq '%s'. Using defaults.\n", value);
-                cfg->disk_structure_rings_freq = (Vec3d)DEFAULT_DISK_STRUCTURE_RINGS_FREQ;
             }
         }
         else if (strcmp(name, "Diskstructure_spiral_pitch") == 0) { cfg->disk_structure_spiral_pitch = atof(value); }
@@ -304,8 +303,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (!cfg) { return false; }
 
     // Initialize with defaults
-    // Using x-macro to reduce code duplication
     #define INIT_INT(fieldName, cfgKey, defLiteral) cfg->fieldName = defLiteral
+    #define INIT_NULL INIT_INT
     #define INIT_ENUM INIT_INT
     #define INIT_DOUBLE INIT_INT
     #define INIT_BOOL INIT_INT
@@ -318,25 +317,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
 
     #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey, defLiteral)
     #include "x_config_fields.h"
-    #undef FIELD_DEF
-
-    cfg->scene_file_path = NULL;
-    cfg->scene_base_name = NULL;
-
-    cfg->lofi = DEFAULT_LOFI;
-
-    cfg->disk_texture_path = STRDUP(DEFAULT_DISK_TEXTURE_PATH);
-    cfg->sky_texture_path = STRDUP(DEFAULT_SKY_TEXTURE_PATH);
-
-    cfg->n_threads = DEFAULT_THREADS;
-    cfg->chunk_size = DEFAULT_CHUNKSIZE;
-
-    cfg->disk_texture = NULL;
-    cfg->sky_texture = NULL;
-
-    cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
-    cfg->blackbody_ramp_data = NULL;
-    cfg->blackbody_ramp_size = 0;
 
     const char *scene_filename = DEFAULT_SCENE_FILENAME;
     bool override_res = false;
