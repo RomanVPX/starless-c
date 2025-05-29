@@ -108,13 +108,6 @@ jobs:
             downloaded-artifacts/starless-c-linux-amd64/*.tar.gz
             downloaded-artifacts/starless-c-macos-arm64/*.tar.gz
             downloaded-artifacts/starless-c-windows-amd64/*.zip
-            # Примечание: download-artifact@v4 с опцией `name` (если бы она была указана)
-            # скачал бы конкретный артефакт. Без `name` он скачивает все.
-            # Каждый артефакт (названный как ${{ env.ARCHIVE_BASENAME }} при загрузке)
-            # будет скачан в подпапку внутри `downloaded-artifacts`.
-            # Например, артефакт `starless-c-linux-amd64` (который является файлом .tar.gz)
-            # будет лежать в `downloaded-artifacts/starless-c-linux-amd64/starless-c-linux-amd64.tar.gz`.
-            # Поэтому глобы выше должны сработать.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
