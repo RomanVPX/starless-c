@@ -39,8 +39,8 @@
 
 // --- Integration & Ray Constants ---
 #define OPAQUE_RAY_ALPHA_ON_STOP             false              // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA                        1 - EPSILON_STRICT // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA                       1 - EPSILON_LOOSE  // Set stop ray in disk handling if alpha exceeds this
+#define MAX_RAY_ALPHA                        (1 - EPSILON_STRICT) // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA                       (1 - EPSILON_LOOSE)  // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
 #define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
@@ -148,7 +148,7 @@ static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offs
     int W = cfg->resolution[0];
     int H = cfg->resolution[1];
 
-    double screen_x = (((double)px + sub_pixel_offset_x) / W) - 0.5;
+    double screen_x = ((double)px + sub_pixel_offset_x) / W - 0.5;
     double screen_y = (-(((double)py + sub_pixel_offset_y) / H) + 0.5) * ((double)H / W);
 
     screen_x *= cfg->tan_fov;
@@ -390,10 +390,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
         bool phi_check = fmod(phi + GRID_ANGLE_OFFSET, GRID_HORIZON_PHI_STEP) < (GRID_HORIZON_PHI_STEP * 0.5);
         bool alt_check = fmod(altitude + M_PI / 2.0 + GRID_ANGLE_OFFSET, GRID_HORIZON_ALT_STEP) < (GRID_HORIZON_ALT_STEP * 0.5);
 
-        if (phi_check ^ alt_check)                     // XOR
-        {
-            horizon_color = (ColorRGB){1.0, 0.0, 0.0}; // Red grid lines
-        }
+        if (phi_check ^ alt_check) { horizon_color = (ColorRGB){1.0, 0.0, 0.0}; }
     }
 
     double horizon_alpha = 1.0; // Opaque horizon

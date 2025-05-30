@@ -1,27 +1,28 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include <stdint.h>
 #include "color.h"
 #include "config.h"
 
 
-typedef struct Texture {
+// Typedef-ed in config.h to avoid circular dependency
+struct Texture {
     int width;
     int height;
-    int channels; // Usually 3 (RGB) or 4 (RGBA)
-    unsigned char *data; // Raw pixel data (uint8) loaded by the stb_image library, commonly used for image loading
-} Texture;
+    int channels;
+    unsigned char *data;
+};
 
-typedef struct ImageF {
+// Typedef-ed in config.h to avoid circular dependency
+struct ImageF {
     int width;
     int height;
-    ColorRGB *pixels; // Pixel data stored as doubles for high-precision color manipulation during image processing operations
-} ImageF; // Floating point image buffer
+    ColorRGB *pixels;
+};
 
 // Creates a new floating-point image buffer with the specified width and height.
 // The pixel values are initialized to black (0.0, 0.0, 0.0).
-ImageF* create_imagef(int width, int height);
+ImageF *create_imagef(int width, int height);
 void free_imagef(ImageF *img);
 
 // Loads a texture from the specified file.

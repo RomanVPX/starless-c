@@ -322,19 +322,14 @@ int main(int argc, char *argv[])
     {
 #if defined(_WIN32)
         if (_mkdir("out") != 0)
-        {
-            perror("Error creating 'out' directory");
-            free(base_name_copy);
-            return EXIT_FAILURE;
-        }
 #else
         if (mkdir("out", 0775) != 0 && errno != EEXIST)
+#endif
         {
             perror("Error creating 'out' directory");
             free(base_name_copy);
             return EXIT_FAILURE;
         }
-#endif
     }
 
     // Find first available file name
