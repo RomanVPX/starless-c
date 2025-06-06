@@ -1,7 +1,7 @@
 #include "config_defaults.h"
 
 /* .scene settings                                                                                                                         */
-/*       (field_name_in_cfg,            ".ini param name / .png meta tag",       INIT_MACRO,       default_value)                          */
+/*       (field_name_in_cfg,            ".ini param name / .png meta tag",       INIT_MACRO,       default_value);                         */
 /*_________________________________________________________________________________________________________________________________________*/
 FIELD_DEF(resolution,                        "Resolution",                       INIT_INT_ARRAY2,  ((int[2]){640, 480})                    );
 FIELD_DEF(n_iterations,                      "Iterations",                       INIT_INT,         1000                                    );
@@ -41,7 +41,7 @@ FIELD_DEF(disk_structure_position_variation, "Diskstructure_position_variation",
 FIELD_DEF(disk_structure_modulation,         "Diskstructure_modulation",         INIT_DOUBLE,      0.5                                     );
 
 /* other Config fields                                                                                                                     */
-/*       (field_name_in_cfg,                  ".png meta tag",                   INIT_MACRO,      default_value)                           */
+/*       (field_name_in_cfg,                  ".png meta tag",                   INIT_MACRO,      default_value);                          */
 /*_________________________________________________________________________________________________________________________________________*/
 FIELD_DEF(lofi,                              "Lo-Fi enabled",                    INIT_BOOL,        false                                   );
 

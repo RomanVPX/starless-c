@@ -9,8 +9,28 @@ typedef struct Texture Texture;
 typedef struct ImageF ImageF;
 
 // --- Enums ---
-typedef enum { ST_NONE, ST_TEXTURE, ST_FINAL } SkyTextureMode;
-typedef enum { DT_NONE, DT_TEXTURE, DT_SOLID, DT_GRID, DT_BLACKBODY } DiskTextureMode;
+#define SKY_TEXTURE_MODE_TABLE \
+    X(ST_NONE, "none") \
+    X(ST_TEXTURE, "texture") \
+    X(ST_FINAL, "final")
+
+#define DISK_TEXTURE_MODE_TABLE \
+    X(DT_NONE, "none") \
+    X(DT_TEXTURE, "texture") \
+    X(DT_SOLID, "solid") \
+    X(DT_GRID, "grid") \
+    X(DT_BLACKBODY, "blackbody")
+
+#define X(a, b) a,
+typedef enum { SKY_TEXTURE_MODE_TABLE } SkyTextureMode;
+typedef enum { DISK_TEXTURE_MODE_TABLE } DiskTextureMode;
+#undef X
+
+#define X(a, b) [a] = b,
+static const char *sky_texture_mode_names[] = { SKY_TEXTURE_MODE_TABLE };
+static const char *disk_texture_mode_names[] = { DISK_TEXTURE_MODE_TABLE };
+#undef X
+
 
 // --- Config Structure ---
 typedef struct Config
@@ -64,7 +84,7 @@ typedef struct Config
     bool srgb_in;
     bool srgb_out;
 
-    // Blackbody Disk Specific
+    // Blackbody Disk Specifics
     char *blackbody_ramp_path;
     ColorRGB *blackbody_ramp_data;
     int blackbody_ramp_size;

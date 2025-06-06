@@ -4,7 +4,6 @@
 #define _GNU_SOURCE
 #include "color.h"
 #include <math.h>
-#include <stdio.h>
 #include "core_constants.h"
 
 const ColorRGB COLOR_BLACK = {0.0, 0.0, 0.0};
@@ -65,13 +64,9 @@ static ColorRGB rrt_and_odt_fit(ColorRGB v)
 
 ColorRGB aces_fitted(ColorRGB in)
 {
-    // 1. Input matrix
-    ColorRGB color = mat3_mul_vec3(aces_input_mat, in);
-    // 2. RRT and ODT fit
-    color = rrt_and_odt_fit(color);
-    // 3. Output matrix
-    color = mat3_mul_vec3(aces_output_mat, color);
-    return color;
+    ColorRGB color = mat3_mul_vec3(aces_input_mat, in); // Input matrix
+    color = rrt_and_odt_fit(color); // RRT and ODT fit
+    return mat3_mul_vec3(aces_output_mat, color); // Output matrix
 }
 
 
@@ -112,7 +107,6 @@ double blend_alpha(double bg_alpha, double fg_alpha)
 {
     return fg_alpha + bg_alpha * (1.0 - fg_alpha);
 }
-
 
 double linear_to_srgb(double x)
 {

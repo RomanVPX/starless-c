@@ -12,7 +12,6 @@
 #include "bloom.h"
 #include "color.h"
 #include "config.h"
-#include "config_defaults.h"
 #include "core_constants.h"
 #include "image.h"
 #include "tracer.h"
@@ -216,8 +215,6 @@ int main(int argc, char *argv[])
             {
                 fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
             }
-
-            // Now:
             // current_image holds S1 (post-bloom result).
             // pre_bloom_copy (v_pass_dest / B) holds S2 (final blur result).
             // next_image (h_pass_dest) holds H(B) (intermediate, no longer needed).
@@ -232,10 +229,8 @@ int main(int argc, char *argv[])
                 ColorRGB blur_contrib = color_mul_scalar(blurred_image_final->pixels[i], 0.2);
                 current_image->pixels[i] = color_add(current_image->pixels[i], blur_contrib);
             }
-
-            // The final result (post-bloom + 0.2*blur) is in current_image.
+            // The final result (post-bloom + 0.2 * blur) is in current_image.
             // next_image holds the blur result (no longer needed directly).
-
             free_kernel1d(gauss_kernel);
         }
         else
@@ -249,7 +244,6 @@ int main(int argc, char *argv[])
         printf("Gaussian Blur is disabled, skipping .\n");
         // No changes to current_image or next_image needed.
     }
-
     // At this point, current_image holds the final result before normalization.
 
     // --- 4d. Normalization ---
@@ -285,7 +279,7 @@ int main(int argc, char *argv[])
     else
     {
         // current_image must be postproc_buffer
-        final_image = postproc_buffer;                                  // Point to the buffer holding the result
+        final_image = postproc_buffer;                                  // Point to the buffer holding result
         printf("Final image is in postproc buffer. Copying back to output_image for consistency before saving...\n");
         memcpy(output_image->pixels, final_image->pixels, buffer_size); // Copy result to output_image
         final_image = output_image;                                     // Now final result is definitively in output_image

@@ -2,7 +2,6 @@
 #define COLOR_H
 
 #include <stdint.h>
-#include "vector.h" // Include for potential color vector operations if needed
 
 typedef struct { double r, g, b; } ColorRGB;
 

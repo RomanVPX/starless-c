@@ -190,7 +190,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         if (strcmp(name, "Horizongrid") == 0) { cfg->horizon_grid = string_to_bool(value); }
         else if (strcmp(name, "Disktexture") == 0)
         {
-            free((void *)cfg->disk_texture_path); // Free old path if any
+            free(cfg->disk_texture_path); // Free old path if any
             cfg->disk_texture_path = NULL;
 
             if (STRCASECMP(value, "none") == 0) { cfg->disk_texture_mode = DT_NONE; }
@@ -223,7 +223,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         }
         else if (strcmp(name, "Skytexture") == 0)
         {
-            free((void *)cfg->sky_texture_path); // Free old path if any
+            free(cfg->sky_texture_path); // Free old path if any
             cfg->sky_texture_path = NULL;
 
             if (STRCASECMP(value, "none") == 0) { cfg->sky_texture_mode = ST_NONE; }

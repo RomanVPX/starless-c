@@ -1,5 +1,5 @@
 #if defined(_MSC_VER)
-#    define _USE_MATH_DEFINES
+    #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
 #include "tracer.h"
@@ -8,20 +8,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h> // For progress timing later
 #include "blackbody.h"
 #include "color.h"
-#include "config.h" // Already included via tracer.h
+#include "config.h"
 #include "core_constants.h"
-#include "image.h"  // Already included via tracer.h
+#include "image.h"
 #include "interpolation.h"
 #include "vector.h"
-// Сross-platform threading types and macros
+
 #if defined(_WIN32)
     #include <windows.h>
     typedef HANDLE thread_handle_t;
     #define THREAD_FUNC_RETURN DWORD WINAPI
-    #define THREAD_FUNC_CALL   __stdcall
+    #define THREAD_FUNC_CALL  __stdcall
 #else
     #include <pthread.h>
     typedef pthread_t thread_handle_t;
@@ -32,35 +31,35 @@
 
 // --- Physics & Geometry Constants ---
 #define EVENT_HORIZON_RADIUS_SQR             1.0
-#define SCHWARZSCHILD_RADIUS_SQR             1.0   // Alias for clarity
-#define SINGULARITY_THRESHOLD                1e-12 // Threshold for r_sqr near singularity in RK4
-#define MIN_GRAV_REDSHIFT_R_SQR              1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
-#define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
+#define SCHWARZSCHILD_RADIUS_SQR             1.0                  // Alias for clarity
+#define SINGULARITY_THRESHOLD                1e-12                // Threshold for r_sqr near singularity in RK4
+#define MIN_GRAV_REDSHIFT_R_SQR              1.001                // Min r^2 for gravitational redshift calculation (avoid /0)
+#define MIN_VEL_R_SQR                        0.1                  // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP             false              // Set ray.alpha to 1.0 on stop
+#define OPAQUE_RAY_ALPHA_ON_STOP             false                // Set ray.alpha to 1.0 on stop
 #define MAX_RAY_ALPHA                        (1 - EPSILON_STRICT) // Stop tracing if alpha exceeds this
 #define MAX_DISC_ALPHA                       (1 - EPSILON_LOOSE)  // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
-#define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
-#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_ANGLE_OFFSET                    (100.0 * M_PI) // Large offset for fmod with negative angles
+#define GRID_PHI_STEP                        (M_PI / 6.0)         // ~0.52359... For disk grid pattern
+#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)         // ~1.04719... For horizon grid pattern
+#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)         // ~1.04719... For horizon grid pattern
+#define GRID_ANGLE_OFFSET                    (100.0 * M_PI)       // Large offset for fmod with negative angles
 
 // --- Blackbody & Disk Constants ---
-#define DEFAULT_LOG_T0_ISCO                  9.210340371976184 // log(10000 K), default temp scale at ISCO
-#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
-#define BBODY_ISCO_TAPER_FACTOR              0.3               // Taper factor from inner disk radius
-#define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
+#define DEFAULT_LOG_T0_ISCO                  9.210340371976184    // log(10000 K), default temp scale at ISCO
+#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)      // 0.70710678... For disk velocity calculation
+#define BBODY_ISCO_TAPER_FACTOR              0.3                  // Taper factor from inner disk radius
+#define BBODY_TEMP_TAPER_THRESHOLD           1000.0               // Temperature threshold for outer taper
 
 // --- Blackbody Rendering Settings ---
-#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false   // Use original outer taper calculation logic
-#define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
-#define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false                // Use original outer taper calculation logic
+#define TEMP_CUTOFF_LOW                      1000.0               // Temperature low cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_HIGH                     15000.0              // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
-#define FOG_TAPER_FACTOR                     0.8 // Factor for fog intensity taper near horizon
+#define FOG_TAPER_FACTOR                     0.8                  // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
 #define DEBUG_SINGLE_PIXEL_X                 1300
@@ -379,10 +378,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ColorRGB horizon_color = COLOR_BLACK;
     if (cfg->horizon_grid)
     {
-        // Interpolate collision point lambda
-        // lambda = (sqrt(R_h^2) - sqrt(r_old^2)) / (sqrt(r_new^2) - sqrt(r_old^2)) approx
-        // Or use linear interp on r^2: lambda = (R_h^2 - r_old^2) / (r_new^2 - r_old^2)
-        // Let's stick to approximation using old_pos for angles as before for simplicity/consistency
+        // Interpolate collision point lambda to get horizon color
         double r_old = sqrt(fmax(1e-9, old_pos_sqr));                     // Avoid sqrt(0)
         double phi = atan2(old_pos.x, old_pos.z);
         double altitude = asin(fmax(-1.0, fmin(1.0, old_pos.y / r_old))); // Altitude angle
@@ -407,23 +403,17 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
 // --- Helper: Apply Fog ---
 static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
 {
-    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0))
-    {
-        return; // Fog disabled or skip this step
-    }
+    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0)) { return; } // Fog disabled or skip this step
+    if (current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR) { return; } // No fog inside horizon
 
-    // Only apply fog outside horizon
-    if (current_pos_sqr > SCHWARZSCHILD_RADIUS_SQR)
-    {
-        double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
-        double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
-        double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
-        ColorRGB fog_col = COLOR_WHITE; // Fog color is white
+    double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
+    double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
+    double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
+    ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
-        // Blend fog (cb=fog, ca=ray)
-        ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
-        ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
-    }
+    // Blend fog (cb=fog, ca=ray)
+    ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
+    ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
 }
 
 // --- Helper: Get Background Sky Color ---
