@@ -6,8 +6,6 @@
 This project is a C port and an extension of the original Python-based black hole raytracer "Starless" by Riccardo Antonelli ([rantonels/starless](https://github.com/rantonels/starless)).
 The goal is to provide a faster, more extensible, and cross-platform version while maintaining compatibility with the original scene file format and exploring new rendering features.
 
-The original "Starless" is a CPU black hole raytracer in NumPy, designed for informative diagrams and wallpaper material, performing full geodesic raytracing in Schwarzschild geometry. You can read more about the original project on its [project page](http://rantonels.github.io/starless/) and [wiki](https://github.com/rantonels/starless/wiki).
-
 ## Core Features (Many Ported from Original)
 
 *   Full geodesic raytracing in Schwarzschild geometry.
@@ -85,7 +83,7 @@ To render in "lo-fi" mode (uses the [lofi] section from the scene file):
 *   **Disk Detail:** Procedural disk structures added.
 *   **Dependencies:** Fewer runtime dependencies (no Python, NumPy, PIL, Matplotlib needed for the core tracer).
 *   **Render Preview:** The current C version has a more basic progressive rendering output per thread compared to the potentially more dynamic preview of the original.
-*   **Metadata Storage:** This C version saves configuration into PNG metadata (work in progress for comprehensiveness and format).
+*   **Metadata Storage:** This C version saves configuration into PNG metadata.
 
 ## TODO / Future Work
 
