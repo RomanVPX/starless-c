@@ -66,8 +66,8 @@
 #define DEBUG_SINGLE_PIXEL_Y                 950
 
 // --- Vector/Color Constants ---
-static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
-static const Vec3d VEC3D_UP = {0.0, 1.0, 0.0};
+static const Vec3d VEC_3D_ZERO = {0.0, 0.0, 0.0};
+static const Vec3d VEC_3D_UP = {0.0, 1.0, 0.0};
 
 
 // --- RK4 Step Function ---
@@ -153,7 +153,7 @@ static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offs
     screen_x *= cfg->tan_fov;
     screen_y *= cfg->tan_fov;
     Vec3d view_cam_space = {screen_x, screen_y, 1.0};
-    Vec3d view_world = VEC3D_ZERO;
+    Vec3d view_world = VEC_3D_ZERO;
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[0], view_cam_space.x));
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[1], view_cam_space.y));
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[2], view_cam_space.z));
@@ -282,7 +282,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             {
                 // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
-                Vec3d disk_vel_dir = vec3d_cross(VEC3D_UP, vec3d_normalize(col_point));
+                Vec3d disk_vel_dir = vec3d_cross(VEC_3D_UP, vec3d_normalize(col_point));
                 Vec3d disk_vel = vec3d_mul_scalar(disk_vel_dir, speed_factor);
                 double disk_vel_sqr = fmin(0.99, vec3d_norm_sqr(disk_vel)); // Clamp speed < c
 
