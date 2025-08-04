@@ -1,3 +1,8 @@
+#ifndef FIELD_DEF
+    #error "FIELD_DEF must be defined before including x_config_fields.h"
+#endif
+
+
 #include "config_defaults.h"
 
 /* .scene settings                                                                                                                         */
