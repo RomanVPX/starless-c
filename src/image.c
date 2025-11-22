@@ -17,17 +17,16 @@
 
 #define MAX_CONFIG_METADATA_ENTRIES 150
 
-// metadata_array - where we write PngMetadata
-// text_buffers - array of char buffers for storing formatted values
-// current_idx_ptr - pointer to the current index in metadata_array and text_buffers
-// max_entries - maximum size of arrays
-
+// metadata_array - where we write PngMetadata.
+// text_buffers - array of char buffers for storing formatted values.
+// current_idx_ptr - pointer to the current index in metadata_array and text_buffers.
+// max_entries - maximum size of arrays.
 static void helper_add_meta_entry(PngMetadata metadata_array[], char text_buffers[][256], int *current_idx_ptr, int max_entries,
                                   const char *key, const char *value_str)
 {
     if (!value_str || *current_idx_ptr >= max_entries) return;
-    // Keys are assumed to be string literals, so simply assigning a pointer
-    // stbi_write_png_with_metadata expects const char*, so this is fine
+    // Keys are assumed to be string literals, so simply assigning a pointer.
+    // stbi_write_png_with_metadata expects const char*, so this is fine.
     metadata_array[*current_idx_ptr].keyword = key;
     // Copy the formatted value to our allocated buffer
     snprintf(text_buffers[*current_idx_ptr], 256, "%s", value_str);
@@ -101,18 +100,25 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
         helper_add_meta_int_array2(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_ENUM(fieldName, pngKeySuffix) // TODO: implement with some sort of macro mumbojumbo
-    #define INIT_NULL(fieldName, pngKeySuffix) // Do not write those to metadata
+    #define INIT_ENUM(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') { \
+        const char *enum_name = NULL; \
+        if (strcmp(#fieldName, "disk_texture_mode") == 0) enum_name = disk_texture_mode_names[cfg->fieldName]; \
+        else if (strcmp(#fieldName, "sky_texture_mode") == 0) enum_name = sky_texture_mode_names[cfg->fieldName]; \
+        if (enum_name) helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, pngKeySuffix, enum_name); \
+    }
+    #define INIT_NULL(fieldName, pngKeySuffix) /* Do not write those to metadata */
 
     #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey)
 
-    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Software", "Starless-C");
-    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Repo", "https://github.com/RomanVPX/starless-c");
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software", "Starless-C");
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
 
     #define SEC_ALL
     #include "x_config_fields.h"
 
-    return current_entry_index; // Возвращаем количество добавленных записей
+    return current_entry_index;
 }
 
 
