@@ -1,15 +1,12 @@
 #ifndef CONFIG_DEFAULTS_H
 #define CONFIG_DEFAULTS_H
 
-// --- Default Values ---
-// TODO: Should better do something to avoid using those at all and keep all defaults in x_config_fields.h
-
-// NOTE: These values are used if the config file does not specify them.
+// These values are used if the config file does not specify them:
 #define DEFAULT_BLACKBODY_RAMP_PATH "blackbody_ramp/blackbody_ramp_1000_50000K_4096_linear_srgb_normalized.ramp"
 #define DEFAULT_DISK_TEXTURE_PATH "textures/adisk.jpg"
 #define DEFAULT_SKY_TEXTURE_PATH "textures/bgedit.jpg"
 
-// NOTE: This scene is used if no scene file provided in command line
+// This scene is used if no scene file provided in command line:
 #define DEFAULT_SCENE_FILENAME "scenes/new/default.scene"
 
-#endif // CONFIG_DEFAULTS_H
+#endif

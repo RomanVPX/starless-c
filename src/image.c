@@ -109,6 +109,7 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
     helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Software", "Starless-C");
     helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Repo", "https://github.com/RomanVPX/starless-c");
 
+    #define SEC_ALL
     #include "x_config_fields.h"
 
     return current_entry_index; // Возвращаем количество добавленных записей
