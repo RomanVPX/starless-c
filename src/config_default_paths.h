@@ -7,6 +7,6 @@
 #define DEFAULT_SKY_TEXTURE_PATH "textures/bgedit.jpg"
 
 // This scene is used if no scene file provided in command line:
-#define DEFAULT_SCENE_FILENAME "scenes/new/default.scene"
+#define DEFAULT_SCENE_PATH "scenes/new/default.scene"
 
 #endif
