@@ -2,8 +2,6 @@ name: Build on all platforms
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ develop, main ]
   pull_request:
     branches: [ develop, main ]
 
