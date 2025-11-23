@@ -557,7 +557,8 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
     int W = image->width;
 
     printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
-    clock_t start_time = clock(); // Simple timing per thread
+    struct timespec ts_start;
+    timespec_get(&ts_start, TIME_UTC);
 
     for (int idx = data->start_pixel_index; idx < data->end_pixel_index; ++idx)
     {
@@ -597,8 +598,9 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
         image->pixels[idx] = accumulated_color;
     }
 
-    clock_t end_time = clock();
-    double time_spent = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    struct timespec ts_end;
+    timespec_get(&ts_end, TIME_UTC);
+    double time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
     printf("Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
     return 0;
 }
