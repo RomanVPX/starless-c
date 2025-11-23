@@ -17,17 +17,16 @@
 
 #define MAX_CONFIG_METADATA_ENTRIES 150
 
-// metadata_array - where we write PngMetadata
-// text_buffers - array of char buffers for storing formatted values
-// current_idx_ptr - pointer to the current index in metadata_array and text_buffers
-// max_entries - maximum size of arrays
-
+// metadata_array - where we write PngMetadata.
+// text_buffers - array of char buffers for storing formatted values.
+// current_idx_ptr - pointer to the current index in metadata_array and text_buffers.
+// max_entries - maximum size of arrays.
 static void helper_add_meta_entry(PngMetadata metadata_array[], char text_buffers[][256], int *current_idx_ptr, int max_entries,
                                   const char *key, const char *value_str)
 {
     if (!value_str || *current_idx_ptr >= max_entries) return;
-    // Keys are assumed to be string literals, so simply assigning a pointer
-    // stbi_write_png_with_metadata expects const char*, so this is fine
+    // Keys are assumed to be string literals, so simply assigning a pointer.
+    // stbi_write_png_with_metadata expects const char*, so this is fine.
     metadata_array[*current_idx_ptr].keyword = key;
     // Copy the formatted value to our allocated buffer
     snprintf(text_buffers[*current_idx_ptr], 256, "%s", value_str);
@@ -101,19 +100,26 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
         helper_add_meta_int_array2(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_ENUM(fieldName, pngKeySuffix) // TODO: implement with some sort of macro mumbojumbo
-    #define INIT_NULL(fieldName, pngKeySuffix) // Do not write those to metadata
+    #define INIT_ENUM(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') { \
+        const char *enum_name = NULL; \
+        if (strcmp(#fieldName, "disk_texture_mode") == 0) enum_name = disk_texture_mode_names[cfg->fieldName]; \
+        else if (strcmp(#fieldName, "sky_texture_mode") == 0) enum_name = sky_texture_mode_names[cfg->fieldName]; \
+        if (enum_name) helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, pngKeySuffix, enum_name); \
+    }
+    #define INIT_NULL(fieldName, pngKeySuffix) /* Do not write those to metadata */
 
     #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey)
 
-    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Software", "Starless-C");
-    helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, "Repo", "https://github.com/RomanVPX/starless-c");
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software", "Starless-C");
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
 
+    #define SEC_ALL
     #include "x_config_fields.h"
 
-    return current_entry_index; // Возвращаем количество добавленных записей
+    return current_entry_index;
 }
-
 
 ImageF *create_imagef(int width, int height)
 {
@@ -164,12 +170,12 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
 {
     if (!input_tex || !input_tex->data || scale_factor <= 0)
     {
-        fprintf(stderr, "! Error: Invalid input to resize_texture.\n");
+        fprintf(stderr, "!   Error: Invalid input to resize_texture.\n");
         return NULL;
     }
     if (scale_factor == 1.0f)
     {
-        fprintf(stderr, "  Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
+        fprintf(stderr, "    Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
         return NULL; // Or return a copy if the caller expects a new texture always?
     }
 
@@ -183,18 +189,18 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
 
     if (out_w <= 0 || out_h <= 0)
     {
-        fprintf(stderr, "! Error: Calculated output dimensions for resize are invalid (%dx%d).\n", out_w, out_h);
+        fprintf(stderr, "!   Error: Calculated output dimensions for resize are invalid (%dx%d).\n", out_w, out_h);
         return NULL;
     }
 
-    printf("  Resizing texture from %dx%d to %dx%d (scale: %.2f)...\n", in_w, in_h, out_w, out_h, scale_factor);
+    printf("    Resizing texture from %dx%d to %dx%d (scale: %.2f)...\n", in_w, in_h, out_w, out_h, scale_factor);
 
     // Allocate memory for the output texture data
     size_t output_size = (size_t)out_w * out_h * channels;
     unsigned char *output_data = (unsigned char *)malloc(output_size);
     if (!output_data)
     {
-        fprintf(stderr, "! Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
+        fprintf(stderr, "!   Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
         return NULL;
     }
     // Use default flags/filter for now (STBIR_FILTER_DEFAULT which is Mitchell-Netravali, good quality)
@@ -203,7 +209,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
                                      channels);
     if (!success)
     {
-        fprintf(stderr, "! Error: stbir_resize_uint8 failed.\n");
+        fprintf(stderr, "!   Error: stbir_resize_uint8 failed.\n");
         free(output_data);
         return NULL;
     }
@@ -211,7 +217,7 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     Texture *output_tex = (Texture *)malloc(sizeof(Texture)); // A new Texture struct for the resized data
     if (!output_tex)
     {
-        fprintf(stderr, "! Error: Failed to allocate memory for resized Texture struct.\n");
+        fprintf(stderr, "!   Error: Failed to allocate memory for resized Texture struct.\n");
         free(output_data);
         return NULL;
     }
@@ -221,7 +227,6 @@ Texture *resize_texture(const Texture *input_tex, float scale_factor)
     output_tex->channels = channels;
     output_tex->data = output_data;
 
-    printf("    Texture resizing successful.\n");
     return output_tex;
 }
 
@@ -265,7 +270,6 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
     if (srgb_in) { return color_srgb_to_linear(color); }
     return color;
 }
-
 
 bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb, const Config *cfg)
 {

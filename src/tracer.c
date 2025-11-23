@@ -1,5 +1,5 @@
 #if defined(_MSC_VER)
-#    define _USE_MATH_DEFINES
+    #define _USE_MATH_DEFINES
 #endif
 #define _GNU_SOURCE
 #include "tracer.h"
@@ -8,20 +8,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h> // For progress timing later
+#include <time.h>
 #include "blackbody.h"
 #include "color.h"
-#include "config.h" // Already included via tracer.h
+#include "config.h"
 #include "core_constants.h"
-#include "image.h"  // Already included via tracer.h
+#include "image.h"
 #include "interpolation.h"
 #include "vector.h"
-// Сross-platform threading types and macros
+
 #if defined(_WIN32)
     #include <windows.h>
     typedef HANDLE thread_handle_t;
     #define THREAD_FUNC_RETURN DWORD WINAPI
-    #define THREAD_FUNC_CALL   __stdcall
+    #define THREAD_FUNC_CALL  __stdcall
 #else
     #include <pthread.h>
     typedef pthread_t thread_handle_t;
@@ -32,43 +32,44 @@
 
 // --- Physics & Geometry Constants ---
 #define EVENT_HORIZON_RADIUS_SQR             1.0
-#define SCHWARZSCHILD_RADIUS_SQR             1.0   // Alias for clarity
-#define SINGULARITY_THRESHOLD                1e-12 // Threshold for r_sqr near singularity in RK4
-#define MIN_GRAV_REDSHIFT_R_SQR              1.001 // Min r^2 for gravitational redshift calculation (avoid division by zero)
-#define MIN_VEL_R_SQR                        0.1   // Min r^2 for disk velocity calculation
+#define SCHWARZSCHILD_RADIUS_SQR             1.0                  // Alias for clarity
+#define SINGULARITY_THRESHOLD                1e-12                // Threshold for r_sqr near singularity in RK4
+#define MIN_GRAV_REDSHIFT_R_SQR              1.001                // Min r^2 for gravitational redshift calculation (avoid /0)
+#define MIN_VEL_R_SQR                        0.1                  // Min r^2 for disk velocity calculation
 
 // --- Integration & Ray Constants ---
-#define OPAQUE_RAY_ALPHA_ON_STOP             false              // Set ray.alpha to 1.0 on stop
-#define MAX_RAY_ALPHA                        1 - EPSILON_STRICT // Stop tracing if alpha exceeds this
-#define MAX_DISC_ALPHA                       1 - EPSILON_LOOSE  // Set stop ray in disk handling if alpha exceeds this
+#define OPAQUE_RAY_ALPHA_ON_STOP             false                // Set ray.alpha to 1.0 on stop
+#define MAX_RAY_ALPHA                        (1 - EPSILON_STRICT) // Stop tracing if alpha exceeds this
+#define MAX_DISC_ALPHA                       (1 - EPSILON_LOOSE)  // Set stop ray in disk handling if alpha exceeds this
 
 // --- Grid Constants ---
-#define GRID_PHI_STEP                        (M_PI / 6.0)   // ~0.52359... For disk grid pattern
-#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)   // ~1.04719... For horizon grid pattern
-#define GRID_ANGLE_OFFSET                    (100.0 * M_PI) // Large offset for fmod with negative angles
+#define GRID_PHI_STEP                        (M_PI / 6.0)         // ~0.52359... For disk grid pattern
+#define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)         // ~1.04719... For horizon grid pattern
+#define GRID_HORIZON_ALT_STEP                (M_PI / 3.0)         // ~1.04719... For horizon grid pattern
+#define GRID_ANGLE_OFFSET                    (100.0 * M_PI)       // Large offset for fmod with negative angles
 
 // --- Blackbody & Disk Constants ---
-#define DEFAULT_LOG_T0_ISCO                  9.210340371976184 // log(10000 K), default temp scale at ISCO
-#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)   // 0.70710678... For disk velocity calculation
-#define BBODY_ISCO_TAPER_FACTOR              0.3               // Taper factor from inner disk radius
-#define BBODY_TEMP_TAPER_THRESHOLD           1000.0            // Temperature threshold for outer taper
+#define DEFAULT_LOG_T0_ISCO                  9.210340371976184    // log(10000 K), default temp scale at ISCO
+#define BBODY_SPEED_FACTOR                   (1.0 / M_SQRT2)      // 0.70710678... For disk velocity calculation
+#define BBODY_ISCO_TAPER_FACTOR              0.3                  // Taper factor from inner disk radius
+#define BBODY_TEMP_TAPER_THRESHOLD           1000.0               // Temperature threshold for outer taper
 
 // --- Blackbody Rendering Settings ---
-#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false   // Use original outer taper calculation logic
-#define TEMP_CUTOFF_LOW                      1000.0  // Temperature low cutoff for blackbody visibility (K)
-#define TEMP_CUTOFF_HIGH                     15000.0 // Temperature high cutoff for blackbody visibility (K)
+#define USE_ORIGINAL_OUTER_TAPER_CALCULATION false                // Use original outer taper calculation logic
+#define TEMP_CUTOFF_LOW                      1000.0               // Temperature low cutoff for blackbody visibility (K)
+#define TEMP_CUTOFF_HIGH                     15000.0              // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
-#define FOG_TAPER_FACTOR                     0.8 // Factor for fog intensity taper near horizon
+#define FOG_TAPER_FACTOR                     0.8                  // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
+#define DEBUG_SINGLE_PIXEL_MODE              false                // Set to true to enable single pixel debugging
 #define DEBUG_SINGLE_PIXEL_X                 1300
 #define DEBUG_SINGLE_PIXEL_Y                 950
 
 // --- Vector/Color Constants ---
-static const Vec3d VEC3D_ZERO = {0.0, 0.0, 0.0};
-static const Vec3d VEC3D_UP = {0.0, 1.0, 0.0};
+static const Vec3d VEC_3D_ZERO = {0.0, 0.0, 0.0};
+static const Vec3d VEC_3D_UP = {0.0, 1.0, 0.0};
 
 
 // --- RK4 Step Function ---
@@ -148,13 +149,13 @@ static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offs
     int W = cfg->resolution[0];
     int H = cfg->resolution[1];
 
-    double screen_x = (((double)px + sub_pixel_offset_x) / W) - 0.5;
+    double screen_x = ((double)px + sub_pixel_offset_x) / W - 0.5;
     double screen_y = (-(((double)py + sub_pixel_offset_y) / H) + 0.5) * ((double)H / W);
 
     screen_x *= cfg->tan_fov;
     screen_y *= cfg->tan_fov;
     Vec3d view_cam_space = {screen_x, screen_y, 1.0};
-    Vec3d view_world = VEC3D_ZERO;
+    Vec3d view_world = VEC_3D_ZERO;
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[0], view_cam_space.x));
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[1], view_cam_space.y));
     view_world = vec3d_add(view_world, vec3d_mul_scalar(cfg->view_matrix[2], view_cam_space.z));
@@ -209,10 +210,8 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity;
 
     double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
-    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
-                 1.0 + cfg->disk_structure_modulation); // Limit modulation
+    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation, 1.0 + cfg->disk_structure_modulation); // Limit modulation
 }
-
 
 // --- Helper: Handle Accretion Disk Hit ---
 // Determines color and alpha based on disk mode and blends it.
@@ -283,7 +282,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             {
                 // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
-                Vec3d disk_vel_dir = vec3d_cross(VEC3D_UP, vec3d_normalize(col_point));
+                Vec3d disk_vel_dir = vec3d_cross(VEC_3D_UP, vec3d_normalize(col_point));
                 Vec3d disk_vel = vec3d_mul_scalar(disk_vel_dir, speed_factor);
                 double disk_vel_sqr = fmin(0.99, vec3d_norm_sqr(disk_vel)); // Clamp speed < c
 
@@ -379,10 +378,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ColorRGB horizon_color = COLOR_BLACK;
     if (cfg->horizon_grid)
     {
-        // Interpolate collision point lambda
-        // lambda = (sqrt(R_h^2) - sqrt(r_old^2)) / (sqrt(r_new^2) - sqrt(r_old^2)) approx
-        // Or use linear interp on r^2: lambda = (R_h^2 - r_old^2) / (r_new^2 - r_old^2)
-        // Let's stick to approximation using old_pos for angles as before for simplicity/consistency
+        // Interpolate collision point lambda to get horizon color
         double r_old = sqrt(fmax(1e-9, old_pos_sqr));                     // Avoid sqrt(0)
         double phi = atan2(old_pos.x, old_pos.z);
         double altitude = asin(fmax(-1.0, fmin(1.0, old_pos.y / r_old))); // Altitude angle
@@ -390,10 +386,7 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
         bool phi_check = fmod(phi + GRID_ANGLE_OFFSET, GRID_HORIZON_PHI_STEP) < (GRID_HORIZON_PHI_STEP * 0.5);
         bool alt_check = fmod(altitude + M_PI / 2.0 + GRID_ANGLE_OFFSET, GRID_HORIZON_ALT_STEP) < (GRID_HORIZON_ALT_STEP * 0.5);
 
-        if (phi_check ^ alt_check)                     // XOR
-        {
-            horizon_color = (ColorRGB){1.0, 0.0, 0.0}; // Red grid lines
-        }
+        if (phi_check ^ alt_check) { horizon_color = (ColorRGB){1.0, 0.0, 0.0}; }
     }
 
     double horizon_alpha = 1.0; // Opaque horizon
@@ -410,23 +403,17 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
 // --- Helper: Apply Fog ---
 static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
 {
-    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0))
-    {
-        return; // Fog disabled or skip this step
-    }
+    if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0)) { return; } // Fog disabled or skip this step
+    if (current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR) { return; } // No fog inside horizon
 
-    // Only apply fog outside horizon
-    if (current_pos_sqr > SCHWARZSCHILD_RADIUS_SQR)
-    {
-        double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
-        double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
-        double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
-        ColorRGB fog_col = COLOR_WHITE; // Fog color is white
+    double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
+    double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
+    double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
+    ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
-        // Blend fog (cb=fog, ca=ray)
-        ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
-        ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
-    }
+    // Blend fog (cb=fog, ca=ray)
+    ray->color = BLEND_COLORS(fog_col, fog_alpha_step, ray->color, ray->alpha);
+    ray->alpha = blend_alpha(fog_alpha_step, ray->alpha);
 }
 
 // --- Helper: Get Background Sky Color ---
@@ -471,8 +458,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
 // --- Trace for one pixel function ---
 static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg, int sample_idx_for_log)
 {
-    bool log_this_pixel = (px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
-    // --- Debugging Output ---
+    bool log_this_pixel = (DEBUG_SINGLE_PIXEL_MODE && px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
     if (log_this_pixel)
     {
         printf("\n--- Logging for pixel (%d, %d), SAMPLE %d\n", px, py, sample_idx_for_log);

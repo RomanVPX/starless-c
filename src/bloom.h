@@ -11,11 +11,11 @@ typedef struct {
     int width;       // width = 2*size+1
     int height;      // height = 2*size+1
     ColorRGB *data;  // Kernel data (RGB), size width*height
-} Kernel2D; // Renamed for clarity
+} Kernel2D;
 
 Kernel2D* generate_airy_kernel(const double scale[3], int size);
-void free_kernel2d(Kernel2D* k); // Renamed
-bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k); // Renamed
+void free_kernel2d(Kernel2D* k);
+bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k);
 
 // --- 1D Kernel (for Gaussian) ---
 typedef struct {
@@ -44,8 +44,5 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
 // Uses symmetric boundary handling.
 bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
 
-
-// --- Bessel J1 function ---
-#include <math.h>
 
 #endif // BLOOM_H
