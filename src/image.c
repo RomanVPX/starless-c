@@ -136,6 +136,7 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
 
     #define SEC_ALL
     #include "x_config_fields.h"
+    #undef FIELD_DEF
 
     return current_entry_index;
 }

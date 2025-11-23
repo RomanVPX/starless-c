@@ -100,5 +100,4 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 #undef INIT_STRING
 #undef INIT_NULL
 #undef INIT_ENUM
-// And the FIELD_DEF itself:
-#undef FIELD_DEF
+// FIELD_DEF macro should be undefined by the includer.
