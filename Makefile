@@ -19,6 +19,10 @@ else
     CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native
 endif
 
+ifeq ($(OS),Windows_NT)
+	CFLAGS += -D_CRT_SECURE_NO_WARNINGS
+endif
+
 LDFLAGS = $(LIBS)
 
 # Directories
