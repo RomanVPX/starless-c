@@ -62,6 +62,7 @@
 #define FOG_TAPER_FACTOR                     0.8                  // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
+#define DEBUG_SINGLE_PIXEL_MODE              false                // Set to true to enable single pixel debugging
 #define DEBUG_SINGLE_PIXEL_X                 1300
 #define DEBUG_SINGLE_PIXEL_Y                 950
 
@@ -458,8 +459,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
 // --- Trace for one pixel function ---
 static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg, int sample_idx_for_log)
 {
-    bool log_this_pixel = (px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
-    // --- Debugging Output ---
+    bool log_this_pixel = (DEBUG_SINGLE_PIXEL_MODE && px == DEBUG_SINGLE_PIXEL_X && py == DEBUG_SINGLE_PIXEL_Y);
     if (log_this_pixel)
     {
         printf("\n--- Logging for pixel (%d, %d), SAMPLE %d\n", px, py, sample_idx_for_log);
