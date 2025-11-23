@@ -492,6 +492,18 @@ bool load_config(int argc, char *argv[], Config *cfg)
         original_sky_texture = NULL;
     }
 
+    // Adjust SSAA level based on LoFi/HiFi mode
+    printf("Adjusting SSAA level based on mode...\n");
+    if (cfg->lofi)
+    {
+        printf("  LoFi mode: Setting SSAA level to 1.\n");
+        cfg->ssaa_level = 1;
+    }
+    else
+    {
+        printf("  HiFi mode: SSAA level is set to %d.\n", cfg->ssaa_level);
+    }
+
     // Load Blackbody Ramp Conditionally
     if (cfg->disk_texture_mode == DT_BLACKBODY)
     {
