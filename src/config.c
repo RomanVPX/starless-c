@@ -33,6 +33,14 @@ bool parse_vec3d(const char *str, Vec3d *vec);
 bool parse_int_list(const char *str, int *arr, int expected_count);
 
 // --- Helper Functions ---
+bool string_to_bool(const char *str)
+{
+    if (!str) { return false; }
+    if (strcmp(str, "1") == 0 || STRCASECMP(str, "true") == 0 || STRCASECMP(str, "yes") == 0) { return true; }
+    return false;
+}
+
+// -- Parser Functions --
 bool parse_vec3d(const char *str, Vec3d *vec)
 {
     if (!str || !vec) { return false; }
@@ -93,14 +101,6 @@ bool parse_int_list(const char *str, int *arr, int expected_count)
     return count == expected_count;
 }
 
-
-bool string_to_bool(const char *str)
-{
-    if (!str) { return false; }
-    if (strcmp(str, "1") == 0 || STRCASECMP(str, "true") == 0 || STRCASECMP(str, "yes") == 0) { return true; }
-    return false;
-}
-
 bool parse_resolution(const char *res_str, int resolution[2])
 {
     if (!res_str) return false;
@@ -121,7 +121,6 @@ bool parse_resolution(const char *res_str, int resolution[2])
     }
     return false;
 }
-
 
 static bool parse_enum_value(const char *value, int *mode_out, const char **names, int num_names)
 {
@@ -287,7 +286,6 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     fprintf(stderr, "  Warning: Unknown '%s=%s' in [%s]\n", name, value, section);
     return 1;
 }
-
 
 // --- Main Config Loading Function ---
 bool load_config(int argc, char *argv[], Config *cfg)
@@ -564,7 +562,6 @@ bool load_config(int argc, char *argv[], Config *cfg)
     return true;
 }
 
-
 // Calculate derived configuration values
 void compute_derived_config(Config *cfg)
 {
@@ -581,7 +578,6 @@ void compute_derived_config(Config *cfg)
     cfg->view_matrix[1] = new_up;
     cfg->view_matrix[2] = front;
 }
-
 
 // Free allocated resources
 void free_config_textures(Config *cfg)

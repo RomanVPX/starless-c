@@ -84,14 +84,14 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 /* ==============================================================================================================================*/
 
 
-// undefine all the section macros that could be defined
-// to avoid hard-to-debug fuckups
+// Undefine all the macros that could be defined to avoid hard-to-debug fuckups
+// Sections:
 #undef SEC_ALL
 #undef SEC_LOFIHIFI
 #undef SEC_GEOMETRY
 #undef SEC_MATERIALS
 #undef SEC_OTHER
-// undefine all INIT_MACROs
+// Initialization macros:
 #undef INIT_INT_ARRAY2
 #undef INIT_VEC3
 #undef INIT_DOUBLE
@@ -100,5 +100,5 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 #undef INIT_STRING
 #undef INIT_NULL
 #undef INIT_ENUM
-// undefine all INIT_MACROs
+// And the FIELD_DEF itself:
 #undef FIELD_DEF
