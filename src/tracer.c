@@ -209,10 +209,8 @@ static double calculate_disk_color_pattern(const Vec3d col_point, double R, cons
     double final_pattern = (spiral_pattern * 0.4 + combined_rings * 0.6) * radial_intensity;
 
     double intensity_modulation = 1.0 + cfg->disk_structure_modulation * (final_pattern - 1.0);
-    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation,
-                 1.0 + cfg->disk_structure_modulation); // Limit modulation
+    return clamp(intensity_modulation, 1.0 - cfg->disk_structure_modulation, 1.0 + cfg->disk_structure_modulation); // Limit modulation
 }
-
 
 // --- Helper: Handle Accretion Disk Hit ---
 // Determines color and alpha based on disk mode and blends it.

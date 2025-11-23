@@ -428,13 +428,17 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (ini_parse(cfg->scene_file_path, scene_ini_callback, &user_data) < 0)
     {
         fprintf(stderr, "! Error: Can't load or parse scene file '%s'\n", cfg->scene_file_path);
-        free_config_textures(cfg); // Free everything allocated so far
+        free_config_textures(cfg);
         return false;
     }
     printf("  Finished parsing INI file.\n");
 
     // Load textures based on config
-    printf("Loading textures based on configuration...\n");
+    if (cfg->disk_texture_mode == DT_TEXTURE || cfg->sky_texture_mode == ST_TEXTURE)
+    {
+        printf("Loading textures based on configuration...\n");
+    }
+
     Texture *original_sky_texture = NULL;
 
     if (cfg->disk_texture_mode == DT_TEXTURE)
@@ -468,26 +472,25 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // Apply sky texture resizing (if HiFi and texture loaded)
     if (!cfg->lofi && original_sky_texture)
     {
-        printf("HiFi mode: Resizing sky texture by 2.0x for higher quality...\n");
+        printf("  HiFi mode: Resizing sky texture by 2.0x for higher quality...\n");
         cfg->sky_texture = resize_texture(original_sky_texture, 2.0f);
 
         if (cfg->sky_texture)
         {
-            printf("  Sky texture resized successfully.\n");
+            printf("    Sky texture resized successfully.\n");
             free_texture(original_sky_texture);
             original_sky_texture = NULL;
         }
         else
         {
-            fprintf(stderr, "  Warning: Sky texture resizing failed. Using original texture.\n");
+            fprintf(stderr, "    Warning: Sky texture resizing failed. Using original texture.\n");
             cfg->sky_texture = original_sky_texture;
             original_sky_texture = NULL;
         }
     }
     else
     {
-        cfg->ssaa_level = 1; // Reset SSAA level if not HiFi
-        printf("LoFi mode: Skipping sky texture resizing.\n");
+        printf("  LoFi mode: Skipping sky texture resizing.\n");
         cfg->sky_texture = original_sky_texture;
         original_sky_texture = NULL;
     }
@@ -514,7 +517,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size))
             {
                 fprintf(stderr, "! Error: Failed to load required blackbody ramp.\n");
-                free_config_textures(cfg); // Cleans up textures and paths
+                free_config_textures(cfg);
                 return false;
             }
         }
@@ -541,6 +544,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Print summary of final configuration
+    // TODO: Make separate full summary function using FIELD_DEF for consistency
     printf("Configuration loaded successfully:\n");
     printf("  Scene base name: %s\n", cfg->scene_base_name);
     printf("  Final Resolution: %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
@@ -569,7 +573,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
             printf("     Position Variation: %f\n", cfg->disk_structure_position_variation);
             printf("     Modulation: %f\n", cfg->disk_structure_modulation);
         }
-        else { printf("    Disk Structure: Disabled\n"); }
+        else
+        {
+            printf("    Disk Structure: Disabled\n");
+        }
     }
     return true;
 }
