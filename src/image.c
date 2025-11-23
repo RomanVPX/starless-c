@@ -1,15 +1,34 @@
 #include "image.h"
 #include "config.h"
-// Define STB implementation modes *before* including the headers in *one* C file
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write_ext.h"
+
+// Include stb_image_resize with warnings disabled on Windows:
+#ifdef _WIN32
+#ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wsign-compare"
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+#endif
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "stb_image_resize.h"
+#ifdef _WIN32
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#endif
+#endif
+
 // For the finicky Linux compiler:
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
