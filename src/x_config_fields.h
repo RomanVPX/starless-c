@@ -13,7 +13,7 @@
 
 /* .scene settings */
 /*_______________________________________________________________________________________________________________________________*/
-/*       (field_name_in_cfg,            ".ini param name / .png meta tag",       INIT_MACRO,       default_value);               */
+/*       (field_name_in_cfg,         ".ini param name / .png meta KeySuffix",    INIT_MACRO,       default_value);               */
 /*-------------------------------------------------------------------------------------------------------------------------------*/
 #ifdef SEC_LOFIHIFI
 FIELD_DEF(resolution,                        "Resolution",                       INIT_INT_ARRAY2,  ((int[2]){640, 480})          );
@@ -83,8 +83,7 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 #endif
 /* ==============================================================================================================================*/
 
-
-// Undefine all the macros that could be defined to avoid hard-to-debug fuckups
+// Undefine all the macros that could be defined to avoid hard-to-debug fuckups.
 // Sections:
 #undef SEC_ALL
 #undef SEC_LOFIHIFI
@@ -100,5 +99,4 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 #undef INIT_STRING
 #undef INIT_NULL
 #undef INIT_ENUM
-// And the FIELD_DEF itself:
-#undef FIELD_DEF
+// FIELD_DEF macro should be undefined by the includer.

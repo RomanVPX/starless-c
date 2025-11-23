@@ -88,12 +88,15 @@ static void helper_add_meta_int_array2(PngMetadata m[], char tb[][256], int *idx
 }
 
 int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char text_buffers_output[][256], int max_metadata_entries)
-{                             /* Formatted values ↓ go here */
+{
     if (!cfg || !metadata_output || !text_buffers_output || max_metadata_entries <= 0) { return 0; }
 
     int current_entry_index = 0;
 
-    #define INIT_MACRO(fieldName, cfgKey) FIELD_DEF(fieldName, cfgKey, INIT_##fieldName, #fieldName)
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software", "Starless-C");
+    helper_add_meta_entry(metadata_output, text_buffers_output,
+        &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
 
     #define INIT_STRING(fieldName, pngKeySuffix) if(cfg->fieldName) \
         helper_add_meta_entry(metadata_output, text_buffers_output, \
@@ -125,17 +128,13 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
         else if (strcmp(#fieldName, "sky_texture_mode") == 0) enum_name = sky_texture_mode_names[cfg->fieldName]; \
         if (enum_name) helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, pngKeySuffix, enum_name); \
     }
+
     #define INIT_NULL(fieldName, pngKeySuffix) /* Do not write those to metadata */
 
     #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey)
-
-    helper_add_meta_entry(metadata_output, text_buffers_output,
-        &current_entry_index, max_metadata_entries, "Software", "Starless-C");
-    helper_add_meta_entry(metadata_output, text_buffers_output,
-        &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
-
     #define SEC_ALL
     #include "x_config_fields.h"
+    #undef FIELD_DEF
 
     return current_entry_index;
 }
