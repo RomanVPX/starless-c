@@ -211,7 +211,7 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
 
     // _PARSE macros for different types, used in FIELD_DEF below (initMacro##_PARSE)
     #define INIT_INT_PARSE(field)    cfg->field = atoi(value)
-    #define INIT_DOUBLE_PARSE        INIT_INT_PARSE
+    #define INIT_DOUBLE_PARSE(field) cfg->field = atof(value)
     #define INIT_BOOL_PARSE(field)   cfg->field = string_to_bool(value)
     #define INIT_VEC3_PARSE(field) \
         if (!parse_vec3d(value, &cfg->field)) { fprintf(stderr, "  Warning: Invalid vec3 '%s' for %s\n", value, #field); }
