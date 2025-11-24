@@ -73,7 +73,10 @@ static const Vec3d VEC_3D_UP = {0.0, 1.0, 0.0};
 
 
 // --- RK4 Step Function ---
-// Calculates the derivatives for position and velocity under the approximate potential.
+// Calculates the derivatives for position and velocity under the "magic potential".
+// This is NOT an approximation - it's an exact reformulation of photon geodesics
+// in Schwarzschild spacetime via the Binet equation, using a Newtonian-like force.
+// See: http://rantonels.github.io/starless/ ('The "magic" potential' section)
 // y = [pos.x, pos.y, pos.z, vel.x, vel.y, vel.z]
 // dydt = [vel.x, vel.y, vel.z, accel.x, accel.y, accel.z]
 static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2)
