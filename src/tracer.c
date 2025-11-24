@@ -529,7 +529,7 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 
     // 3. Background / Sky Color Blending
     if (ray.alpha < MAX_RAY_ALPHA)
-    {                            // If ray didn't hit something fully opaque
+    { // If ray didn't hit something fully opaque
         ColorRGB bg_color = get_background_color(&ray, cfg);
         double sky_balpha = 1.0; // Sky is opaque background
         // Blend sky (cb=sky, ca=ray)
@@ -648,7 +648,8 @@ bool run_tracer(Config *config, ImageF *output_image)
     int remaining_pixels = num_pixels % n_threads;
     int current_pixel_index = 0;
 
-    clock_t total_start_time = clock();
+    struct timespec ts_start;
+    timespec_get(&ts_start, TIME_UTC);
 
     for (int i = 0; i < n_threads; ++i)
     {
@@ -703,8 +704,9 @@ bool run_tracer(Config *config, ImageF *output_image)
 #endif
     }
 
-    clock_t total_end_time = clock();
-    double total_time_spent = (double)(total_end_time - total_start_time) / CLOCKS_PER_SEC;
+    struct timespec ts_end;
+    timespec_get(&ts_end, TIME_UTC);
+    double total_time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
 
     // Cleanup thread resources
     free(threads);
