@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     size_t buffer_size = (size_t)W * H * sizeof(ColorRGB); // Calculate size once
 
     // Create a temporary image buffer for intermediate results if needed
-    printf("Creating post-processing buffers (%dx%d)...\n", W, H);
+    printf("  Creating post-processing buffers (%dx%d)...\n", W, H);
     ImageF *postproc_buffer = create_imagef(W, H); // Temporary work buffer
     ImageF *pre_bloom_copy = create_imagef(W, H);  // Buffer to hold state before bloom (source for blur)
 
@@ -101,14 +101,14 @@ int main(int argc, char *argv[])
     }
 
     // --- 4a. Gain ---
-    printf("Applying gain: %f\n", config.gain);
+    printf("  Applying gain: %f\n", config.gain);
     for (int i = 0; i < output_image->width * output_image->height; ++i)
     {
         output_image->pixels[i] = color_mul_scalar(output_image->pixels[i], config.gain);
     }
 
     // --- Store pre-bloom state for Gaussian blur source ---
-    printf("Storing pre-bloom image state...\n");
+    printf("  Storing pre-bloom image state...\n");
     memcpy(pre_bloom_copy->pixels, output_image->pixels, buffer_size);
 
     // Setup buffer pointers for subsequent steps
@@ -119,13 +119,13 @@ int main(int argc, char *argv[])
     // Reads from current_image, writes to next_image
     if (config.airy_bloom)
     {
-        printf("Applying Airy Bloom...\n");
+        printf("  Applying Airy Bloom...\n");
         double spectrum[3] = {SPECTRUM_R, SPECTRUM_G, SPECTRUM_B};
         double fov_rad = config.tan_fov; // tangent of field of view
         // Check for zero FoV to prevent division by zero
         if (fabs(fov_rad) < EPSILON_LOOSE)
         {
-            fprintf(stderr, "Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
+            fprintf(stderr, "    Warning: Field of View (tan_fov) is near zero. Using default scale for Airy Bloom.\n");
             fov_rad = config.tan_fov; // Use a default value (from config_defaults.h)
         }
         // the float constant is 1.22 * 650nm / (4 mm), the typical diffractive resolution
@@ -146,18 +146,18 @@ int main(int argc, char *argv[])
         kernel_size_radius = fmax(1, kernel_size_radius);
         kernel_size_radius = fmin(100, kernel_size_radius);
 
-        printf("  Max Intensity: %f\n", max_intensity);
-        printf("  Calculated Kernel Radius (size): %d\n", kernel_size_radius);
-        printf("  Kernel Scales (R,G,B): %f, %f, %f\n", kernel_scale[0], kernel_scale[1], kernel_scale[2]);
+        printf("    Max Intensity: %f\n", max_intensity);
+        printf("    Calculated Kernel Radius (size): %d\n", kernel_size_radius);
+        printf("    Kernel Scales (R,G,B): %f, %f, %f\n", kernel_scale[0], kernel_scale[1], kernel_scale[2]);
 
         Kernel2D *airy_kernel = generate_airy_kernel(kernel_scale, kernel_size_radius);
         if (airy_kernel)
         {
-            printf("  Convolving image with Airy kernel (%dx%d)...\n", airy_kernel->width, airy_kernel->height);
+            printf("    Convolving image with Airy kernel (%dx%d)...\n", airy_kernel->width, airy_kernel->height);
             // Use W and H which are now defined in this scope
             if (!convolve2d_rgb(current_image, next_image, airy_kernel))
             {
-                fprintf(stderr, "Warning: Airy convolution failed.\n");
+                fprintf(stderr, "    Warning: Airy convolution failed.\n");
                 memcpy(next_image->pixels, current_image->pixels, buffer_size); // Use W, H, cast size
             }
             free_kernel2d(airy_kernel);
@@ -169,11 +169,11 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "Warning: Failed to generate Airy kernel. Skipping bloom.\n");
-            printf("  (Post-bloom result remains in current_image buffer)\n");
+            fprintf(stderr, "    Warning: Failed to generate Airy kernel. Skipping bloom.\n");
+            printf("    (Post-bloom result remains in current_image buffer)\n");
         }
     }
-    else { printf("Airy Bloom is disabled, skipping .\n"); }
+    else { printf("  Airy Bloom is disabled, skipping.\n"); }
 
     // At this point, current_image holds the "post-bloom" result ('colour_pb' in Python)
     // next_image points to a free buffer (either output_image or postproc_buffer)
@@ -182,10 +182,10 @@ int main(int argc, char *argv[])
     // --- 4c. Gaussian Blur ---
     if (config.blur_do)
     {
-        printf("Applying Gaussian Blur...\n");
+        printf("  Applying Gaussian Blur...\n");
         // Sigma calculation based on Python: int(0.05*RESOLUTION[0])
         double sigma = fmax(0.5, 0.05 * (double)W); // Ensure sigma is positive
-        printf("  Gaussian Sigma: %.2f\n", sigma);
+        printf("    Gaussian Sigma: %.2f\n", sigma);
         // Kernel size is determined by sigma, but we can set a max size if needed
         Kernel1D *gauss_kernel = generate_gaussian_kernel_1d(sigma, 0);
         if (gauss_kernel)
@@ -202,18 +202,18 @@ int main(int argc, char *argv[])
 
             // Pass 1: Horizontal (blur_source -> h_pass_dest)
             // Input: B=S0. Output: next_image = H(B).
-            printf("  Applying horizontal Gaussian pass (Source: pre_bloom_copy, Dest: next_image)...\n");
+            printf("    Applying horizontal Gaussian pass (Source: pre_bloom_copy, Dest: next_image)...\n");
             if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel))
             {
-                fprintf(stderr, "Warning: Horizontal Gaussian convolution failed.\n");
+                fprintf(stderr, "    Warning: Horizontal Gaussian convolution failed.\n");
             }
 
             // Pass 2: Vertical (h_pass_dest -> v_pass_dest)
             // Input: next_image = H(B). Output: B = V(H(B)) = S2.
-            printf("  Applying vertical Gaussian pass (Source: next_image, Dest: pre_bloom_copy)...\n");
+            printf("    Applying vertical Gaussian pass (Source: next_image, Dest: pre_bloom_copy)...\n");
             if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel))
             {
-                fprintf(stderr, "Warning: Vertical Gaussian convolution failed.\n");
+                fprintf(stderr, "    Warning: Vertical Gaussian convolution failed.\n");
             }
             // current_image holds S1 (post-bloom result).
             // pre_bloom_copy (v_pass_dest / B) holds S2 (final blur result).
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 
             // Additive Step: current_image = current_image + 0.2 * blurred_image_final
             // Input: current_image (S1), blurred_image_final (S2). Output: current_image = S1 + 0.2*S2
-            printf("  Adding 0.2 * blurred image to post-bloom result...\n");
+            printf("    Adding 0.2 * blurred image to post-bloom result...\n");
             for (int i = 0; i < W * H; ++i)
             {
                 ColorRGB blur_contrib = color_mul_scalar(blurred_image_final->pixels[i], 0.2);
@@ -235,13 +235,13 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "Warning: Failed to generate Gaussian kernel. Skipping blur.\n");
+            fprintf(stderr, "  Warning: Failed to generate Gaussian kernel. Skipping blur.\n");
             // If skipping, current_image still holds the post-bloom result.
         }
     }
     else
     {
-        printf("Gaussian Blur is disabled, skipping .\n");
+        printf("  Gaussian Blur is disabled, skipping.\n");
         // No changes to current_image or next_image needed.
     }
     // At this point, current_image holds the final result before normalization.
@@ -249,44 +249,44 @@ int main(int argc, char *argv[])
     // --- 4d. Normalization ---
     if (config.normalize > 0)
     {
-        printf("Applying Normalization (target max %f)...\n", config.normalize);
+        printf("  Applying Normalization (target max %f)...\n", config.normalize);
         double current_max = 0.0;
         for (int i = 0; i < W * H; ++i)
         { // Use W * H
             current_max = fmax(current_max, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
         }
-        printf("  Current max intensity: %f\n", current_max);
+        printf("    Current max intensity: %f\n", current_max);
         if (current_max > EPSILON_LOOSE)
         {
             double norm_factor = config.normalize / current_max;
-            printf("  Normalization factor: %f\n", norm_factor);
+            printf("    Normalization factor: %f\n", norm_factor);
             for (int i = 0; i < W * H; ++i)
             { // Use W * H
                 current_image->pixels[i] = color_mul_scalar(current_image->pixels[i], norm_factor);
             }
         }
-        else { printf("  Skipping normalization as max intensity is near zero.\n"); }
+        else { printf("    Skipping normalization as max intensity is near zero.\n"); }
     }
-    else { printf("Normalization is disabled, skipping.\n"); }
+    else { printf("  Normalization is disabled, skipping.\n"); }
 
     // --- Final Image Preparation ---
     ImageF *final_image = NULL;
     if (current_image == output_image)
     {
         final_image = output_image;
-        printf("Final image is in original buffer.\n");
+        printf("  Final image is in original buffer.\n");
     }
     else
     {
         // current_image must be postproc_buffer
         final_image = postproc_buffer;                                  // Point to the buffer holding result
-        printf("Final image is in postproc buffer. Copying back to output_image for consistency before saving...\n");
+        printf("  Final image is in postproc buffer. Copying back to output_image for consistency before saving...\n");
         memcpy(output_image->pixels, final_image->pixels, buffer_size); // Copy result to output_image
         final_image = output_image;                                     // Now final result is definitively in output_image
     }
 
     // --- 4e. ACES Tonemapping ---
-    printf("Applying ACES tonemapping (exposure = %f)...\n", config.aces_exposure);
+    printf("  Applying ACES tonemapping (exposure = %f)...\n", config.aces_exposure);
     for (int i = 0; i < W * H; ++i)
     {
         ColorRGB hdr = final_image->pixels[i];
@@ -295,6 +295,7 @@ int main(int argc, char *argv[])
     }
 
     // --- 5. Save Image ---
+    printf("Saving final image...\n");
     const char *base_name_for_output;
     if (config.scene_base_name && strlen(config.scene_base_name) > 0) { base_name_for_output = config.scene_base_name; }
     else { base_name_for_output = "output"; }
@@ -302,7 +303,7 @@ int main(int argc, char *argv[])
     char *base_name_copy = STRDUP(base_name_for_output);
     if (!base_name_copy)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for base name copy.\n");
+        fprintf(stderr, "! Error: Failed to allocate memory for base name copy.\n");
         free_imagef(postproc_buffer);
         free_imagef(pre_bloom_copy);
         free_imagef(output_image);
@@ -320,7 +321,7 @@ int main(int argc, char *argv[])
         if (mkdir("out", 0775) != 0 && errno != EEXIST)
 #endif
         {
-            perror("Error creating 'out' directory");
+            perror("! Error creating 'out' directory");
             free(base_name_copy);
             return EXIT_FAILURE;
         }
@@ -335,12 +336,12 @@ int main(int argc, char *argv[])
 
     if (index >= 1000)
     {
-        fprintf(stderr, "Error: Too many output files for scene %s\n", base_name_copy);
+        fprintf(stderr, "! Error: Too many output files for scene %s\n", base_name_copy);
         free(base_name_copy);
         return EXIT_FAILURE;
     }
 
-    printf("Saving final image to %s...\n", output_path);
+    printf("  Saving final image to %s...\n", output_path);
     free(base_name_copy);
 
     // Clamp final image pixels *before* saving
@@ -349,7 +350,7 @@ int main(int argc, char *argv[])
         final_image->pixels[i] = color_clamp(final_image->pixels[i], 0.0, 1.0);
     }
 
-    if (!save_image_png(final_image, output_path, config.srgb_out, &config)) { fprintf(stderr, "Error saving final image!\n"); }
+    if (!save_image_png(final_image, output_path, config.srgb_out, &config)) { fprintf(stderr, "! Error saving final image!\n"); }
     else { printf("  Image saved successfully.\n"); }
 
     // --- 6. Cleanup ---

@@ -215,7 +215,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
 {
     if (sigma <= 0)
     {
-        fprintf(stderr, "Warning: Gaussian sigma must be positive. Using default sigma=1.0.\n");
+        fprintf(stderr, "    Warning: Gaussian sigma must be positive. Using default sigma=1.0.\n");
         sigma = 1.0;
     }
 
@@ -229,7 +229,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     Kernel1D *k = (Kernel1D *)malloc(sizeof(Kernel1D));
     if (!k)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for Kernel1D struct.\n");
+        fprintf(stderr, "!   Error: Failed to allocate memory for Kernel1D struct.\n");
         return NULL;
     }
 
@@ -238,7 +238,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     k->data = (double *)malloc(k->length * sizeof(double));
     if (!k->data)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for 1D kernel data (%d elements).\n", k->length);
+        fprintf(stderr, "!   Error: Failed to allocate memory for 1D kernel data (%d elements).\n", k->length);
         free(k);
         return NULL;
     }
@@ -263,7 +263,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
     }
     else
     {
-        fprintf(stderr, "Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
+        fprintf(stderr, "    Warning: 1D Gaussian kernel sum is close to zero. Kernel will be invalid.\n");
         if (k->length > 0)
         {
             memset(k->data, 0, k->length * sizeof(double));
@@ -271,7 +271,7 @@ Kernel1D *generate_gaussian_kernel_1d(double sigma, int size)
         }
     }
 
-    printf("  Generated %d-element 1D Gaussian kernel (sigma=%.2f, size=%d).\n", k->length, sigma, size);
+    printf("    Generated %d-element 1D Gaussian kernel (sigma=%.2f, size=%d).\n", k->length, sigma, size);
     return k;
 }
 
@@ -292,12 +292,12 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
 {
     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
     {
-        fprintf(stderr, "Error: NULL pointer passed to convolve1d_h_rgb.\n");
+        fprintf(stderr, "!   Error: NULL pointer passed to convolve1d_h_rgb.\n");
         return false;
     }
     if (src->width != dst->width || src->height != dst->height)
     {
-        fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
+        fprintf(stderr, "!   Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
 
@@ -331,7 +331,7 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
             dst->pixels[dst_idx] = accumulator;
         }
     }
-    printf("  Horizontal 1D convolution finished.\n");
+    printf("    Horizontal 1D convolution finished.\n");
     return true;
 }
 
@@ -341,12 +341,12 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
 {
     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
     {
-        fprintf(stderr, "Error: NULL pointer passed to convolve1d_v_rgb.\n");
+        fprintf(stderr, "!   Error: NULL pointer passed to convolve1d_v_rgb.\n");
         return false;
     }
     if (src->width != dst->width || src->height != dst->height)
     {
-        fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
+        fprintf(stderr, "!   Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
 
@@ -380,6 +380,6 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
             dst->pixels[dst_idx] = accumulator;
         }
     }
-    printf("  Vertical 1D convolution finished.\n");
+    printf("    Vertical 1D convolution finished.\n");
     return true;
 }

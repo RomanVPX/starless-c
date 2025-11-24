@@ -559,7 +559,7 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
     ImageF *image = data->image;
     int W = image->width;
 
-    printf("Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
+    printf("  Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
     struct timespec ts_start;
     timespec_get(&ts_start, TIME_UTC);
 
@@ -604,7 +604,7 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
     struct timespec ts_end;
     timespec_get(&ts_end, TIME_UTC);
     double time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
-    printf("Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
+    printf("  Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
     return 0;
 }
 
@@ -614,7 +614,7 @@ bool run_tracer(Config *config, ImageF *output_image)
 {
     if (!config || !output_image || !output_image->pixels)
     {
-        fprintf(stderr, "Error: Invalid arguments passed to run_tracer.\n");
+        fprintf(stderr, "! Error: Invalid arguments passed to run_tracer.\n");
         return false;
     }
 
@@ -627,9 +627,9 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
     int total_samples = samples_per_axis * samples_per_axis;
-    printf("Starting ray tracing with %d threads...\n", n_threads);
-    printf("SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
-    printf("Total pixels: %d\n", num_pixels);
+    printf("  Starting ray tracing with %d threads...\n", n_threads);
+    printf("  SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
+    printf("  Total pixels: %d\n", num_pixels);
 
     // Allocate thread handles and data structures
     thread_handle_t *threads = (thread_handle_t *)malloc(n_threads * sizeof(thread_handle_t));
@@ -637,7 +637,7 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     if (!threads || !thread_data)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for thread management.\n");
+        fprintf(stderr, "! Error: Failed to allocate memory for thread management.\n");
         free(threads);
         free(thread_data);
         return false;
@@ -668,7 +668,7 @@ bool run_tracer(Config *config, ImageF *output_image)
         threads[i] = CreateThread(NULL, 0, trace_pixel_range, &thread_data[i], 0, NULL);
         if (threads[i] == NULL)
         {
-            fprintf(stderr, "Error creating thread %d\n", i);
+            fprintf(stderr, "! Error creating thread %d\n", i);
             n_threads = i;
             break;
         }
@@ -676,7 +676,7 @@ bool run_tracer(Config *config, ImageF *output_image)
         int ret = pthread_create(&threads[i], NULL, trace_pixel_range, &thread_data[i]);
         if (ret != 0)
         {
-            fprintf(stderr, "Error creating thread %d: %s\n", i, strerror(ret));
+            fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
             n_threads = i;
             break;
         }
@@ -689,7 +689,7 @@ bool run_tracer(Config *config, ImageF *output_image)
         DWORD wait_result = WaitForSingleObject(threads[i], INFINITE);
         if (wait_result != WAIT_OBJECT_0)
         {
-            fprintf(stderr, "Error joining thread %d\n", i);
+            fprintf(stderr, "! Error joining thread %d\n", i);
             threads_failed++;
         }
         CloseHandle(threads[i]);
@@ -697,7 +697,7 @@ bool run_tracer(Config *config, ImageF *output_image)
         int ret = pthread_join(threads[i], NULL);
         if (ret != 0)
         {
-            fprintf(stderr, "Error joining thread %d: %s\n", i, strerror(ret));
+            fprintf(stderr, "! Error joining thread %d: %s\n", i, strerror(ret));
             threads_failed++;
         }
 #endif
@@ -712,15 +712,14 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     if (threads_failed > 0)
     {
-        fprintf(stderr, "Error: %d threads failed to join correctly.\n", threads_failed);
-        // Decide if this constitutes overall failure
+        // Let's pretend it's not a failure
+        fprintf(stderr, "  WARNING: %d threads failed to join correctly.\n", threads_failed);
         // return false;
     }
 
-    printf("All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
-    printf("Final image size: %d x %d\n", W, H);
-    printf("Total pixels processed: %d\n", num_pixels);
-    printf("Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
-    printf("Ray tracing completed successfully.\n");
+    printf("  All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
+    printf("  Final image size: %d x %d\n", W, H);
+    printf("  Total pixels processed: %d\n", num_pixels);
+    printf("  Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
     return true;
 }

@@ -321,12 +321,12 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
     int success = 0;
     if (num_metadata_entries > 0)
     {
-        printf("  Attempting to save image with %d metadata entries...\n", num_metadata_entries);
+        printf("    Attempting to save image with %d metadata entries...\n", num_metadata_entries);
         success = stbi_write_png_with_metadata(filename, width, height, 3, output_data, width * 3, metadata_array, num_metadata_entries);
     }
     else
     {   // Using basic stbi_write_png in this case just to be on the safe side
-        printf("  Warning: No metadata generated, saving image without custom metadata...\n");
+        printf("    Warning: No metadata generated, saving image without custom metadata...\n");
         success = stbi_write_png(filename, width, height, 3, output_data, width * 3);
     }
 
@@ -334,10 +334,10 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 
     if (!success)
     {
-        fprintf(stderr, "Error writing PNG file '%s'\n", filename);
+        fprintf(stderr, "!   Error writing PNG file '%s'\n", filename);
         return false;
     }
 
-    printf("Saved image to '%s' (metadata entries: %d)\n", filename, num_metadata_entries);
+    printf("    Saved image to '%s' (metadata entries: %d)\n", filename, num_metadata_entries);
     return true;
 }
