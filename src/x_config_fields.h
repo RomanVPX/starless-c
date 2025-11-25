@@ -34,8 +34,8 @@ FIELD_DEF(disk_outer_radius,                 "Diskouter",                       
 
 #ifdef SEC_MATERIALS
 FIELD_DEF(horizon_grid,                      "Horizongrid",                      INIT_BOOL,        true                          );
-FIELD_DEF(disk_texture_mode,                 "Disktexture",                      INIT_ENUM,        DT_NONE                       );
-FIELD_DEF(sky_texture_mode,                  "Skytexture",                       INIT_ENUM,        ST_NONE                       );
+FIELD_DEF(disk_texture_mode,                 "Disktexture",                      INIT_SMART_ENUM,  DT_NONE                       );
+FIELD_DEF(sky_texture_mode,                  "Skytexture",                       INIT_SMART_ENUM,  ST_NONE                       );
 FIELD_DEF(sky_disk_ratio,                    "Skydiskratio",                     INIT_DOUBLE,      1.0                           );
 FIELD_DEF(fog_do,                            "Fogdo",                            INIT_BOOL,        true                          );
 FIELD_DEF(fog_mult,                          "Fogmult",                          INIT_DOUBLE,      0.02                          );
@@ -98,5 +98,5 @@ FIELD_DEF(chunk_size,                        "Chunk size",                      
 #undef INIT_INT
 #undef INIT_STRING
 #undef INIT_NULL
-#undef INIT_ENUM
+#undef INIT_SMART_ENUM
 // FIELD_DEF macro should be undefined by the includer.

@@ -98,31 +98,31 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
     helper_add_meta_entry(metadata_output, text_buffers_output,
         &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
 
-    #define INIT_STRING(fieldName, pngKeySuffix) if(cfg->fieldName) \
+    #define INIT_STRING(fieldName, pngKeySuffix) if(cfg->fieldName && pngKeySuffix[0] != '\0') \
         helper_add_meta_entry(metadata_output, text_buffers_output, \
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_INT(fieldName, pngKeySuffix) \
+    #define INIT_INT(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') \
         helper_add_meta_int(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_DOUBLE(fieldName, pngKeySuffix) \
+    #define INIT_DOUBLE(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') \
         helper_add_meta_double(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_BOOL(fieldName, pngKeySuffix) \
+    #define INIT_BOOL(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') \
         helper_add_meta_bool(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_VEC3(fieldName, pngKeySuffix) \
+    #define INIT_VEC3(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') \
         helper_add_meta_vec3d(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_INT_ARRAY2(fieldName, pngKeySuffix) \
+    #define INIT_INT_ARRAY2(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') \
         helper_add_meta_int_array2(metadata_output, text_buffers_output,\
         &current_entry_index, max_metadata_entries, pngKeySuffix, cfg->fieldName)
 
-    #define INIT_ENUM(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') { \
+    #define INIT_SMART_ENUM(fieldName, pngKeySuffix) if (pngKeySuffix[0] != '\0') { \
         const char *enum_name = NULL; \
         if (strcmp(#fieldName, "disk_texture_mode") == 0) enum_name = disk_texture_mode_names[cfg->fieldName]; \
         else if (strcmp(#fieldName, "sky_texture_mode") == 0) enum_name = sky_texture_mode_names[cfg->fieldName]; \
@@ -321,12 +321,12 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
     int success = 0;
     if (num_metadata_entries > 0)
     {
-        printf("  Attempting to save image with %d metadata entries...\n", num_metadata_entries);
+        printf("    Attempting to save image with %d metadata entries...\n", num_metadata_entries);
         success = stbi_write_png_with_metadata(filename, width, height, 3, output_data, width * 3, metadata_array, num_metadata_entries);
     }
     else
     {   // Using basic stbi_write_png in this case just to be on the safe side
-        printf("  Warning: No metadata generated, saving image without custom metadata...\n");
+        printf("    Warning: No metadata generated, saving image without custom metadata...\n");
         success = stbi_write_png(filename, width, height, 3, output_data, width * 3);
     }
 
@@ -334,10 +334,10 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 
     if (!success)
     {
-        fprintf(stderr, "Error writing PNG file '%s'\n", filename);
+        fprintf(stderr, "!   Error writing PNG file '%s'\n", filename);
         return false;
     }
 
-    printf("Saved image to '%s' (metadata entries: %d)\n", filename, num_metadata_entries);
+    printf("    Saved image to '%s' (metadata entries: %d)\n", filename, num_metadata_entries);
     return true;
 }

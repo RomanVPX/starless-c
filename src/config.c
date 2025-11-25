@@ -92,17 +92,29 @@ bool parse_resolution(const char *res_str, int resolution[2])
 {
     if (!res_str) return false;
     int width = 0, height = 0;
-    // Supports "640x480" format
-    if (SSCANF(res_str, "%dx%d", &width, &height) == 2)
+    if (SSCANF(res_str, "%dx%d", &width, &height) == 2 && width > 0 && height > 0)
     {
-        if (width > 0 && height > 0)
-        {
-            resolution[0] = width;
-            resolution[1] = height;
-            return true;
-        }
+        resolution[0] = width;
+        resolution[1] = height;
+        return true;
     }
     return false;
+}
+
+static int parse_positive_int_arg(const char *arg_name, const char *value_str)
+{
+    if (!value_str || !isdigit((unsigned char)value_str[0]))
+    {
+        fprintf(stderr, "! Error: Invalid format for %s. Expected integer.\n", arg_name);
+        return -1;
+    }
+    int val = atoi(value_str);
+    if (val <= 0)
+    {
+        fprintf(stderr, "! Error: Value for %s must be positive.\n", arg_name);
+        return -1;
+    }
+    return val;
 }
 
 static bool parse_enum_value(const char *value, int *mode_out, const char **names, int num_names)
@@ -118,50 +130,50 @@ static bool parse_enum_value(const char *value, int *mode_out, const char **name
     return false;
 }
 
-// Parser for "Smart" Enums (Disk/Sky), which can be an Enum, Enum for the defalult path or just a path
-static void parse_smart_texture_config(char **path_field, int *mode_field, const char *value, const char **enum_names,
-                                       int enum_count, const char *default_path, int texture_mode_enum)
+// Generic logic for "Smart" Enums
+static void parse_smart_enum_generic(char **path_field, int *mode_field, const char *value,
+                                     const char **enum_names, int enum_count,
+                                     const char *default_path, int texture_mode_enum)
 {
     int mode;
     if (parse_enum_value(value, &mode, enum_names, enum_count))
-    {   // Try to parse as a named enum ("none", "grid", "texture")
+    {   // It's a keyword (e.g. "none", "texture", "grid")
         *mode_field = mode;
         if (*mode_field == texture_mode_enum)
-        {   // Explicit "texture" keyword -> use default path
+        {   // Explicit "texture" keyword -> force default path
             free(*path_field);
             *path_field = STRDUP(default_path);
-            if (*path_field) printf("  Info: Using default path: %s\n", default_path);
+            if (*path_field) printf("  Using default path: %s\n", default_path);
         }
         else
-        {   // Other enum -> no path
+        {   // "none", "grid", etc. -> clear path
             free(*path_field);
             *path_field = NULL;
         }
     }
     else
-    {   // Not a keyword -> assume a file path
+    {   // Not a keyword -> assume it's a file path
         *mode_field = texture_mode_enum;
         free(*path_field);
         *path_field = STRDUP(value);
-        if (*path_field) printf("  Info: Custom path detected: %s\n", value);
+        if (*path_field) printf("  Custom path detected: %s\n", value);
     }
 }
 
-// --- Parsing Macros (Used in callback) ---
-#define PARSE_INT(field)          cfg->field = atoi(value)
-#define PARSE_DOUBLE(field)       cfg->field = atof(value)
-#define PARSE_BOOL(field)         cfg->field = string_to_bool(value)
-#define PARSE_VEC3(field)         if (!parse_vec3d(value, &cfg->field)) { fprintf(stderr, "  Warning: Invalid vec3 '%s' for %s\n", value, #field); }
-#define PARSE_INT_ARRAY2(field)   if (!parse_int_list(value, cfg->field, 2)) { fprintf(stderr, "  Warning: Invalid int list '%s' for %s\n", value, #field); }
-#define PARSE_STRING(field) \
-    do { \
-        if (value && strlen(value) > 0) { \
-            free(cfg->field); \
-            cfg->field = STRDUP(value); \
-        } else { \
-             fprintf(stderr, "  Warning: Empty string for %s, keeping previous/default.\n", #field); \
-        } \
-    } while(0)
+// --- Specific Handlers for Smart Enums ---
+static void handle_disk_texture_mode(Config *cfg, const char *value)
+{
+    parse_smart_enum_generic(&cfg->disk_texture_path, (int*)&cfg->disk_texture_mode, value,
+                             disk_texture_mode_names, sizeof(disk_texture_mode_names) / sizeof(char*),
+                             DEFAULT_DISK_TEXTURE_PATH, DT_TEXTURE);
+}
+
+static void handle_sky_texture_mode(Config *cfg, const char *value)
+{
+    parse_smart_enum_generic(&cfg->sky_texture_path, (int*)&cfg->sky_texture_mode, value,
+                             sky_texture_mode_names, sizeof(sky_texture_mode_names) / sizeof(char*),
+                             DEFAULT_SKY_TEXTURE_PATH, ST_TEXTURE);
+}
 
 // --- INI Parsing Callback ---
 static int scene_ini_callback(void *user, const char *section, const char *name, const char *value)
@@ -170,46 +182,41 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     Config *cfg = user_data->cfg;
     bool *override_res = user_data->override_res_flag;
 
-    #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) if (cfgKey && cfgKey[0] != '\0' && strcmp(name, cfgKey) == 0) { \
-            /* Resolution Override */       \
+    // --- Define Parsers ---
+    #define INIT_INT_PARSE(field)           cfg->field = atoi(value)
+    #define INIT_DOUBLE_PARSE(field)        cfg->field = atof(value)
+    #define INIT_BOOL_PARSE(field)          cfg->field = string_to_bool(value)
+    #define INIT_VEC3_PARSE(field)          \
+        if (!parse_vec3d(value, &cfg->field)) { fprintf(stderr, "  Warning: Invalid vec3 '%s' for %s\n", value, #field); }
+    #define INIT_INT_ARRAY2_PARSE(field)    \
+        if (!parse_int_list(value, cfg->field, 2)) { fprintf(stderr, "  Warning: Invalid int list '%s' for %s\n", value, #field); }
+    #define INIT_STRING_PARSE(field)        \
+        do { \
+            if (value && strlen(value) > 0) { \
+                free(cfg->field); \
+                cfg->field = STRDUP(value); \
+            } \
+        } while(0)
+    #define INIT_SMART_ENUM_PARSE(field)    handle_##field(cfg, value)
+    #define INIT_NULL_PARSE(field)          /* skip */
+
+    #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) \
+        if (cfgKey && cfgKey[0] != '\0' && strcmp(name, cfgKey) == 0) { \
             if (strcmp(cfgKey, "Resolution") == 0 && *override_res) return 1; \
-            /* Enums (Disk/Sky Textures) */ \
-            if (strcmp(cfgKey, "Disktexture") == 0) { \
-                parse_smart_texture_config(&cfg->disk_texture_path, (int*)&cfg->disk_texture_mode, value, \
-                                           disk_texture_mode_names, sizeof(disk_texture_mode_names)/sizeof(char*), \
-                                           DEFAULT_DISK_TEXTURE_PATH, DT_TEXTURE); \
-                                           return 1; \
-                                           } \
-            if (strcmp(cfgKey, "Skytexture") == 0) { \
-                parse_smart_texture_config(&cfg->sky_texture_path, (int*)&cfg->sky_texture_mode, value, \
-                                           sky_texture_mode_names, sizeof(sky_texture_mode_names)/sizeof(char*), \
-                                           DEFAULT_SKY_TEXTURE_PATH, ST_TEXTURE); \
-                                           return 1; \
-                                           } \
-            /* Generic Types */              \
-            initMacro##_PARSE(fieldName);    \
+            initMacro##_PARSE(fieldName); \
             return 1; \
         }
 
-    // Map the INIT_ macros to parsing macros
-    #define INIT_INT_PARSE(f)        PARSE_INT(f)
-    #define INIT_DOUBLE_PARSE(f)     PARSE_DOUBLE(f)
-    #define INIT_BOOL_PARSE(f)       PARSE_BOOL(f)
-    #define INIT_VEC3_PARSE(f)       PARSE_VEC3(f)
-    #define INIT_INT_ARRAY2_PARSE(f) PARSE_INT_ARRAY2(f)
-    #define INIT_STRING_PARSE(f)     PARSE_STRING(f)
-    #define INIT_ENUM_PARSE(f)       /* Handled explicitly via parser or ignored if generic */
-    #define INIT_NULL_PARSE(f)       /* skip */
-
-    // Check Sections
+    // --- Section Routing ---
     bool is_lofi_hifi = (strcmp(section, "lofi") == 0 || strcmp(section, "hifi") == 0);
-    bool mode_match = (cfg->lofi && strcmp(section, "lofi") == 0) || (!cfg->lofi && strcmp(section, "hifi") == 0);
-
     if (is_lofi_hifi)
     {
-        if (!mode_match) return 1; // Wrong mode, skip
-        #define SEC_LOFIHIFI
-        #include "x_config_fields.h"
+        // Only parse if section matches current mode
+        if ((cfg->lofi && strcmp(section, "lofi") == 0) || (!cfg->lofi && strcmp(section, "hifi") == 0))
+        {
+            #define SEC_LOFIHIFI
+            #include "x_config_fields.h"
+        }
     }
     else if (strcmp(section, "geometry") == 0)
     {
@@ -222,18 +229,19 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
         #include "x_config_fields.h"
     }
 
-    // Cleanup macros
+    // Cleanup
     #undef FIELD_DEF
+
     #undef INIT_INT_PARSE
     #undef INIT_DOUBLE_PARSE
     #undef INIT_BOOL_PARSE
     #undef INIT_VEC3_PARSE
     #undef INIT_INT_ARRAY2_PARSE
     #undef INIT_STRING_PARSE
-    #undef INIT_ENUM_PARSE
+    #undef INIT_SMART_ENUM_PARSE
     #undef INIT_NULL_PARSE
 
-    // Unknown keys are just ignored with a warning (optional)
+    // Log unhandled keys
     // fprintf(stderr, "  Debug: Unhandled key '%s' in section [%s]\n", name, section);
     return 1;
 }
@@ -243,77 +251,107 @@ bool load_config(int argc, char *argv[], Config *cfg)
 {
     if (!cfg) { return false; }
 
-    // Initialize with defaults
-    #define INIT_STRING(fieldName, cfgKey, defLiteral) cfg->fieldName = STRDUP(defLiteral)
-    #define INIT_INT(fieldName, cfgKey, defLiteral)    cfg->fieldName = defLiteral
-    #define INIT_NULL   INIT_INT
-    #define INIT_ENUM   INIT_INT
-    #define INIT_DOUBLE INIT_INT
-    #define INIT_BOOL   INIT_INT
-    #define INIT_VEC3   INIT_INT
-    #define INIT_INT_ARRAY2(fieldName, cfgKey, defLiteral) \
-        do { cfg->fieldName[0] = defLiteral[0]; cfg->fieldName[1] = defLiteral[1]; } while(0)
+    // --- Initialize Defaults ---
+    #define INIT_INT_ARRAY2(fieldName, cfgKey, defLiteral)  do { cfg->fieldName[0] = defLiteral[0]; cfg->fieldName[1] = defLiteral[1]; } while(0)
+    #define INIT_STRING(fieldName, cfgKey, defLiteral)      cfg->fieldName = STRDUP(defLiteral)
+    #define INIT_INT(fieldName, cfgKey, defLiteral)         cfg->fieldName = defLiteral
+    #define INIT_NULL           INIT_INT
+    #define INIT_SMART_ENUM     INIT_INT
+    #define INIT_DOUBLE         INIT_INT
+    #define INIT_BOOL           INIT_INT
+    #define INIT_VEC3           INIT_INT
 
     #define FIELD_DEF(fieldName, cfgKey, initMacro, defLiteral) initMacro(fieldName, cfgKey, defLiteral)
-
     #define SEC_ALL
     #include "x_config_fields.h"
+    #undef FIELD_DEF
 
     // Sanity check allocations
     if (!cfg->disk_texture_path || !cfg->sky_texture_path || !cfg->blackbody_ramp_path)
     {
-        fprintf(stderr, "Error: Memory allocation failed for default paths.\n");
+        fprintf(stderr, "!Error: Memory allocation failed for default paths.\n");
         free_config_textures(cfg);
         return false;
     }
 
-    const char *scene_filename = DEFAULT_SCENE_FILENAME;
+    const char *scene_filename = NULL; // Will be set from args or default
     bool override_res = false;
 
-    // Command line arguments parsing
+    // --- Parse Command Line Arguments ---
     printf("Parsing command line arguments...\n");
     for (int i = 1; i < argc; ++i)
     {
-        if (strcmp(argv[i], "-d") == 0)
+        const char *arg = argv[i];
+
+        // Scene Filename
+        if (arg[0] != '-')
+        {
+            scene_filename = arg;
+            continue;
+        }
+
+        // Options
+        if (strcmp(arg, "-d") == 0)
         {
             cfg->lofi = true;
             printf("  Found -d: Enabling Lo-Fi mode defaults\n");
         }
-        else if (strncmp(argv[i], "-c", 2) == 0 && isdigit((unsigned char)argv[i][2]))
+        else if (strncmp(arg, "-c", 2) == 0)
         {
-            cfg->chunk_size = atoi(argv[i] + 2);
+            int val = parse_positive_int_arg("-c", arg + 2);
+            if (val > 0)
+            {
+                printf("  Found -c: Setting chunk size to %d (default: %d)\n", val, cfg->chunk_size);
+                cfg->chunk_size = val;
+            }
+            else return false;
         }
-        else if (strncmp(argv[i], "-j", 2) == 0 && isdigit((unsigned char)argv[i][2]))
+        else if (strncmp(arg, "-j", 2) == 0)
         {
-            cfg->n_threads = atoi(argv[i] + 2);
+            int val = parse_positive_int_arg("-j", arg + 2);
+            if (val > 0)
+            {
+                printf("  Found -j: Setting threads number to %d (default: %d)\n", val, cfg->n_threads);
+                cfg->n_threads = val;
+            }
+            else return false;
         }
-        else if (strncmp(argv[i], "-r", 2) == 0)
+        else if (strncmp(arg, "-r", 2) == 0)
         {
-            if (parse_resolution(argv[i] + 2, cfg->resolution)) { override_res = true; }
+            if (parse_resolution(arg + 2, cfg->resolution))
+            {
+                override_res = true;
+                printf("  Found -r: Setting resolution to %dx%d\n", cfg->resolution[0], cfg->resolution[1]);
+            }
             else
             {
-                fprintf(stderr, "Error: Invalid resolution format in '%s'. Use WxH (e.g., -r640x480).\n", argv[i]);
+                fprintf(stderr, "! Error: Invalid resolution format in '%s'. Use -rWxH with positive integers.\n", arg);
                 return false;
             }
         }
-        else if (argv[i][0] != '-')
+        else
         {
-            scene_filename = argv[i];
-            printf("  Found scene file argument: %s\n", scene_filename);
+            fprintf(stderr, "  Warning: Unknown option '%s'\n", arg);
         }
     }
 
-    // Load Scene File Info
+    // --- Setup Scene File ---
+    printf("Setting up scene...\n");
+    if (!scene_filename)
+    {
+        printf("  No scene file specified, using default: %s\n", DEFAULT_SCENE_PATH);
+        scene_filename = DEFAULT_SCENE_PATH;
+    }
+
     if (ACCESS(scene_filename, F_OK) == -1)
     {
-        fprintf(stderr, "Error: Scene file \"%s\" not found.\n", scene_filename);
+        fprintf(stderr, "! Error: Scene file \"%s\" not found.\n", scene_filename);
         return false;
     }
 
     free(cfg->scene_file_path);
     cfg->scene_file_path = STRDUP(scene_filename);
 
-    // Extract base name
     const char *p = strrchr(scene_filename, '/');
 #ifdef _WIN32
     if (!p) p = strrchr(scene_filename, '\\');
@@ -324,9 +362,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
     char *dot = strrchr(cfg->scene_base_name, '.');
     if (dot && STRCASECMP(dot, ".scene") == 0) *dot = '\0';
 
-    printf("  Using scene file: %s\n", cfg->scene_file_path);
-
-    // Parse INI File
+    // --- Parse INI ---
+    printf("Parsing scene file '%s'...\n", cfg->scene_file_path);
     IniParseUserData user_data = {cfg, &override_res};
     if (ini_parse(cfg->scene_file_path, scene_ini_callback, &user_data) < 0)
     {
@@ -334,10 +371,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
         free_config_textures(cfg);
         return false;
     }
-    printf("  Finished parsing INI file.\n");
 
-    // Post-Processing / Loading Resources
-    // Load Disk/Sky Textures
+    // --- Load Resources ---
+    printf("Loading resources...\n");
+    // Disk Texture
     if (cfg->disk_texture_mode == DT_TEXTURE)
     {
         if (cfg->disk_texture_path)
@@ -345,9 +382,10 @@ bool load_config(int argc, char *argv[], Config *cfg)
             printf("  Loading disk texture: %s\n", cfg->disk_texture_path);
             cfg->disk_texture = load_texture(cfg->disk_texture_path);
         }
-        else fprintf(stderr, "  Warning: Disk texture mode is TEXTURE, but no path configured.\n");
+        else fprintf(stderr, "  Warning: Disk mode is TEXTURE, but no path configured.\n");
     }
 
+    // Sky Texture
     Texture *original_sky_texture = NULL;
     if (cfg->sky_texture_mode == ST_TEXTURE)
     {
@@ -356,19 +394,19 @@ bool load_config(int argc, char *argv[], Config *cfg)
             printf("  Loading sky texture: %s\n", cfg->sky_texture_path);
             original_sky_texture = load_texture(cfg->sky_texture_path);
         }
-        else fprintf(stderr, "  Warning: Sky texture mode is TEXTURE, but no path configured.\n");
+        else fprintf(stderr, "  Warning: Sky mode is TEXTURE, but no path configured.\n");
     }
 
-    // Resize Sky Texture Logic
+    // Resize Sky Texture for HiFi mode
     if (!cfg->lofi && original_sky_texture)
     {
-        printf("  HiFi mode: Resizing sky texture...\n");
+        printf("    HiFi mode: Resizing sky texture...\n");
         cfg->sky_texture = resize_texture(original_sky_texture, 2.0f);
         if (cfg->sky_texture) free_texture(original_sky_texture);
         else
         {
             cfg->sky_texture = original_sky_texture; // Fallback
-            fprintf(stderr, "  Warning: Resize failed, using original.\n");
+            fprintf(stderr, "    Warning: Resize failed, using original.\n");
         }
     }
     else
@@ -376,12 +414,11 @@ bool load_config(int argc, char *argv[], Config *cfg)
         cfg->sky_texture = original_sky_texture;
     }
 
-    // Load Blackbody Ramp
+    // Blackbody Ramp
     if (cfg->disk_texture_mode == DT_BLACKBODY)
     {
         if (!cfg->blackbody_ramp_path) cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
-
-        printf("Loading blackbody ramp: %s...\n", cfg->blackbody_ramp_path);
+        printf("  Loading blackbody ramp: %s...\n", cfg->blackbody_ramp_path);
         if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size))
         {
             fprintf(stderr, "! Error: Failed to load blackbody ramp.\n");
@@ -390,24 +427,16 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
     }
 
-    // Adjust SSAA level based on LoFi/HiFi mode
-    if (cfg->lofi && cfg->ssaa_level > 1)
-    {
-        printf("Adjusting SSAA level based on mode...\n");
-        printf("  LoFi mode: Setting SSAA level to 1.\n");
-        cfg->ssaa_level = 1;
-    }
-
-    // Compute Derived & Validate
+    // --- Compute Derived & Validate ---
+    printf("Computing derived values...\n");
     compute_derived_config(cfg);
     if (vec3d_norm(cfg->camera_pos) <= 1.0)
     {
-        fprintf(stderr, "! Error: Observer is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
+        fprintf(stderr, "! Error: Camera is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
         free_config_textures(cfg);
         return false;
     }
 
-    // TODO: Print final config summary?
     return true;
 }
 
@@ -431,52 +460,15 @@ void compute_derived_config(Config *cfg)
 // Free allocated resources
 void free_config_textures(Config *cfg)
 {
-    if (cfg->disk_texture)
-    {
-        free_texture(cfg->disk_texture);
-        cfg->disk_texture = NULL;
-    }
+    if (cfg->disk_texture) { free_texture(cfg->disk_texture); cfg->disk_texture = NULL; }
+    if (cfg->sky_texture)  { free_texture(cfg->sky_texture);  cfg->sky_texture = NULL; }
 
-    if (cfg->sky_texture)
-    {
-        free_texture(cfg->sky_texture);
-        cfg->sky_texture = NULL;
-    }
+    if (cfg->disk_texture_path) { free(cfg->disk_texture_path); cfg->disk_texture_path = NULL; }
+    if (cfg->sky_texture_path)  { free(cfg->sky_texture_path);  cfg->sky_texture_path = NULL; }
+    if (cfg->blackbody_ramp_path) { free(cfg->blackbody_ramp_path); cfg->blackbody_ramp_path = NULL; }
 
-    if (cfg->disk_texture_path)
-    {
-        free(cfg->disk_texture_path);
-        cfg->disk_texture_path = NULL;
-    }
+    if (cfg->blackbody_ramp_data) { free(cfg->blackbody_ramp_data); cfg->blackbody_ramp_data = NULL; }
 
-    if (cfg->sky_texture_path)
-    {
-        free(cfg->sky_texture_path);
-        cfg->sky_texture_path = NULL;
-    }
-
-    if (cfg->blackbody_ramp_path)
-    {
-        free(cfg->blackbody_ramp_path);
-        cfg->blackbody_ramp_path = NULL;
-    }
-
-    if (cfg->blackbody_ramp_data)
-    {
-        free(cfg->blackbody_ramp_data);
-        cfg->blackbody_ramp_data = NULL;
-        cfg->blackbody_ramp_size = 0;
-    }
-
-    if (cfg->scene_file_path)
-    {
-        free(cfg->scene_file_path);
-        cfg->scene_file_path = NULL;
-    }
-
-    if (cfg->scene_base_name)
-    {
-        free(cfg->scene_base_name);
-        cfg->scene_base_name = NULL;
-    }
+    if (cfg->scene_file_path) { free(cfg->scene_file_path); cfg->scene_file_path = NULL; }
+    if (cfg->scene_base_name) { free(cfg->scene_base_name); cfg->scene_base_name = NULL; }
 }
