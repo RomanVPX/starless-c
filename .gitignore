@@ -56,3 +56,4 @@ _replies
 .venv/
 out/**
 tests/**
+build/
