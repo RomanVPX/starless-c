@@ -1,11 +1,23 @@
+ASSETS = blackbody_ramp docs scenes textures README.md
+
 ifeq ($(OS),Windows_NT)
 	MKDIR = powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
 	RMDIR = powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)' }"
+
+	MKDESTDIR = powershell -Command "if (!(Test-Path '$(DESTDIR)')) { New-Item -ItemType Directory -Path '$(DESTDIR)' }"
+	COPY_ASSETS_CMD = powershell -Command "Copy-Item -Path ('$(ASSETS)'.Split(' ')) -Destination '$(DESTDIR)' -Recurse -Force"
+	COPY_BIN_CMD = powershell -Command "Copy-Item -Path '$(TARGET)' -Destination '$(DESTDIR)' -Force"
+
 	EXECUTABLE_EXTENSION=.exe
 	LIBS=
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
+
+	MKDESTDIR = mkdir -p $(DESTDIR)
+	COPY_ASSETS_CMD = cp -r $(ASSETS) $(DESTDIR)/
+	COPY_BIN_CMD = cp $(TARGET) $(DESTDIR)/
+
 	EXECUTABLE_EXTENSION=
 	LIBS=-lm -lpthread
 endif
@@ -14,7 +26,7 @@ endif
 CC = clang
 
 ifeq ($(RELEASE),1)
-    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -march=native
+    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3
 else
     CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native
 endif
@@ -37,7 +49,7 @@ SRCS = $(SRCDIR)/main.c $(SRCDIR)/tracer.c $(SRCDIR)/vector.c $(SRCDIR)/color.c 
 # Object files (in build directory)
 OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
-# Executable name
+# Path to the executable
 TARGET = $(BUILDDIR)/blackhole_tracer$(EXECUTABLE_EXTENSION)
 
 # Default target
@@ -55,8 +67,16 @@ $(TARGET): $(OBJS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/*.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
+install:
+ifndef DESTDIR
+	$(error DESTDIR is undefined)
+endif
+	$(MKDESTDIR)
+	$(COPY_ASSETS_CMD)
+	$(COPY_BIN_CMD)
+
 # Clean up build files
 clean:
 	$(RMDIR)
 
-.PHONY: all clean
+.PHONY: all clean install

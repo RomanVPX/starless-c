@@ -52,37 +52,34 @@ jobs:
       - name: Build project
         run: make RELEASE=1
 
-      - name: Prepare staging directory and define archive names
+      - name: Define archive names
+        shell: bash
+        id: archive_names
+        run: |
+          echo "basename=starless-c-${{ matrix.artifact_suffix }}" >> $GITHUB_OUTPUT
+          echo "full_name=starless-c-${{ matrix.artifact_suffix }}.${{ matrix.archive_extension }}" >> $GITHUB_OUTPUT
+
+      - name: Install assets
         shell: bash
         run: |
-          ARCH_NAME="starless-c-${{ matrix.artifact_suffix }}"
-          ARCH_FILE="${ARCH_NAME}.${{ matrix.archive_extension }}"
-          echo "ARCHIVE_BASENAME=${ARCH_NAME}" >> $GITHUB_ENV
-          echo "ARCHIVE_FULL_NAME=${ARCH_FILE}" >> $GITHUB_ENV
-          
-          mkdir -p staging_area/${ARCH_NAME}
-          echo "Copying common assets..."
-          cp -r blackbody_ramp docs scenes textures README.md staging_area/${ARCH_NAME}/
-          echo "Copying binary: build/${{ matrix.binary_name }} to staging_area/${ARCH_NAME}/"
-          cp build/${{ matrix.binary_name }} staging_area/${ARCH_NAME}/
+          make install DESTDIR="staging_area/${{ steps.archive_names.outputs.basename }}"
 
       - name: Create archive
         shell: bash
         run: |
-          cd staging_area/${{ env.ARCHIVE_BASENAME }}
+          cd staging_area/${{ steps.archive_names.outputs.basename }}
           if [ "${{ matrix.archive_extension }}" == "tar.gz" ]; then
-            tar -czvf ../../${{ env.ARCHIVE_FULL_NAME }} .
+            tar -czvf ../../${{ steps.archive_names.outputs.full_name }} .
           elif [ "${{ matrix.archive_extension }}" == "zip" ]; then
-            # PowerShell для создания ZIP из содержимого текущей папки
-            pwsh -Command "Compress-Archive -Path '*' -DestinationPath '../../${{ env.ARCHIVE_FULL_NAME }}' -Force"
+            pwsh -Command "Compress-Archive -Path '*' -DestinationPath '../../${{ steps.archive_names.outputs.full_name }}' -Force"
           fi
-          cd ../.. 
-        
+          cd ../..
+
       - name: Upload build artifact (archive)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARCHIVE_BASENAME }}
-          path: ${{ env.ARCHIVE_FULL_NAME }}
+          name: ${{ steps.archive_names.outputs.basename }}
+          path: ${{ steps.archive_names.outputs.full_name }}
 
   create_release:
     needs: build_and_package
@@ -106,11 +103,11 @@ jobs:
           configuration: .github/changelog-configuration.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: false
+          generate_release_notes: true
           draft: true
           body: ${{ steps.changelog.outputs.changelog }}
           # prerelease: false
@@ -120,4 +117,3 @@ jobs:
             downloaded-artifacts/starless-c-windows-amd64/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
