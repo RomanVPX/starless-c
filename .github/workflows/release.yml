@@ -49,9 +49,6 @@ jobs:
         if: matrix.runner_os == 'windows-latest'
         run: choco install make
 
-      - name: Build project
-        run: make RELEASE=1
-
       - name: Define archive names
         shell: bash
         id: archive_names
@@ -59,10 +56,10 @@ jobs:
           echo "basename=starless-c-${{ matrix.artifact_suffix }}" >> $GITHUB_OUTPUT
           echo "full_name=starless-c-${{ matrix.artifact_suffix }}.${{ matrix.archive_extension }}" >> $GITHUB_OUTPUT
 
-      - name: Install assets
+      - name: Build and stage
         shell: bash
         run: |
-          make install DESTDIR="staging_area/${{ steps.archive_names.outputs.basename }}"
+          make install RELEASE=1 DESTDIR="staging_area/${{ steps.archive_names.outputs.basename }}"
 
       - name: Create archive
         shell: bash
