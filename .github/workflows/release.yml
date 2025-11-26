@@ -27,7 +27,6 @@ jobs:
             artifact_suffix: windows-amd64
             binary_name: blackhole_tracer.exe
             archive_extension: zip
-
     runs-on: ${{ matrix.runner_os }}
     name: Build on ${{ matrix.os_display_name }}
 
@@ -54,7 +53,7 @@ jobs:
         id: archive_names
         run: |
           echo "basename=starless-c-${{ matrix.artifact_suffix }}" >> $GITHUB_OUTPUT
-          echo "full_name=starless-c-${{ matrix.artifact_suffix }}.${{ matrix.archive_extension }}" >> $GITHUB_OUTPUT
+          echo "full_name=starless-c-${{ matrix.artifact_suffix }}-${{ github.ref_name }}.${{ matrix.archive_extension }}" >> $GITHUB_OUTPUT
 
       - name: Build and stage
         shell: bash
@@ -81,6 +80,7 @@ jobs:
   create_release:
     needs: build_and_package
     runs-on: ubuntu-latest
+    name: Create release
     permissions:
       contents: write
 
