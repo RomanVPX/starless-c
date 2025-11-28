@@ -331,7 +331,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
         }
         else
         {
-            fprintf(stderr, "  Warning: Unknown option '%s'\n", arg);
+            fprintf(stderr, "  Warning: Unknown option '%s', ignored.\n", arg);
         }
     }
 
