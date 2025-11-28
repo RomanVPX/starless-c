@@ -10,8 +10,19 @@
 #endif
 
 
-#define SHAKURA_SUNYAEV_TEMP_EXP 0.375          // Exponent for temperature profile T(r) ∝ r^{-3/8} in Shakura-Sunyaev disk model
-#define LOGSHIFT                 0.823959216501 // Logarithmic shift for temperature (see original Starless, blackbody.c)
+// Accretion disk temperature profile in Shakura-Sunyaev disk model: T(r) ∝ r^(-3/4) (or T(r) = const * r^(-3/4))
+// Taking the logarithm of both sides: ln(T) = ln(const * r^(-3/4)) = ln(const) - (3/4) * ln(r)
+// We are using squared radius, the logarithm of the radius squared is: ln(r^2) = 2 * ln(r), so ln(r) = (1/2) * ln(r^2)
+// Substituting: ln(T) = ln(const) - (3/4) * (1/2) * ln(r^2) = ln(const) - (3/8) * ln(r^2)
+// 3/8 = 0.375, THERE IS NO MAGIC IN THIS MAGIC NUMBER!
+#define SHAKURA_SUNYAEV_TEMP_EXP_FOR_SQURED_RADIUS 0.375
+
+// The ISCO radius: rISCO = 6M, where M is the mass of the black hole.
+// In terms of the Schwarzschild radius rS = 2M, this can be written as: rISCO = 3 * rS
+// Let's put ISCO radius in T(r) = const * r^(-3/4) to express our T0:
+// T0 = const * 3^(3/4), so const = T0 * 3^(-3/4), and ln(const) = ln(T0) + ln(3^(3/4)) = ln(T0) + 3/4 * ln(3)
+// ln(T0) + 3/4 * ln(3) = ln(T0) + 0.823959216501 — this is our LOGSHIFT
+#define LOGSHIFT 0.823959216501
 
 // Should match values in ramp file:
 #define RAMP_TEMP_MIN            1000.0  // Minimum temperature for blackbody ramp (K)
@@ -109,11 +120,12 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
 
 // --- Temperature calculation function (no change) ---
+// log_T0_isco is ln of temperature (K) of accretion disk at ISCO
 double bb_log_temperature(double sqr_radius, double log_T0_isco)
 {
     if (sqr_radius <= 0) { return -INFINITY; }
     double A = log_T0_isco + LOGSHIFT;
-    return A - SHAKURA_SUNYAEV_TEMP_EXP * log(sqr_radius);
+    return A - SHAKURA_SUNYAEV_TEMP_EXP_FOR_SQURED_RADIUS * log(sqr_radius);
 }
 
 
