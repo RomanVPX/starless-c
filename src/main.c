@@ -29,12 +29,10 @@
     #define STRDUP strdup
 #endif
 
-#define STRCPY(dest, src, size) snprintf(dest, size, "%s", src)
-
 
 int main(int argc, char *argv[])
 {
-    printf("Black Hole Tracer (C Version) - Starting...\n");
+    printf("Starless-C Black Hole Tracer - Starting...\n");
 
     Config config; // Will hold all settings
 
