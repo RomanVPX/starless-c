@@ -8,98 +8,145 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 
 ## Core Features (Many Ported from Original)
 
-*   Full geodesic raytracing in Schwarzschild geometry.
-*   Accretion disk rendering with alpha-blending.
-*   Optional blackbody mode for the accretion disk, including realistic redshift effects (Doppler + gravitational).
-*   Distortion of the background sky.
-*   Dust rendering (ported from the original).
-*   Post-processing effects:
-    *   Airy Disk bloom (ported from the original, for physically-based diffraction bloom).
-    *   Bloom (Gaussian blur-based, ported from the original).
-*   Multi-threaded rendering for performance.
-*   Compatibility with the original `.scene` file format.
+* Full geodesic raytracing in Schwarzschild geometry.
+* Accretion disk rendering with alpha-blending.
+* Optional blackbody mode for the accretion disk, including realistic redshift effects (Doppler + gravitational).
+* Distortion of the background sky.
+* Dust rendering (ported from the original).
+* Post-processing effects:
+  * Airy Disk bloom (ported from the original, for physically-based diffraction bloom).
+  * Bloom (Gaussian blur-based, ported from the original).
+* Multi-threaded rendering for performance.
+* Compatibility with the original `.scene` file format.
 
 **Core Changes & Improvements:**
 
-*   **Performance:** While the original Python version also utilized multiprocessing, this C implementation is inherently significantly faster due to the language choice, offering substantial reductions in rendering times.
-*   **Cross-Platform Builds:** GitHub Actions automatically build and test the tracer on Windows, macOS, and Linux.
-*   **Blackbody LUT Generation:** Includes a Python script to generate high-precision textual Look-Up Tables (LUTs) for blackbody radiation colors over an arbitrary temperature range. The script also outputs a visual representation of the ramp.
-*   **Blackbody Rendering:** The blackbody temperature calculation logic has been updated to use these new LUTs, aiming for results comportementally close to the original when using the same temperature range.
-*   **Blending Modes:** The blending for the accretion disk has been revised for more standard alpha blending (Porter-Duff "over" operator). The original blending behavior can be enabled via a compile-time define for comparison.
-*   **Disk Alpha Calculation:** The method for calculating disk alpha in Blackbody mode has been refined for better control over edge falloff. The original behavior can also be enabled via a define.
-*   **PNG Metadata:** The rendered PNG images now embed configuration parameters used for the render.
+* **Performance:** While the original Python version also utilized multiprocessing, this C implementation is inherently significantly faster due to the language choice, offering substantial reductions in rendering times.
+* **Cross-Platform Builds:** GitHub Actions automatically build and test the tracer on Windows, macOS, and Linux.
+* **Blackbody LUT Generation:** Includes a Python script to generate high-precision textual Look-Up Tables (LUTs) for blackbody radiation colors over an arbitrary temperature range. The script also outputs a visual representation of the ramp.
+* **Blackbody Rendering:** The blackbody temperature calculation logic has been updated to use these new LUTs, aiming for results comportementally close to the original when using the same temperature range.
+* **Blending Modes:** The blending for the accretion disk has been revised for more standard alpha blending (Porter-Duff "over" operator). The original blending behavior can be enabled via a compile-time define for comparison.
+* **Disk Alpha Calculation:** The method for calculating disk alpha in Blackbody mode has been refined for better control over edge falloff. The original behavior can also be enabled via a define.
+* **PNG Metadata:** The rendered PNG images now embed configuration parameters used for the render.
 
 **New Rendering Features:**
 
-*   **ACES Tonemapping:** Added ACES (Academy Color Encoding System) filmic tonemapping for improved HDR to LDR conversion, providing more cinematic and perceptually accurate results.
-*   **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere.
-*   **Procedural Disk Structures:** Added an option to procedurally generate structures (rings, spirals, variations) within the accretion disk in Blackbody mode. This enhances visual detail and helps in understanding the disk's geometry without relying on a texture.
-*   **Flexible Textures:** Sky and disk textures are no longer hardcoded and can be specified in scene files.
+* **ACES Tonemapping:** Added ACES (Academy Color Encoding System) filmic tonemapping for improved HDR to LDR conversion, providing more cinematic and perceptually accurate results.
+* **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere.
+* **Procedural Disk Structures:** Added an option to procedurally generate structures (rings, spirals, variations) within the accretion disk in Blackbody mode. This enhances visual detail and helps in understanding the disk's geometry without relying on a texture.
+* **Flexible Textures:** Sky and disk textures are no longer hardcoded and can be specified in scene files.
 
 **Compatibility & Included Assets:**
 
-*   Maintains backward compatibility with the original `.scene` file format.
-*   All original scenes from `rantonels/starless` are included in the `scenes/original/` directory for testing and comparison.
-*   Original textures (`adisk.jpg`, `bgedit.png`) from `rantonels/starless` are also included in `textures/` for reproducibility. Their original licenses are as per the `rantonels/starless` repository. `bgedit.png` appears to be a modified version of a NASA starmap.
-*   Some new scenes (in `scenes/new/`) utilize an 8K Milky Way panorama texture (`textures/starmap_2020_8k.png`) sourced from NASA's Scientific Visualization Studio (converted from original EXR to PNG).
+* Maintains backward compatibility with the original `.scene` file format.
+* All original scenes from `rantonels/starless` are included in the `scenes/original/` directory for testing and comparison.
+* Original textures (`adisk.jpg`, `bgedit.png`) from `rantonels/starless` are also included in `textures/` for reproducibility. Their original licenses are as per the `rantonels/starless` repository. `bgedit.png` appears to be a modified version of a NASA starmap.
+* Some new scenes (in `scenes/new/`) utilize an 8K Milky Way panorama texture (`textures/starmap_2020_8k.png`) sourced from NASA's Scientific Visualization Studio (converted from original EXR to PNG).
 
 **Features from Original Not (Yet) Implemented in Starless-C:**
 
-*   **Real-time Preview / Dynamic Chunking:** The original Python version had features for a more progressive/shuffled render preview and potentially dynamic chunk re-assignment to free processes. This C port currently uses a simpler static chunk distribution.
-*   **Matplotlib Scene Visualization:** The original could generate a Matplotlib diagram of the scene setup. This is not part of the C port.
-*   **Intermediate Image Outputs:** The original project saved several intermediate images during different rendering stages (e.g., pre-postprocessing). This C port currently outputs only the final processed image.
-
-## Building
-
-For now, check the GitHub Actions workflow for build steps.
+* **Real-time Preview / Dynamic Chunking:** The original Python version had features for a more progressive/shuffled render preview and potentially dynamic chunk re-assignment to free processes. This C port currently uses a simpler static chunk distribution.
+* **Matplotlib Scene Visualization:** The original could generate a Matplotlib diagram of the scene setup. This is not part of the C port.
+* **Intermediate Image Outputs:** The original project saved several intermediate images during different rendering stages (e.g., pre-postprocessing). This C port currently outputs only the final processed image.
 
 ## Usage
 
+1. Download the pre-built binary for your platform from the [latest release page](https://github.com/RomanVPX/starless-c/releases/latest).
+2. Extract the archive to a directory of your choice.
+3. Open a terminal (macOS/Linux) or Command Prompt / PowerShell (Windows).
+4. Navigate to the directory where you extracted the binary.
+5. Run the tracer from the command line.
+
+### Command Syntax
+
+*macOS / Linux:*
+
 ```bash
-./starless_tracer [options] [scene_file.scene]
+./blackhole_tracer [options] [scene_file.scene]
 ```
 
-**Examples:**
+*Windows (Command Prompt or PowerShell):*
 
-To render a scene:
-```bash
-./starless_tracer scenes/new/default_blackbody.scene
+```powershell
+blackhole_tracer.exe [options] [scene_file.scene]
 ```
-This command should produce a .png image similar to this in the `out/` directory:
+
+**Command line options:**
+
+* `-d` - Use the `[lofi]` section from the scene file.
+* `-c` - Set the chunk size.
+* `-j` - Set the number of threads.
+* `-r` - Set the resolution override.
+
+### Examples
+
+**Render a scene:**
+
+*macOS / Linux:*
+
+```bash
+./blackhole_tracer scenes/new/default_blackbody.scene
+```
+
+*Windows:*
+
+```powershell
+blackhole_tracer.exe scenes\new\default_blackbody.scene
+```
+
+This command should produce a .png image similar to this in the `out` directory:
 
 ![Render of the default_blackbody.scene](docs/default_blackbody_(H)_001.jpg)
 
-To render in "lo-fi" mode (uses the [lofi] section from the scene file):
+**Render in "lo-fi" mode** (uses the `[lofi]` section from the scene file):
+
+*macOS / Linux:*
+
 ```bash
-./starless_tracer -d scenes/original/default_blackbody.scene
+./blackhole_tracer -d scenes/original/default_blackbody.scene
 ```
 
-## Key Differences from the Original Python Version Summarized:
+*Windows:*
 
-*   **Language & Performance:** C vs. Python/NumPy, resulting in significant speed-ups.
-*   **Blackbody Color Source:** Textual LUT generated via Python script vs. hardcoded image ramp.
-*   **Tonemapping:** ACES added.
-*   **Anti-Aliasing:** SSAA added.
-*   **Disk Detail:** Procedural disk structures added.
-*   **Dependencies:** Fewer runtime dependencies (no Python, NumPy, PIL, Matplotlib needed for the core tracer).
-*   **Render Preview:** The current C version has a more basic progressive rendering output per thread compared to the potentially more dynamic preview of the original.
-*   **Metadata Storage:** This C version saves configuration into PNG metadata.
+```powershell
+blackhole_tracer.exe -d scenes\original\default_blackbody.scene
+```
+
+### Scene file format
+
+The `.scene` file format is a simple INI-style configuration file that defines the parameters for rendering a black hole scene. It extends the original `.scene` file format from the Starless Python project with some additional parameters. See [default_values.scene](scenes/new/default_values.scene) for a list of all available parameters, their descriptions, and their default values.
+
+## Building from Source
+
+* Clone the repository.
+* Install make if it's not already installed.
+* Run `make` or `make RELEASE=1` to build the binary.
+* The binary will be in the `build/debug` or `build/release` directory.
+
+## Key Differences from the Original Python Version Summarized
+
+* **Language & Performance:** C vs. Python/NumPy, resulting in significant speed-ups.
+* **Blackbody Color Source:** Textual LUT generated via Python script vs. hardcoded image ramp.
+* **Tonemapping:** ACES added.
+* **Anti-Aliasing:** SSAA added.
+* **Disk Detail:** Procedural disk structures added.
+* **Dependencies:** Fewer runtime dependencies (no Python, NumPy, PIL, Matplotlib needed for the core tracer).
+* **Render Preview:** The current C version has a more basic progressive rendering output per thread compared to the potentially more dynamic preview of the original.
+* **Metadata Storage:** This C version saves configuration into PNG metadata.
 
 ## TODO / Future Work
 
-*   Optionally implement saving of intermediate rendering stages.
-*   Improve PNG metadata storage (store enums, do something to have tags sorted in some way).
-*   Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
-*   Investigate more sophisticated procedural noise/turbulence for disk structures.
-*   Further performance optimizations (e.g., SIMD, Airy bloom optimization).
+* Optionally implement saving of intermediate rendering stages.
+* Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
+* Investigate more sophisticated procedural noise/turbulence for disk structures.
+* Further performance optimizations (e.g., SIMD, Airy bloom optimization).
 
 ## Acknowledgements
 
-*   **Riccardo Antonelli ([rantonels](https://github.com/rantonels))** for creating the original "Starless" and for the insightful [article](http://rantonels.github.io/starless/) explaining the physics and implementation details. This C port would not exist without his foundational work.
-*   **stb_image, stb_image_write_ext, stb_image_resize** by Sean Barrett and contributors for image loading, saving, and resizing.
-*   **inih (INI Parser)** by Ben Hoyt for INI file parsing.
-*   **NASA/Goddard Space Flight Center Scientific Visualization Studio** for the Milky Way panorama texture used in some example scenes.
-
+* **Riccardo Antonelli ([rantonels](https://github.com/rantonels))** for creating the original "Starless" and for the insightful [article](http://rantonels.github.io/starless/) explaining the physics and implementation details. This C port would not exist without his foundational work.
+* **stb_image, stb_image_write_ext, stb_image_resize** by Sean Barrett and contributors for image loading, saving, and resizing.
+* **inih (INI Parser)** by Ben Hoyt for INI file parsing.
+* **NASA/Goddard Space Flight Center Scientific Visualization Studio** for the Milky Way panorama texture used in some example scenes.
 
 ## License
 
