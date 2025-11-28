@@ -112,6 +112,10 @@ This command should produce a .png image similar to this in the `out` directory:
 blackhole_tracer.exe -d scenes\original\default_blackbody.scene
 ```
 
+### Scene file format
+
+The `.scene` file format is a simple INI-style configuration file that defines the parameters for rendering a black hole scene. It extends the original `.scene` file format from the Starless Python project with some additional parameters. See [default_values.scene](scenes/new/default_values.scene) for a list of all available parameters, their descriptions, and their default values.
+
 ## Building from Source
 
 * Clone the repository.
@@ -133,7 +137,6 @@ blackhole_tracer.exe -d scenes\original\default_blackbody.scene
 ## TODO / Future Work
 
 * Optionally implement saving of intermediate rendering stages.
-* Improve PNG metadata storage (store enums, do something to have tags sorted in some way).
 * Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
 * Investigate more sophisticated procedural noise/turbulence for disk structures.
 * Further performance optimizations (e.g., SIMD, Airy bloom optimization).
