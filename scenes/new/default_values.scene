@@ -1,7 +1,7 @@
 # Default Starless-C .scene file
 
 # NOTES:
-# - Values present here are NOT default values, they are just examples, see default_values.scene for default values
+# - All values present here are default values, which are used when the corresponding field is not present in the file
 # - All boolean (bool) fields accept "true" or "false" as well as 1 or 0
 # - All numeric fields accept both integer and floating point values
 
@@ -9,23 +9,23 @@
 # this settings apply when rendering with the -d option
 [lofi]
 # Output resolution
-Resolution=640,360
+Resolution=640,480
 # Super Sampling Anti Aliasing level, 1 = no SSAA, 2 = 2x2 SSAA, 3 = 3x3 SSAA, etc.
-SSAA=1
+SSAA=2
 
 # Number of raytracing steps
-Iterations=250
+Iterations=1000
 # Size of integration step
-Stepsize=0.16
+Stepsize=0.02
 
 
 # Full render options
 # apply when rendering without the -d option
 [hifi]
-Resolution=1280,720
-SSAA=3
-Iterations=250
-Stepsize=0.16
+Resolution=640,480
+SSAA=2
+Iterations=1000
+Stepsize=0.02
 
 # From now on, settings apply to both tests and full renders
 
@@ -33,7 +33,7 @@ Stepsize=0.16
 
 # Position of the camera in units of r_S
 # x,z are the disc's plane
-Cameraposition=0.0,1.0,-20.0
+Cameraposition=0.0,1.0,-10.0
 
 # Tangent of field of view
 Fieldofview=1.5
@@ -43,11 +43,11 @@ Lookat=0.0,0.0,0.0
 
 # The vector defining the "up" direction
 # (it's actually projected on the orthogonal subspace to the view vector)
-Upvector=0.2,1.0,0.0
+Upvector=0.0,1.0,0.0
 
 # Disc inner/outer radii
-Diskinner=2.6
-Diskouter=14.0
+Diskinner=1.5
+Diskouter=4.0
 
 # Enable gravitational lensing distortion (bool)
 Distort=true
@@ -61,7 +61,7 @@ sRGBIn=true
 sRGBOut=true
 
 # Whether to draw a grid on the horizon (bool)
-Horizongrid=false
+Horizongrid=true
 
 # Disk rendering mode
 #   none:       don't draw
@@ -70,40 +70,40 @@ Horizongrid=false
 #   solid:      draw solid white
 #   blackbody:  use the realistic 'blackbody' model
 #   <path>:     use texture <path>
-Disktexture=blackbody
+Disktexture=none
 
 # -- blackbody disc options --
 # these options are ignored when Disktexture != blackbody
 
-# Redshift multiplier. Any value <= 0.0 disables redshift
-Redshift=1.2
+# Redshift multiplier. Any value <= 0.0 disables redshift.
+Redshift=1.0
 
 # Whether to apply disk intensity multiplier (bool)
 Diskintensitydo=true
 # Multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=250.0
+Diskmultiplier=100.0
 
 # Disk structure for blackbody (no physical meaning, just for beautification and artistic effect)
 # Add structure to the blackbody disk (bool):
-Diskaddstructure=true
+Diskaddstructure=false
 # Structure parameters (it's better to experiment with these than to try to understand the math):
 # Number of "spiral arms":
-Diskstructure_spiral_arms=6
+Diskstructure_spiral_arms=5
 # Frequency of "rings", [thin, medium, thick]
-Diskstructure_rings_freq=2.0,3.0,2.0
+Diskstructure_rings_freq=1.0,1.0,1.0
 # Pitch of "spiral":
-Diskstructure_spiral_pitch=0.4
+Diskstructure_spiral_pitch=0.3
 # Position variation:
-Diskstructure_position_variation=0.3
+Diskstructure_position_variation=0.15
 # Modulation:
-Diskstructure_modulation=0.6
+Diskstructure_modulation=0.5
 
 # Sky rendering mode
 #   none:       solid black
 #   texture:    use texture bgedit.png
 #   final:      normalized final ray direction
 #   <path>:     use texture <path>
-Skytexture=textures/starmap_2020_8k.png
+Skytexture=none
 
 # Ratio of sky brightness / disk brightness
 Skydiskratio=1.0
@@ -111,7 +111,7 @@ Skydiskratio=1.0
 # Toggle dust (bool)
 Fogdo=true
 # Dust intensity multiplier
-Fogmult=0.025
+Fogmult=0.02
 # Fog applies every Nth ray
 Fogskip=1
 
@@ -120,12 +120,12 @@ Fogskip=1
 # The order of these options are not important, but the following order represents the order of processing.
 
 # 1. Gain (1.0 = no gain)
-Gain=4
+Gain=1.0
 
 # 2. Whether to perform Airy disk bloom (bool)
 Airy_bloom=true
 # This parameter rescales the resolution (bigger = less resolution, 1.0 = standard size)
-Airy_radius=0.75
+Airy_radius=1.0
 
 # 3. Whether to perform wide gaussian (lit up dust effect) (bool)
 Blurdo=true
@@ -136,4 +136,4 @@ Blurdo=true
 Normalize=-1
 
 # 5. ACES exposure multiplier (1.0 = no multiplier)
-ACESExposure = 0.95
+ACESExposure = 1.0
