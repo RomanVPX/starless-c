@@ -49,33 +49,75 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 * **Matplotlib Scene Visualization:** The original could generate a Matplotlib diagram of the scene setup. This is not part of the C port.
 * **Intermediate Image Outputs:** The original project saved several intermediate images during different rendering stages (e.g., pre-postprocessing). This C port currently outputs only the final processed image.
 
-## Building
-
-For now, check the GitHub Actions workflow for build steps.
-
 ## Usage
+
+1. Download the pre-built binary for your platform from the [latest release page](https://github.com/RomanVPX/starless-c/releases/latest).
+2. Extract the archive to a directory of your choice.
+3. Open a terminal (macOS/Linux) or Command Prompt / PowerShell (Windows).
+4. Navigate to the directory where you extracted the binary.
+5. Run the tracer from the command line.
+
+### Command Syntax
+
+*macOS / Linux:*
 
 ```bash
 ./blackhole_tracer [options] [scene_file.scene]
 ```
 
-**Examples:**
+*Windows (Command Prompt or PowerShell):*
 
-To render a scene:
+```powershell
+blackhole_tracer.exe [options] [scene_file.scene]
+```
+
+**Command line options:**
+
+* `-d` - Use the `[lofi]` section from the scene file.
+* `-c` - Set the chunk size.
+* `-j` - Set the number of threads.
+* `-r` - Set the resolution override.
+
+### Examples
+
+**Render a scene:**
+
+*macOS / Linux:*
 
 ```bash
 ./blackhole_tracer scenes/new/default_blackbody.scene
 ```
 
-This command should produce a .png image similar to this in the `out/` directory:
+*Windows:*
+
+```powershell
+blackhole_tracer.exe scenes\new\default_blackbody.scene
+```
+
+This command should produce a .png image similar to this in the `out` directory:
 
 ![Render of the default_blackbody.scene](docs/default_blackbody_(H)_001.jpg)
 
-To render in "lo-fi" mode (uses the `[lofi]` section from the scene file):
+**Render in "lo-fi" mode** (uses the `[lofi]` section from the scene file):
+
+*macOS / Linux:*
 
 ```bash
 ./blackhole_tracer -d scenes/original/default_blackbody.scene
 ```
+
+*Windows:*
+
+```powershell
+blackhole_tracer.exe -d scenes\original\default_blackbody.scene
+```
+
+## Building from Source
+
+* Clone the repository.
+* Install make if it's not already installed.
+* Run `make` or `make RELEASE=1` to build the binary.
+* The binary will be in the `build/debug` or `build/release` directory.
 
 ## Key Differences from the Original Python Version Summarized
 
