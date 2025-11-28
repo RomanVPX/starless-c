@@ -281,7 +281,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double temp = exp(log_temp);
             double R = sqrt(col_point_sqr);
 
-            if (cfg->redshift != 1.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) // Apply redshift if enabled and outside horizon slightly
+            if (cfg->redshift > 0.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) // Apply redshift if enabled and outside horizon slightly
             {
                 // Formula from Python code for velocity factor
                 double speed_factor = BBODY_SPEED_FACTOR * pow(fmax(MIN_VEL_R_SQR, R - sqrt(SCHWARZSCHILD_RADIUS_SQR)), -0.5);
