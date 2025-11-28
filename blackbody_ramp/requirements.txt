@@ -1,7 +1,5 @@
 colour-science==0.4.6
 imageio==2.37.0
-mypy==1.15.0
-mypy_extensions==1.1.0
 numpy==2.2.6
 pillow==11.3.0
 scipy==1.15.3
