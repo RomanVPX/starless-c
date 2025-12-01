@@ -85,6 +85,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -93,21 +96,19 @@ jobs:
       - name: List downloaded files (for debugging paths)
         run: ls -R downloaded-artifacts
 
-      - name: Generate changelog
+      - name: Get changelog for this version
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mindsers/changelog-reader-action@v2
         with:
-          configuration: .github/changelog-configuration.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ github.ref_name }}
+          path: ./CHANGELOG.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           draft: true
-          body: ${{ steps.changelog.outputs.changelog }}
-          # prerelease: false
+          body: ${{ steps.changelog.outputs.changes }}
           files: |
             downloaded-artifacts/starless-c-linux-amd64/*.tar.gz
             downloaded-artifacts/starless-c-macos-arm64/*.tar.gz
