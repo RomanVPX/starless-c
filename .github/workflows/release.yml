@@ -3,7 +3,7 @@ name: Release Builds and Packaging
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 jobs:
   build_and_package:
@@ -83,8 +83,12 @@ jobs:
     name: Create release
     permissions:
       contents: write
-
     steps:
+      - name: Get version from tag
+        id: tag_name
+        run: |
+          echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -100,13 +104,13 @@ jobs:
         id: changelog
         uses: mindsers/changelog-reader-action@v2
         with:
-          version: ${{ github.ref_name }}
+          validation_level: warn
+          version: ${{ steps.tag_name.outputs.current_version }}
           path: ./CHANGELOG.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
           draft: true
           body: ${{ steps.changelog.outputs.changes }}
           files: |
