@@ -1,12 +1,12 @@
 [lofi]
 
-Resolution=160,120
+Resolution=640,480
 Iterations=250
 Stepsize=0.08
 
 [hifi]
 
-Resolution=1920,1080
+Resolution=1280,960
 Iterations=750
 Stepsize=0.08
 
