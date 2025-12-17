@@ -114,7 +114,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     *ramp_data_out = loaded_data;
     *ramp_size_out = smp_read;
-    printf("  Ok! (%d samples loaded).\n", *ramp_size_out);
+    printf("    Ok! (%d samples loaded).\n", *ramp_size_out);
     return true;
 }
 
