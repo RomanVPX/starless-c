@@ -14,8 +14,8 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 * Distortion of the background sky.
 * Dust rendering (ported from the original).
 * Post-processing effects:
-  * Airy Disk bloom (ported from the original, for physically-based diffraction bloom).
-  * Bloom (Gaussian blur-based, ported from the original).
+  * Airy Disk bloom (physically-based diffraction bloom).
+  * Gaussian bloom (blur-based, ported from the original).
 * Multi-threaded rendering for performance.
 * Compatibility with the original `.scene` file format.
 
@@ -28,6 +28,7 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 * **Blending Modes:** The blending for the accretion disk has been revised for more standard alpha blending (Porter-Duff "over" operator). The original blending behavior can be enabled via a compile-time define for comparison.
 * **Disk Alpha Calculation:** The method for calculating disk alpha in Blackbody mode has been refined for better control over edge falloff. The original behavior can also be enabled via a define.
 * **PNG Metadata:** The rendered PNG images now embed configuration parameters used for the render.
+* **Airy Bloom Optimization:** Replaced the O(N*R^2) spatial convolution with an O(N log N) FFT-based approach. The Optical Transfer Function (OTF) for the ideal circular aperture is calculated directly in the frequency domain, providing massive speedups for large kernels. The original behavior can also be enabled via a define.
 
 **New Rendering Features:**
 
@@ -139,13 +140,14 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 * Optionally implement saving of intermediate rendering stages.
 * Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
 * Investigate more sophisticated procedural noise/turbulence for disk structures.
-* Further performance optimizations (e.g., SIMD, Airy bloom optimization).
+* Further performance optimizations (e.g., SIMD).
 
 ## Acknowledgements
 
 * **Riccardo Antonelli ([rantonels](https://github.com/rantonels))** for creating the original "Starless" and for the insightful [article](http://rantonels.github.io/starless/) explaining the physics and implementation details. This C port would not exist without his foundational work.
 * **stb_image, stb_image_write_ext, stb_image_resize** by Sean Barrett and contributors for image loading, saving, and resizing.
 * **inih (INI Parser)** by Ben Hoyt for INI file parsing.
+* **meow_fft** by [Richard Maxwell](https://github.com/JodiTheTigger) for FFTs.
 * **NASA/Goddard Space Flight Center Scientific Visualization Studio** for the Milky Way panorama texture used in some example scenes.
 
 ## License

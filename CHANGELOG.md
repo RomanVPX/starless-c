@@ -5,6 +5,12 @@ All notable changes to the Starless-C project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Airy Bloom Optimization**: Implemented FFT-based convolution for Airy disk bloom. This calculates the OTF directly in the frequency domain, dramatically (order of magnitude) improving performance for large bloom radii compared to the previous spatial convolution method.
+
 ## [0.2.0] - 2025-12-01
 
 ### Added
