@@ -56,14 +56,14 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
 {
     if (size < 0)
     {
-        fprintf(stderr, "Error: Kernel size cannot be negative.\n");
+        fprintf(stderr, "!   Error: Kernel size cannot be negative.\n");
         return NULL;
     }
 
     Kernel2D *k = (Kernel2D *)malloc(sizeof(Kernel2D));
     if (!k)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for Kernel struct.\n");
+        fprintf(stderr, "!   Error: Failed to allocate memory for Kernel struct.\n");
         return NULL;
     }
 
@@ -73,7 +73,7 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
     k->data = (ColorRGB *)malloc(k->width * k->height * sizeof(ColorRGB));
     if (!k->data)
     {
-        fprintf(stderr, "Error: Failed to allocate memory for kernel data (%dx%d).\n", k->width, k->height);
+        fprintf(stderr, "!   Error: Failed to allocate memory for kernel data (%dx%d).\n", k->width, k->height);
         free(k);
         return NULL;
     }
@@ -120,8 +120,8 @@ Kernel2D *generate_airy_kernel(const double scale[3], int size)
 
     clock_t end_time = clock();
     double elapsed_time_ms = (double)(end_time - start_time) / CLOCKS_PER_SEC * 1000.0;
-    printf("  Generated %dx%d Airy kernel.\n", k->width, k->height);
-    printf("  Airy kernel generation took %.3f ms.\n", elapsed_time_ms);
+    printf("    Generated %dx%d Airy kernel.\n", k->width, k->height);
+    printf("    Airy kernel generation took %.3f ms.\n", elapsed_time_ms);
     return k;
 }
 
@@ -163,12 +163,12 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
 {
     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
     {
-        fprintf(stderr, "Error: NULL pointer passed to convolve2d_rgb.\n");
+        fprintf(stderr, "!   Error: NULL pointer passed to convolve2d_rgb.\n");
         return false;
     }
     if (src->width != dst->width || src->height != dst->height)
     {
-        fprintf(stderr, "Error: Source and destination image dimensions must match for convolution.\n");
+        fprintf(stderr, "!   Error: Source and destination image dimensions must match for convolution.\n");
         return false;
     }
 
@@ -219,7 +219,7 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
 
         if (tile_y % AIRY_CONVOLUTION_TILE_SIZE == 0)
         {
-            printf("\r  Tiled convolution progress: %d / %d rows", tile_y, H);
+            printf("\r    Tiled convolution progress: %d / %d rows", tile_y, H);
             fflush(stdout);
         }
     }
@@ -227,7 +227,7 @@ bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k)
     clock_t end_time = clock();
     double elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
-    printf("\n  Convolution finished in %.4f seconds.\n", elapsed_time);
+    printf("\n    Convolution finished in %.4f seconds.\n", elapsed_time);
     return true;
 }
 
