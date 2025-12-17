@@ -13,9 +13,11 @@ typedef struct {
     ColorRGB *data;  // Kernel data (RGB), size width*height
 } Kernel2D;
 
-Kernel2D* generate_airy_kernel(const double scale[3], int size);
 void free_kernel2d(Kernel2D* k);
 bool convolve2d_rgb(const ImageF *src, ImageF *dst, const Kernel2D *k);
+
+// --- High-level Airy Bloom function ---
+bool apply_airy_bloom(const ImageF *src, ImageF *dst, const double scale[3]);
 
 // --- 1D Kernel (for Gaussian) ---
 typedef struct {

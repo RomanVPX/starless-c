@@ -133,33 +133,8 @@ int main(int argc, char *argv[])
 
         double kernel_scale[3] = {rad_scale * spectrum[0], rad_scale * spectrum[1], rad_scale * spectrum[2]};
 
-        double max_intensity = 0.0;
-        for (int i = 0; i < W * H; ++i)
+        if (apply_airy_bloom(current_image, next_image, kernel_scale))
         {
-            max_intensity =
-                    fmax(max_intensity, fmax(current_image->pixels[i].r, fmax(current_image->pixels[i].g, current_image->pixels[i].b)));
-        }
-
-        int kernel_size_radius = (int)(25.0 * pow(fmax(0.1, max_intensity) / 5.0, 1.0 / 3.0) * (double)W / 1920.0); // Use W
-        kernel_size_radius = fmax(1, kernel_size_radius);
-        kernel_size_radius = fmin(100, kernel_size_radius);
-
-        printf("    Max Intensity: %f\n", max_intensity);
-        printf("    Calculated Kernel Radius (size): %d\n", kernel_size_radius);
-        printf("    Kernel Scales (R,G,B): %f, %f, %f\n", kernel_scale[0], kernel_scale[1], kernel_scale[2]);
-
-        Kernel2D *airy_kernel = generate_airy_kernel(kernel_scale, kernel_size_radius);
-        if (airy_kernel)
-        {
-            printf("    Convolving image with Airy kernel (%dx%d)...\n", airy_kernel->width, airy_kernel->height);
-            // Use W and H which are now defined in this scope
-            if (!convolve2d_rgb(current_image, next_image, airy_kernel))
-            {
-                fprintf(stderr, "    Warning: Airy convolution failed.\n");
-                memcpy(next_image->pixels, current_image->pixels, buffer_size); // Use W, H, cast size
-            }
-            free_kernel2d(airy_kernel);
-
             // Swap buffers: result is now in current_image, next_image is free
             ImageF *tmp = current_image;
             current_image = next_image;
@@ -167,8 +142,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "    Warning: Failed to generate Airy kernel. Skipping bloom.\n");
-            printf("    (Post-bloom result remains in current_image buffer)\n");
+            fprintf(stderr, "    Warning: Airy bloom failed. Skipping.\n");
         }
     }
     else { printf("  Airy Bloom is disabled, skipping.\n"); }
