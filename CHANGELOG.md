@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example scenes**: Added two example scenes (`simple_nomore_bb_structured_horizontal.scene` and `taglio_blackbody_horizontal.scene`) to the `scenes/new` directory.
+
 ### Changed
 
 - **Airy Bloom Optimization**: Implemented FFT-based convolution for Airy disk bloom. This calculates the OTF directly in the frequency domain, dramatically (order of magnitude) improving performance for large bloom radii compared to the previous spatial convolution method.
