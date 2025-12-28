@@ -252,7 +252,9 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double v = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius); // Normalize radius
 
                 disk_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in);
-                double color_norm_sq = vec3d_norm_sqr(*(Vec3d *)&disk_color);
+                Vec3d temp;
+                memcpy(&temp, &disk_color, sizeof(Vec3d));
+                double color_norm_sq = vec3d_norm_sqr(temp);
                 disk_alpha = fmax(0.0, fmin(1.0, color_norm_sq / 3.0));
 
                 // Stop if alpha is high enough (mimicking original code's implicit stop)
