@@ -377,23 +377,25 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_v(void *arg)
 
     for (int y = data->start_y; y < data->end_y; ++y)
     {
-        for (int x = 0; x < W; ++x)
+        memset(&dst->pixels[y * W], 0, W * sizeof(ColorRGB));
+
+        for (int ky = -k_size; ky <= k_size; ++ky)
         {
-            ColorRGB accumulator = {0.0, 0.0, 0.0};
-            for (int ky = -k_size; ky <= k_size; ++ky)
+            int src_y_raw = y - ky;
+            int src_y, dummy_x;
+            get_symmetric_coords(W, H, 0, src_y_raw, &dummy_x, &src_y);
+            
+            double kernel_val = k->data[ky + k_size];
+            int src_row_offset = src_y * W;
+            int dst_row_offset = y * W;
+
+            for (int x = 0; x < W; ++x)
             {
-                int src_y_raw = y - ky;
-                int src_y, dummy_x;
-                get_symmetric_coords(W, H, x, src_y_raw, &dummy_x, &src_y);
-                double kernel_val = k->data[ky + k_size];
-                int src_idx = src_y * W + x;
-                ColorRGB src_val = src->pixels[src_idx];
-                accumulator.r += src_val.r * kernel_val;
-                accumulator.g += src_val.g * kernel_val;
-                accumulator.b += src_val.b * kernel_val;
+                ColorRGB src_val = src->pixels[src_row_offset + x];
+                dst->pixels[dst_row_offset + x].r += src_val.r * kernel_val;
+                dst->pixels[dst_row_offset + x].g += src_val.g * kernel_val;
+                dst->pixels[dst_row_offset + x].b += src_val.b * kernel_val;
             }
-            int dst_idx = y * W + x;
-            dst->pixels[dst_idx] = accumulator;
         }
     }
     return 0;
