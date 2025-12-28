@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
             // Pass 1: Horizontal (blur_source -> h_pass_dest)
             // Input: B=S0. Output: next_image = H(B).
             printf("    Applying horizontal Gaussian pass (Source: pre_bloom_copy, Dest: next_image)...\n");
-            if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel))
+            if (!convolve1d_h_rgb(blur_source, h_pass_dest, gauss_kernel, config.n_threads))
             {
                 fprintf(stderr, "    Warning: Horizontal Gaussian convolution failed.\n");
             }
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
             // Pass 2: Vertical (h_pass_dest -> v_pass_dest)
             // Input: next_image = H(B). Output: B = V(H(B)) = S2.
             printf("    Applying vertical Gaussian pass (Source: next_image, Dest: pre_bloom_copy)...\n");
-            if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel))
+            if (!convolve1d_v_rgb(h_pass_dest, v_pass_dest, gauss_kernel, config.n_threads))
             {
                 fprintf(stderr, "    Warning: Vertical Gaussian convolution failed.\n");
             }
