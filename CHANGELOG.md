@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Airy Bloom Optimization**: Implemented FFT-based convolution for Airy disk bloom. This calculates the OTF directly in the frequency domain, dramatically (order of magnitude) improving performance for large bloom radii compared to the previous spatial convolution method.
+- **Gaussian Bloom**: Implemented parallelization for Gaussian bloom.
 
 ## [0.2.0] - 2025-12-01
 
