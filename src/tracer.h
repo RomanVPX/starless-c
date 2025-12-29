@@ -26,16 +26,6 @@ typedef struct
 } RayState;
 
 
-// Structure to hold thread-specific data
-typedef struct
-{
-    int thread_id;
-    unsigned int rand_seed; // Random seed for this thread (for jittering)
-    Config *config;
-    ImageF *image;
-    int start_pixel_index;
-    int end_pixel_index; // Exclusive: trace pixels [start, end)
-} ThreadData;
 
 
 #endif // TRACER_H

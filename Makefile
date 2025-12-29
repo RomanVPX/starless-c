@@ -47,7 +47,7 @@ DESTDIR ?= staging_$(BUILD_TYPE)
 # Source files
 SRCS = $(SRCDIR)/main.c $(SRCDIR)/tracer.c $(SRCDIR)/vector.c $(SRCDIR)/color.c \
        $(SRCDIR)/blackbody.c $(SRCDIR)/bloom.c $(SRCDIR)/image.c $(SRCDIR)/config.c \
-       $(SRCDIR)/ini.c
+       $(SRCDIR)/ini.c $(SRCDIR)/parallel.c
 
 # Object files (in build directory)
 OBJS = $(SRCS:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
