@@ -86,15 +86,6 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
         if (SSCANF(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
         {
-            // Optional: Validate loaded data here (NaN, negative checks)
-            ColorRGB *color = &loaded_data[smp_read];
-            if (isnan(color->r) || isnan(color->g) || isnan(color->b) || color->r < 0.0 || color->g < 0.0 || color->b < 0.0)
-            {
-                fprintf(stderr, "\n  Warning: Invalid color value at sample %d in '%s'. Clamping to >= 0.\n", smp_read, filename);
-                color->r = fmax(0.0, color->r);
-                color->g = fmax(0.0, color->g);
-                color->b = fmax(0.0, color->b);
-            }
             smp_read++;
         }
         else { fprintf(stderr, "\n  Warning: Failed to parse line %d (approx) in ramp file '%s'. Skipping.\n", smp_read + 1, filename); }

@@ -65,6 +65,11 @@ def compute_blackbody_ramp(temp_min: float, temp_max: float, num_samples: int) -
             spd = colour.sd_blackbody(float(temp), cmfs.shape)
             xyz = colour.sd_to_XYZ(spd, cmfs, illuminant_to_xyz) / 100.0
             rgb = colour.XYZ_to_RGB(xyz, output_colourspace, source_xyz_illuminant)
+            
+            if np.isnan(rgb).any():
+                print(f"Warning: NaN detected at {temp:.2f}K (before clip). Using black.")
+                rgb = np.zeros(3)
+
             ramp[i] = np.clip(rgb, 0.0, None)
         except Exception as e:
             print(f"\nError at {temp:.2f}K: {e}. Using black.")
