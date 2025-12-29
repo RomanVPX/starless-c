@@ -38,13 +38,13 @@ void free_kernel1d(Kernel1D* k);
 // Applies kernel k horizontally to input image src, stores result in dst.
 // Assumes src and dst are allocated and have the same dimensions.
 // Uses symmetric boundary handling.
-bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
+bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num_threads);
 
 // Function to perform 1D vertical convolution on an ImageF
 // Applies kernel k vertically to input image src, stores result in dst.
 // Assumes src and dst are allocated and have the same dimensions.
 // Uses symmetric boundary handling.
-bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k);
+bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num_threads);
 
 
 #endif // BLOOM_H

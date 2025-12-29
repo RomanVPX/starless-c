@@ -10,6 +10,18 @@
 #include "bloom.h"
 #include "core_constants.h"
 
+#if defined(_WIN32)
+    #include <windows.h>
+    typedef HANDLE thread_handle_t;
+    #define THREAD_FUNC_RETURN DWORD WINAPI
+    #define THREAD_FUNC_CALL  __stdcall
+#else
+    #include <pthread.h>
+    typedef pthread_t thread_handle_t;
+    #define THREAD_FUNC_RETURN void *
+    #define THREAD_FUNC_CALL
+#endif
+
 #define AIRY_VIA_FFT
 
 #ifdef AIRY_VIA_FFT
@@ -309,8 +321,87 @@ void free_kernel1d(Kernel1D *k)
 }
 
 
+// --- Threading Helper for Convolution ---
+typedef struct {
+    int thread_id;
+    const ImageF *src;
+    ImageF *dst;
+    const Kernel1D *k;
+    int start_y;
+    int end_y;
+} BloomThreadData;
+
+THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_h(void *arg)
+{
+    BloomThreadData *data = (BloomThreadData *)arg;
+    const ImageF *src = data->src;
+    ImageF *dst = data->dst;
+    const Kernel1D *k = data->k;
+    int W = src->width;
+    int H = src->height;
+    int k_size = k->size;
+
+    for (int y = data->start_y; y < data->end_y; ++y)
+    {
+        for (int x = 0; x < W; ++x)
+        {
+            ColorRGB accumulator = {0.0, 0.0, 0.0};
+            for (int kx = -k_size; kx <= k_size; ++kx)
+            {
+                int src_x_raw = x - kx;
+                int src_x, dummy_y;
+                get_symmetric_coords(W, H, src_x_raw, y, &src_x, &dummy_y);
+                double kernel_val = k->data[kx + k_size];
+                int src_idx = y * W + src_x;
+                ColorRGB src_val = src->pixels[src_idx];
+                accumulator.r += src_val.r * kernel_val;
+                accumulator.g += src_val.g * kernel_val;
+                accumulator.b += src_val.b * kernel_val;
+            }
+            int dst_idx = y * W + x;
+            dst->pixels[dst_idx] = accumulator;
+        }
+    }
+    return 0;
+}
+
+THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_v(void *arg)
+{
+    BloomThreadData *data = (BloomThreadData *)arg;
+    const ImageF *src = data->src;
+    ImageF *dst = data->dst;
+    const Kernel1D *k = data->k;
+    int W = src->width;
+    int H = src->height;
+    int k_size = k->size;
+
+    for (int y = data->start_y; y < data->end_y; ++y)
+    {
+        memset(&dst->pixels[y * W], 0, W * sizeof(ColorRGB)); // Initialize destination row to zero
+
+        for (int ky = -k_size; ky <= k_size; ++ky)
+        {
+            int src_y_raw = y - ky;
+            int src_y, dummy_x;
+            get_symmetric_coords(W, H, 0, src_y_raw, &dummy_x, &src_y);
+            double kernel_val = k->data[ky + k_size];
+            int src_row_offset = src_y * W;
+            int dst_row_offset = y * W;
+            for (int x = 0; x < W; ++x)
+            {
+                ColorRGB src_val = src->pixels[src_row_offset + x];
+                dst->pixels[dst_row_offset + x].r += src_val.r * kernel_val;
+                dst->pixels[dst_row_offset + x].g += src_val.g * kernel_val;
+                dst->pixels[dst_row_offset + x].b += src_val.b * kernel_val;
+            }
+        }
+    }
+    return 0;
+}
+
+
 // --- 1D Horizontal Convolution ---
-bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
+bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num_threads)
 {
     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
     {
@@ -323,43 +414,65 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
         return false;
     }
 
-    int W = src->width;
     int H = src->height;
-    int k_size = k->size;
 
-    for (int y = 0; y < H; ++y)
+    if (num_threads <= 0) num_threads = 1;
+
+    thread_handle_t *threads = (thread_handle_t *)malloc(num_threads * sizeof(thread_handle_t));
+    BloomThreadData *thread_data = (BloomThreadData *)malloc(num_threads * sizeof(BloomThreadData));
+
+    if (!threads || !thread_data)
     {
-        for (int x = 0; x < W; ++x)
-        {
-            ColorRGB accumulator = {0.0, 0.0, 0.0};
-            for (int kx = -k_size; kx <= k_size; ++kx)
-            {
-                int src_x_raw = x - kx; // Convolution flip
-
-                // Apply boundary conditions (only need X coord here)
-                int src_x, dummy_y;                                         // Don't need y coord from helper
-                get_symmetric_coords(W, H, src_x_raw, y, &src_x, &dummy_y); // Pass current y
-
-                double kernel_val = k->data[kx + k_size];
-                int src_idx = y * W + src_x; // Use reflected x, original y
-                ColorRGB src_val = src->pixels[src_idx];
-
-                // Accumulate (kernel is scalar, applied to all channels)
-                accumulator.r += src_val.r * kernel_val;
-                accumulator.g += src_val.g * kernel_val;
-                accumulator.b += src_val.b * kernel_val;
-            }
-            int dst_idx = y * W + x;
-            dst->pixels[dst_idx] = accumulator;
-        }
+        fprintf(stderr, "!   Error: Failed to allocate memory for threads.\n");
+        free(threads);
+        free(thread_data);
+        return false;
     }
-    printf("    Horizontal 1D convolution finished.\n");
+
+    int rows_per_thread = H / num_threads;
+    int remaining_rows = H % num_threads;
+    int current_y = 0;
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+        thread_data[i].thread_id = i;
+        thread_data[i].src = src;
+        thread_data[i].dst = dst;
+        thread_data[i].k = k;
+        thread_data[i].start_y = current_y;
+
+        int rows_this_thread = rows_per_thread + (i < remaining_rows ? 1 : 0);
+        thread_data[i].end_y = current_y + rows_this_thread;
+        current_y += rows_this_thread;
+
+#if defined(_WIN32)
+        threads[i] = CreateThread(NULL, 0, worker_convolve1d_h, &thread_data[i], 0, NULL);
+        if (threads[i] == NULL) fprintf(stderr, "! Error creating thread %d\n", i);
+#else
+        int ret = pthread_create(&threads[i], NULL, worker_convolve1d_h, &thread_data[i]);
+        if (ret != 0) fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
+#endif
+    }
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+#if defined(_WIN32)
+        WaitForSingleObject(threads[i], INFINITE);
+        CloseHandle(threads[i]);
+#else
+        pthread_join(threads[i], NULL);
+#endif
+    }
+
+    free(threads);
+    free(thread_data);
+    printf("    Horizontal 1D convolution finished (%d threads).\n", num_threads);
     return true;
 }
 
 
 // --- 1D Vertical Convolution ---
-bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
+bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num_threads)
 {
     if (!src || !dst || !k || !src->pixels || !dst->pixels || !k->data)
     {
@@ -372,37 +485,59 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k)
         return false;
     }
 
-    int W = src->width;
     int H = src->height;
-    int k_size = k->size;
 
-    for (int y = 0; y < H; ++y)
+    if (num_threads <= 0) num_threads = 1;
+
+    thread_handle_t *threads = (thread_handle_t *)malloc(num_threads * sizeof(thread_handle_t));
+    BloomThreadData *thread_data = (BloomThreadData *)malloc(num_threads * sizeof(BloomThreadData));
+
+    if (!threads || !thread_data)
     {
-        for (int x = 0; x < W; ++x)
-        {
-            ColorRGB accumulator = {0.0, 0.0, 0.0};
-            for (int ky = -k_size; ky <= k_size; ++ky)
-            {
-                int src_y_raw = y - ky; // Convolution flip
-
-                // Apply boundary conditions (only need Y coord here)
-                int src_y, dummy_x;                                         // Don't need x coord from helper
-                get_symmetric_coords(W, H, x, src_y_raw, &dummy_x, &src_y); // Pass current x
-
-                double kernel_val = k->data[ky + k_size];
-                int src_idx = src_y * W + x; // Use reflected y, original x
-                ColorRGB src_val = src->pixels[src_idx];
-
-                // Accumulate
-                accumulator.r += src_val.r * kernel_val;
-                accumulator.g += src_val.g * kernel_val;
-                accumulator.b += src_val.b * kernel_val;
-            }
-            int dst_idx = y * W + x;
-            dst->pixels[dst_idx] = accumulator;
-        }
+        fprintf(stderr, "!   Error: Failed to allocate memory for threads.\n");
+        free(threads);
+        free(thread_data);
+        return false;
     }
-    printf("    Vertical 1D convolution finished.\n");
+
+    int rows_per_thread = H / num_threads;
+    int remaining_rows = H % num_threads;
+    int current_y = 0;
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+        thread_data[i].thread_id = i;
+        thread_data[i].src = src;
+        thread_data[i].dst = dst;
+        thread_data[i].k = k;
+        thread_data[i].start_y = current_y;
+
+        int rows_this_thread = rows_per_thread + (i < remaining_rows ? 1 : 0);
+        thread_data[i].end_y = current_y + rows_this_thread;
+        current_y += rows_this_thread;
+
+#if defined(_WIN32)
+        threads[i] = CreateThread(NULL, 0, worker_convolve1d_v, &thread_data[i], 0, NULL);
+        if (threads[i] == NULL) fprintf(stderr, "! Error creating thread %d\n", i);
+#else
+        int ret = pthread_create(&threads[i], NULL, worker_convolve1d_v, &thread_data[i]);
+        if (ret != 0) fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
+#endif
+    }
+
+    for (int i = 0; i < num_threads; ++i)
+    {
+#if defined(_WIN32)
+        WaitForSingleObject(threads[i], INFINITE);
+        CloseHandle(threads[i]);
+#else
+        pthread_join(threads[i], NULL);
+#endif
+    }
+
+    free(threads);
+    free(thread_data);
+    printf("    Vertical 1D convolution finished (%d threads).\n", num_threads);
     return true;
 }
 
