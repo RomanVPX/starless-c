@@ -1,5 +1,5 @@
 #include "blackbody.h"
-#include <math.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "color.h"
@@ -114,7 +114,7 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 // log_T0_isco is ln of temperature (K) of accretion disk at ISCO
 double bb_log_temperature(double sqr_radius, double log_T0_isco)
 {
-    if (sqr_radius <= 0) { return -INFINITY; }
+    if (sqr_radius <= 0) { return -DBL_MAX; }
     double A = log_T0_isco + LOGSHIFT;
     return A - SHAKURA_SUNYAEV_TEMP_EXP_FOR_SQURED_RADIUS * log(sqr_radius);
 }
