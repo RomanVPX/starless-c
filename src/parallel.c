@@ -23,13 +23,16 @@
 typedef struct {
 #if defined(_WIN32)
     volatile LONG next_item; // Needs to be compatible with InterlockedExchangeAdd
+    volatile LONG completed_items;
 #else
     atomic_int next_item;
+    atomic_int completed_items;
 #endif
     int total_items;
     int chunk_size;
     ParallelTaskFunc task_func;
     void *user_arg;
+    bool show_progress;
 } ParallelContext;
 
 typedef struct {
@@ -52,12 +55,26 @@ static THREAD_FUNC_RETURN THREAD_FUNC_CALL parallel_worker(void *arg) {
             end = ctx->total_items;
         }
         ctx->task_func(start, end, ctx->user_arg, worker_data->thread_id);
+
+        if (ctx->show_progress) {
+            int count = end - start;
+            int prev_completed = (int)ATOMIC_FETCH_ADD(&ctx->completed_items, count);
+            int total_completed = prev_completed + count;
+            
+            int percent = (int)((long long)total_completed * 100 / ctx->total_items);
+            int prev_percent = (int)((long long)prev_completed * 100 / ctx->total_items);
+            
+            if (percent > prev_percent || total_completed == ctx->total_items) {
+                printf("\r  Progress: %3d%%", percent);
+                fflush(stdout);
+            }
+        }
     }
     
     return 0;
 }
 
-bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int num_threads, int chunk_size) {
+bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int num_threads, int chunk_size, bool show_progress) {
     if (total_items <= 0) return true;
     if (num_threads <= 0) num_threads = 1;
     if (chunk_size <= 0) chunk_size = 1;
@@ -65,13 +82,16 @@ bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int nu
     ParallelContext ctx;
 #if defined(_WIN32)
     ctx.next_item = 0;
+    ctx.completed_items = 0;
 #else
     atomic_init(&ctx.next_item, 0);
+    atomic_init(&ctx.completed_items, 0);
 #endif
     ctx.total_items = total_items;
     ctx.chunk_size = chunk_size;
     ctx.task_func = task_func;
     ctx.user_arg = arg;
+    ctx.show_progress = show_progress;
 
     thread_handle_t *threads = (thread_handle_t *)malloc(num_threads * sizeof(thread_handle_t));
     WorkerArg *worker_args = (WorkerArg *)malloc(num_threads * sizeof(WorkerArg));
@@ -112,6 +132,10 @@ bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int nu
         pthread_join(threads[i], NULL);
 #endif
     }
+    
+    if (show_progress) {
+        printf("\n"); // Newline after progress bar
+    }
 
     free(threads);
     free(worker_args);
@@ -119,8 +143,14 @@ bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int nu
     if (threads_created == 0) {
          fprintf(stderr, "! Error: Failed to create any threads. Falling back to single-threaded execution.\n");
          ctx.next_item = 0; // Reset
+#if defined(_WIN32)
+         ctx.completed_items = 0;
+#else
+         atomic_store(&ctx.completed_items, 0);
+#endif
          WorkerArg main_arg = {0, &ctx};
          parallel_worker(&main_arg);
+         if (show_progress) printf("\n");
     }
 
     return true;

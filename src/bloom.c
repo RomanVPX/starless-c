@@ -406,7 +406,7 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num
     // Chunk size heuristic: ~16 rows per chunk for balance
     int chunk_size = 16;
 
-    if (!parallel_run(worker_convolve1d_h_parallel, &ctx, H, num_threads, chunk_size)) {
+    if (!parallel_run(worker_convolve1d_h_parallel, &ctx, H, num_threads, chunk_size, false)) {
         fprintf(stderr, "!   Error: Parallel execution failed for horizontal convolution.\n");
         return false;
     }
@@ -436,7 +436,7 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num
     // Chunk size heuristic: ~16 rows per chunk for balance
     int chunk_size = 16;
 
-    if (!parallel_run(worker_convolve1d_v_parallel, &ctx, H, num_threads, chunk_size)) {
+    if (!parallel_run(worker_convolve1d_v_parallel, &ctx, H, num_threads, chunk_size, false)) {
         fprintf(stderr, "!   Error: Parallel execution failed for vertical convolution.\n");
         return false;
     }

@@ -650,7 +650,7 @@ bool run_tracer(Config *config, ImageF *output_image)
     timespec_get(&ts_start, TIME_UTC);
 
     // Run Parallel
-    bool success = parallel_run(trace_pixel_range, &ctx, num_pixels, n_threads, config->chunk_size);
+    bool success = parallel_run(trace_pixel_range, &ctx, num_pixels, n_threads, config->chunk_size, true);
 
     struct timespec ts_end;
     timespec_get(&ts_end, TIME_UTC);

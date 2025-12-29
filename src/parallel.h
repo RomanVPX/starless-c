@@ -19,9 +19,10 @@ typedef void (*ParallelTaskFunc)(int start_index, int end_index, void *arg, int 
 // total_items: total number of items to process
 // num_threads: number of threads to use (if <= 0, defaults to 1)
 // chunk_size: number of items per task chunk (if <= 0, defaults to 1 or a heuristic)
+// show_progress: if true, prints a progress percentage to stdout
 //
 // Returns true on success, false on failure (e.g., thread creation failed).
-bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int num_threads, int chunk_size);
+bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int num_threads, int chunk_size, bool show_progress);
 
 #ifdef __cplusplus
 }
