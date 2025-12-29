@@ -77,7 +77,7 @@ bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int nu
     WorkerArg *worker_args = (WorkerArg *)malloc(num_threads * sizeof(WorkerArg));
     
     if (!threads || !worker_args) {
-        fprintf(stderr, "Error: Failed to allocate memory for parallel execution.\n");
+        fprintf(stderr, "! Error: Failed to allocate memory for parallel execution.\n");
         free(threads);
         free(worker_args);
         return false;
@@ -91,13 +91,13 @@ bool parallel_run(ParallelTaskFunc task_func, void *arg, int total_items, int nu
 #if defined(_WIN32)
         threads[i] = CreateThread(NULL, 0, parallel_worker, &worker_args[i], 0, NULL);
         if (threads[i] == NULL) {
-            fprintf(stderr, "Error creating thread %d\n", i);
+            fprintf(stderr, "! Error creating thread %d\n", i);
             break;
         }
 #else
         int ret = pthread_create(&threads[i], NULL, parallel_worker, &worker_args[i]);
         if (ret != 0) {
-            fprintf(stderr, "Error creating thread %d: %s\n", i, strerror(ret));
+            fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
             break;
         }
 #endif
