@@ -556,7 +556,10 @@ static void trace_pixel_range(int start_index, int end_index, void *arg, int thr
     TracerContext *ctx = (TracerContext *)arg;
     const Config *cfg = ctx->config;
     ImageF *image = ctx->image;
-    unsigned int *seed = &ctx->seeds[thread_id];
+    
+    // Copy seed to local variable to avoid false sharing
+    unsigned int local_seed = ctx->seeds[thread_id];
+    
     int W = image->width;
 
     for (int idx = start_index; idx < end_index; ++idx)
@@ -580,8 +583,8 @@ static void trace_pixel_range(int start_index, int end_index, void *arg, int thr
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)thread_safe_rand(seed) / (double)RAND_MAX;
-                    double jitter_y = (double)thread_safe_rand(seed) / (double)RAND_MAX;
+                    double jitter_x = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
+                    double jitter_y = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -596,6 +599,9 @@ static void trace_pixel_range(int start_index, int end_index, void *arg, int thr
         }
         image->pixels[idx] = accumulated_color;
     }
+    
+    // Write back the updated seed state to global memory
+    ctx->seeds[thread_id] = local_seed;
 }
 
 
