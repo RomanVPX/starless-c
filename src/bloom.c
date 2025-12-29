@@ -377,18 +377,16 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_v(void *arg)
 
     for (int y = data->start_y; y < data->end_y; ++y)
     {
-        memset(&dst->pixels[y * W], 0, W * sizeof(ColorRGB));
+        memset(&dst->pixels[y * W], 0, W * sizeof(ColorRGB)); // Initialize destination row to zero
 
         for (int ky = -k_size; ky <= k_size; ++ky)
         {
             int src_y_raw = y - ky;
             int src_y, dummy_x;
             get_symmetric_coords(W, H, 0, src_y_raw, &dummy_x, &src_y);
-            
             double kernel_val = k->data[ky + k_size];
             int src_row_offset = src_y * W;
             int dst_row_offset = y * W;
-
             for (int x = 0; x < W; ++x)
             {
                 ColorRGB src_val = src->pixels[src_row_offset + x];
