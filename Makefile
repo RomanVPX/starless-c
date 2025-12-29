@@ -19,7 +19,7 @@ else
 	COPY_BIN_CMD = cp $(TARGET) $(DESTDIR)/
 
 	EXECUTABLE_EXTENSION=
-	LIBS=-lm -lpthread
+	LIBS=-lm -lpthread -flto
 endif
 
 # Compiler and flags
