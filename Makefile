@@ -9,7 +9,7 @@ ifeq ($(OS),Windows_NT)
 	COPY_BIN_CMD = powershell -Command "Copy-Item -Path '$(TARGET)' -Destination '$(DESTDIR)' -Force"
 
 	EXECUTABLE_EXTENSION=.exe
-	LIBS=
+	LIBS=-flto 
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
