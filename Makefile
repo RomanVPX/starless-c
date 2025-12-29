@@ -9,7 +9,7 @@ ifeq ($(OS),Windows_NT)
 	COPY_BIN_CMD = powershell -Command "Copy-Item -Path '$(TARGET)' -Destination '$(DESTDIR)' -Force"
 
 	EXECUTABLE_EXTENSION=.exe
-	LIBS=
+	LIBS=-flto -fuse-ld=lld
 else
 	MKDIR = mkdir -p $(BUILDDIR)
 	RMDIR = rm -rf $(BUILDDIR)
@@ -19,7 +19,7 @@ else
 	COPY_BIN_CMD = cp $(TARGET) $(DESTDIR)/
 
 	EXECUTABLE_EXTENSION=
-	LIBS=-lm -lpthread
+	LIBS=-lm -lpthread -flto
 endif
 
 # Compiler and flags
@@ -27,10 +27,10 @@ CC = clang
 
 ifeq ($(RELEASE),1)
 	BUILD_TYPE = release
-    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3
+    CFLAGS = -Wall -Wextra -pedantic -flto -funroll-loops -std=c11 -O3 -DNDEBUG -ffast-math
 else
 	BUILD_TYPE = debug
-    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native
+	CFLAGS = -Wall -Wextra -pedantic -flto -funroll-loops -std=c11 -O3 -g -march=native -ffast-math
 endif
 
 ifeq ($(OS),Windows_NT)
