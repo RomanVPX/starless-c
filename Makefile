@@ -27,10 +27,10 @@ CC = clang
 
 ifeq ($(RELEASE),1)
 	BUILD_TYPE = release
-    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3
+    CFLAGS = -Wall -Wextra -pedantic -flto -funroll-loops -std=c11 -O3 -DNDEBUG -ffast-math
 else
 	BUILD_TYPE = debug
-    CFLAGS = -Wall -Wextra -pedantic -std=c11 -O3 -g -march=native
+	CFLAGS = -Wall -Wextra -pedantic -flto -funroll-loops -std=c11 -O3 -g -march=native -ffast-math
 endif
 
 ifeq ($(OS),Windows_NT)
