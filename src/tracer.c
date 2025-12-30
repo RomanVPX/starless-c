@@ -623,10 +623,11 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
     int total_samples = samples_per_axis * samples_per_axis;
-    printf("  Starting ray tracing with %d threads...\n", n_threads);
+    printf("  Image size: %d x %d\n", W, H);
     printf("  SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
     printf("  Total pixels: %d\n", num_pixels);
     printf("  Chunk size: %d\n", config->chunk_size);
+    printf("  Starting ray tracing with %d threads...\n", n_threads);
 
     // Prepare seeds for threads
     unsigned int *seeds = (unsigned int *)malloc(n_threads * sizeof(unsigned int));
@@ -664,9 +665,7 @@ bool run_tracer(Config *config, ImageF *output_image)
         return false;
     }
 
-    printf("  All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
-    printf("  Final image size: %d x %d\n", W, H);
-    printf("  Total pixels processed: %d\n", num_pixels);
+    printf("  Total ray tracing time: %.2f seconds.\n", total_time_spent);
     printf("  Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
     return true;
 }
