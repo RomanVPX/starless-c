@@ -99,69 +99,39 @@ static void calculate_rk4_derivs(const double y[6], double dydt[6], double h2)
     }
 }
 
-static inline Vec3d calculate_accel(Vec3d pos, double h2) {
-    double r_sqr = vec3d_norm_sqr(pos);
-    if (r_sqr < SINGULARITY_THRESHOLD) return VEC_3D_ZERO;
-    
-    double r_pow_neg5 = pow(r_sqr, -2.5);
-    double factor = -1.5 * h2 * r_pow_neg5;
-    return vec3d_mul_scalar(pos, factor);
-}
-
 // --- Single RK4 Step ---
 static void perform_rk4_step(RayState *ray, double step_size, bool distort)
 {
     if (!ray->active) return;
-    
-    if (!distort) {
+    if (!distort)
+    { // Simple Euler step if no distortion (straight line)
         ray->pos = vec3d_add(ray->pos, vec3d_mul_scalar(ray->vel, step_size));
-        return;
+        // Velocity remains constant
     }
+    else
+    { // Standard RK4 integration
+        double y[6] = {ray->pos.x, ray->pos.y, ray->pos.z, ray->vel.x, ray->vel.y, ray->vel.z};
+        double k1[6], k2[6], k3[6], k4[6];
+        double temp_y[6];
+        double h = step_size;
 
-    double h = step_size;
-    double h_half = h * 0.5;
-    double h_sixth = h / 6.0;
-
-    Vec3d p = ray->pos;
-    Vec3d v = ray->vel;
-
-    // k1
-    Vec3d k1_v = v;
-    Vec3d k1_a = calculate_accel(p, ray->h2);
-
-    // k2
-    Vec3d p2 = vec3d_add(p, vec3d_mul_scalar(k1_v, h_half));
-    // v + k1_a * 0.5 * h -> v2
-    Vec3d v2 = vec3d_add(v, vec3d_mul_scalar(k1_a, h_half)); 
-    Vec3d k2_v = v2; 
-    Vec3d k2_a = calculate_accel(p2, ray->h2);
-
-    // k3
-    Vec3d p3 = vec3d_add(p, vec3d_mul_scalar(k2_v, h_half));
-    Vec3d v3 = vec3d_add(v, vec3d_mul_scalar(k2_a, h_half));
-    Vec3d k3_v = v3;
-    Vec3d k3_a = calculate_accel(p3, ray->h2);
-
-    // k4
-    Vec3d p4 = vec3d_add(p, vec3d_mul_scalar(k3_v, h));
-    Vec3d v4 = vec3d_add(v, vec3d_mul_scalar(k3_a, h));
-    Vec3d k4_v = v4;
-    Vec3d k4_a = calculate_accel(p4, ray->h2);
-
-    // Update pos: p += (k1_v + 2*k2_v + 2*k3_v + k4_v) * h/6
-    Vec3d sum_v = k1_v;
-    sum_v = vec3d_add(sum_v, vec3d_mul_scalar(k2_v, 2.0));
-    sum_v = vec3d_add(sum_v, vec3d_mul_scalar(k3_v, 2.0));
-    sum_v = vec3d_add(sum_v, k4_v);
-    ray->pos = vec3d_add(p, vec3d_mul_scalar(sum_v, h_sixth));
-
-    // Update vel: v += (k1_a + 2*k2_a + 2*k3_a + k4_a) * h/6
-    Vec3d sum_a = k1_a;
-    sum_a = vec3d_add(sum_a, vec3d_mul_scalar(k2_a, 2.0));
-    sum_a = vec3d_add(sum_a, vec3d_mul_scalar(k3_a, 2.0));
-    sum_a = vec3d_add(sum_a, k4_a);
-    ray->vel = vec3d_add(v, vec3d_mul_scalar(sum_a, h_sixth));
-
+        // Calculate k1
+        calculate_rk4_derivs(y, k1, ray->h2);
+        // Calculate k2
+        for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + 0.5 * h * k1[i];
+        calculate_rk4_derivs(temp_y, k2, ray->h2);
+        // Calculate k3
+        for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + 0.5 * h * k2[i];
+        calculate_rk4_derivs(temp_y, k3, ray->h2);
+        // Calculate k4
+        for (int i = 0; i < 6; ++i) temp_y[i] = y[i] + h * k3[i];
+        calculate_rk4_derivs(temp_y, k4, ray->h2);
+        // Update y using weighted average of ks
+        for (int i = 0; i < 6; ++i) { y[i] += (h / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]); }
+        // Update ray state
+        ray->pos = (Vec3d){y[0], y[1], y[2]};
+        ray->vel = (Vec3d){y[3], y[4], y[5]};
+    }
     ray->steps_taken++;
 }
 
