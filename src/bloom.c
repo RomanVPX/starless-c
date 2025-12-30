@@ -9,20 +9,17 @@
 #include <time.h>
 #include "bloom.h"
 #include "core_constants.h"
-
-#if defined(_WIN32)
-    #include <windows.h>
-    typedef HANDLE thread_handle_t;
-    #define THREAD_FUNC_RETURN DWORD WINAPI
-    #define THREAD_FUNC_CALL  __stdcall
-#else
-    #include <pthread.h>
-    typedef pthread_t thread_handle_t;
-    #define THREAD_FUNC_RETURN void *
-    #define THREAD_FUNC_CALL
-#endif
+#include "parallel.h"
 
 #define AIRY_VIA_FFT
+
+// --- 2D Kernel (for Airy) ---
+typedef struct {
+    int size;        // Kernel is (2*size+1) x (2*size+1)
+    int width;       // width = 2*size+1
+    int height;      // height = 2*size+1
+    ColorRGB *data;  // Kernel data (RGB), size width*height
+} Kernel2D;
 
 #ifdef AIRY_VIA_FFT
     #define MEOW_FFT_IMPLEMENTATION
@@ -323,25 +320,23 @@ void free_kernel1d(Kernel1D *k)
 
 // --- Threading Helper for Convolution ---
 typedef struct {
-    int thread_id;
     const ImageF *src;
     ImageF *dst;
     const Kernel1D *k;
-    int start_y;
-    int end_y;
-} BloomThreadData;
+} BloomContext;
 
-THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_h(void *arg)
+static void worker_convolve1d_h_parallel(int start_y, int end_y, void *arg, int thread_id)
 {
-    BloomThreadData *data = (BloomThreadData *)arg;
-    const ImageF *src = data->src;
-    ImageF *dst = data->dst;
-    const Kernel1D *k = data->k;
+    (void)thread_id; // Unused
+    BloomContext *ctx = (BloomContext *)arg;
+    const ImageF *src = ctx->src;
+    ImageF *dst = ctx->dst;
+    const Kernel1D *k = ctx->k;
     int W = src->width;
     int H = src->height;
     int k_size = k->size;
 
-    for (int y = data->start_y; y < data->end_y; ++y)
+    for (int y = start_y; y < end_y; ++y)
     {
         for (int x = 0; x < W; ++x)
         {
@@ -362,20 +357,20 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_h(void *arg)
             dst->pixels[dst_idx] = accumulator;
         }
     }
-    return 0;
 }
 
-THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_v(void *arg)
+static void worker_convolve1d_v_parallel(int start_y, int end_y, void *arg, int thread_id)
 {
-    BloomThreadData *data = (BloomThreadData *)arg;
-    const ImageF *src = data->src;
-    ImageF *dst = data->dst;
-    const Kernel1D *k = data->k;
+    (void)thread_id; // Unused
+    BloomContext *ctx = (BloomContext *)arg;
+    const ImageF *src = ctx->src;
+    ImageF *dst = ctx->dst;
+    const Kernel1D *k = ctx->k;
     int W = src->width;
     int H = src->height;
     int k_size = k->size;
 
-    for (int y = data->start_y; y < data->end_y; ++y)
+    for (int y = start_y; y < end_y; ++y)
     {
         memset(&dst->pixels[y * W], 0, W * sizeof(ColorRGB)); // Initialize destination row to zero
 
@@ -396,7 +391,6 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL worker_convolve1d_v(void *arg)
             }
         }
     }
-    return 0;
 }
 
 
@@ -415,57 +409,16 @@ bool convolve1d_h_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num
     }
 
     int H = src->height;
+    BloomContext ctx = { src, dst, k };
+    
+    // Chunk size heuristic: ~16 rows per chunk for balance
+    int chunk_size = 16;
 
-    if (num_threads <= 0) num_threads = 1;
-
-    thread_handle_t *threads = (thread_handle_t *)malloc(num_threads * sizeof(thread_handle_t));
-    BloomThreadData *thread_data = (BloomThreadData *)malloc(num_threads * sizeof(BloomThreadData));
-
-    if (!threads || !thread_data)
-    {
-        fprintf(stderr, "!   Error: Failed to allocate memory for threads.\n");
-        free(threads);
-        free(thread_data);
+    if (!parallel_run(worker_convolve1d_h_parallel, &ctx, H, num_threads, chunk_size, false)) {
+        fprintf(stderr, "!   Error: Parallel execution failed for horizontal convolution.\n");
         return false;
     }
 
-    int rows_per_thread = H / num_threads;
-    int remaining_rows = H % num_threads;
-    int current_y = 0;
-
-    for (int i = 0; i < num_threads; ++i)
-    {
-        thread_data[i].thread_id = i;
-        thread_data[i].src = src;
-        thread_data[i].dst = dst;
-        thread_data[i].k = k;
-        thread_data[i].start_y = current_y;
-
-        int rows_this_thread = rows_per_thread + (i < remaining_rows ? 1 : 0);
-        thread_data[i].end_y = current_y + rows_this_thread;
-        current_y += rows_this_thread;
-
-#if defined(_WIN32)
-        threads[i] = CreateThread(NULL, 0, worker_convolve1d_h, &thread_data[i], 0, NULL);
-        if (threads[i] == NULL) fprintf(stderr, "! Error creating thread %d\n", i);
-#else
-        int ret = pthread_create(&threads[i], NULL, worker_convolve1d_h, &thread_data[i]);
-        if (ret != 0) fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
-#endif
-    }
-
-    for (int i = 0; i < num_threads; ++i)
-    {
-#if defined(_WIN32)
-        WaitForSingleObject(threads[i], INFINITE);
-        CloseHandle(threads[i]);
-#else
-        pthread_join(threads[i], NULL);
-#endif
-    }
-
-    free(threads);
-    free(thread_data);
     printf("    Horizontal 1D convolution finished (%d threads).\n", num_threads);
     return true;
 }
@@ -486,57 +439,16 @@ bool convolve1d_v_rgb(const ImageF *src, ImageF *dst, const Kernel1D *k, int num
     }
 
     int H = src->height;
+    BloomContext ctx = { src, dst, k };
+    
+    // Chunk size heuristic: ~16 rows per chunk for balance
+    int chunk_size = 16;
 
-    if (num_threads <= 0) num_threads = 1;
-
-    thread_handle_t *threads = (thread_handle_t *)malloc(num_threads * sizeof(thread_handle_t));
-    BloomThreadData *thread_data = (BloomThreadData *)malloc(num_threads * sizeof(BloomThreadData));
-
-    if (!threads || !thread_data)
-    {
-        fprintf(stderr, "!   Error: Failed to allocate memory for threads.\n");
-        free(threads);
-        free(thread_data);
+    if (!parallel_run(worker_convolve1d_v_parallel, &ctx, H, num_threads, chunk_size, false)) {
+        fprintf(stderr, "!   Error: Parallel execution failed for vertical convolution.\n");
         return false;
     }
 
-    int rows_per_thread = H / num_threads;
-    int remaining_rows = H % num_threads;
-    int current_y = 0;
-
-    for (int i = 0; i < num_threads; ++i)
-    {
-        thread_data[i].thread_id = i;
-        thread_data[i].src = src;
-        thread_data[i].dst = dst;
-        thread_data[i].k = k;
-        thread_data[i].start_y = current_y;
-
-        int rows_this_thread = rows_per_thread + (i < remaining_rows ? 1 : 0);
-        thread_data[i].end_y = current_y + rows_this_thread;
-        current_y += rows_this_thread;
-
-#if defined(_WIN32)
-        threads[i] = CreateThread(NULL, 0, worker_convolve1d_v, &thread_data[i], 0, NULL);
-        if (threads[i] == NULL) fprintf(stderr, "! Error creating thread %d\n", i);
-#else
-        int ret = pthread_create(&threads[i], NULL, worker_convolve1d_v, &thread_data[i]);
-        if (ret != 0) fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
-#endif
-    }
-
-    for (int i = 0; i < num_threads; ++i)
-    {
-#if defined(_WIN32)
-        WaitForSingleObject(threads[i], INFINITE);
-        CloseHandle(threads[i]);
-#else
-        pthread_join(threads[i], NULL);
-#endif
-    }
-
-    free(threads);
-    free(thread_data);
     printf("    Vertical 1D convolution finished (%d threads).\n", num_threads);
     return true;
 }

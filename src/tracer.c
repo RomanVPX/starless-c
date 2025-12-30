@@ -3,6 +3,7 @@
 #endif
 #define _GNU_SOURCE
 #include "tracer.h"
+#include "parallel.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,18 +17,6 @@
 #include "image.h"
 #include "interpolation.h"
 #include "vector.h"
-
-#if defined(_WIN32)
-    #include <windows.h>
-    typedef HANDLE thread_handle_t;
-    #define THREAD_FUNC_RETURN DWORD WINAPI
-    #define THREAD_FUNC_CALL  __stdcall
-#else
-    #include <pthread.h>
-    typedef pthread_t thread_handle_t;
-    #define THREAD_FUNC_RETURN void *
-    #define THREAD_FUNC_CALL
-#endif
 
 
 // --- Physics & Geometry Constants ---
@@ -545,6 +534,14 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 }
 
 
+// --- Tracer Context for Parallel Execution ---
+typedef struct
+{
+    Config *config;
+    ImageF *image;
+    unsigned int *seeds; // Array of seeds per thread
+} TracerContext;
+
 // --- Thread-safe random number generator (LCG) ---
 static unsigned int thread_safe_rand(unsigned int *seed)
 {
@@ -553,19 +550,19 @@ static unsigned int thread_safe_rand(unsigned int *seed)
     return *seed;
 }
 
-// --- Trace a range of pixels (for threading) ---
-THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
+// --- Trace a range of pixels (parallel task) ---
+static void trace_pixel_range(int start_index, int end_index, void *arg, int thread_id)
 {
-    ThreadData *data = (ThreadData *)thread_arg;
-    const Config *cfg = data->config;
-    ImageF *image = data->image;
+    TracerContext *ctx = (TracerContext *)arg;
+    const Config *cfg = ctx->config;
+    ImageF *image = ctx->image;
+    
+    // Copy seed to local variable to avoid false sharing
+    unsigned int local_seed = ctx->seeds[thread_id];
+    
     int W = image->width;
 
-    printf("  Thread %d: Tracing pixels %d to %d\n", data->thread_id, data->start_pixel_index, data->end_pixel_index);
-    struct timespec ts_start;
-    timespec_get(&ts_start, TIME_UTC);
-
-    for (int idx = data->start_pixel_index; idx < data->end_pixel_index; ++idx)
+    for (int idx = start_index; idx < end_index; ++idx)
     {
         int px = idx % W;
         int py = idx / W;
@@ -586,8 +583,8 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
-                    double jitter_y = (double)thread_safe_rand(&data->rand_seed) / (double)RAND_MAX;
+                    double jitter_x = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
+                    double jitter_y = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
@@ -602,12 +599,9 @@ THREAD_FUNC_RETURN THREAD_FUNC_CALL trace_pixel_range(void *thread_arg)
         }
         image->pixels[idx] = accumulated_color;
     }
-
-    struct timespec ts_end;
-    timespec_get(&ts_end, TIME_UTC);
-    double time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
-    printf("  Thread %d: Finished range in %.2f seconds.\n", data->thread_id, time_spent);
-    return 0;
+    
+    // Write back the updated seed state to global memory
+    ctx->seeds[thread_id] = local_seed;
 }
 
 
@@ -629,101 +623,49 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
     int total_samples = samples_per_axis * samples_per_axis;
-    printf("  Starting ray tracing with %d threads...\n", n_threads);
+    printf("  Image size: %d x %d\n", W, H);
     printf("  SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
     printf("  Total pixels: %d\n", num_pixels);
+    printf("  Chunk size: %d\n", config->chunk_size);
+    printf("  Starting ray tracing with %d threads...\n", n_threads);
 
-    // Allocate thread handles and data structures
-    thread_handle_t *threads = (thread_handle_t *)malloc(n_threads * sizeof(thread_handle_t));
-    ThreadData *thread_data = (ThreadData *)malloc(n_threads * sizeof(ThreadData));
-
-    if (!threads || !thread_data)
+    // Prepare seeds for threads
+    unsigned int *seeds = (unsigned int *)malloc(n_threads * sizeof(unsigned int));
+    if (!seeds)
     {
-        fprintf(stderr, "! Error: Failed to allocate memory for thread management.\n");
-        free(threads);
-        free(thread_data);
-        return false;
+         fprintf(stderr, "! Error: Failed to allocate memory for thread seeds.\n");
+         return false;
+    }
+    for (int i = 0; i < n_threads; ++i)
+    {
+        seeds[i] = (unsigned int)(time(NULL) + i * 1337); // Unique seed per thread
     }
 
-    // Divide work among threads
-    int pixels_per_thread = num_pixels / n_threads;
-    int remaining_pixels = num_pixels % n_threads;
-    int current_pixel_index = 0;
+    // Setup Context
+    TracerContext ctx;
+    ctx.config = config;
+    ctx.image = output_image;
+    ctx.seeds = seeds;
 
     struct timespec ts_start;
     timespec_get(&ts_start, TIME_UTC);
 
-    for (int i = 0; i < n_threads; ++i)
-    {
-        thread_data[i].thread_id = i;
-        thread_data[i].config = config;
-        thread_data[i].rand_seed = (unsigned int)(time(NULL) + i); // Unique seed per thread
-        thread_data[i].image = output_image;
-        thread_data[i].start_pixel_index = current_pixel_index;
-
-        int pixels_for_this_thread = pixels_per_thread + (i < remaining_pixels ? 1 : 0);
-        thread_data[i].end_pixel_index = current_pixel_index + pixels_for_this_thread;
-
-        current_pixel_index += pixels_for_this_thread;
-
-        // Create thread
-#if defined(_WIN32)
-        threads[i] = CreateThread(NULL, 0, trace_pixel_range, &thread_data[i], 0, NULL);
-        if (threads[i] == NULL)
-        {
-            fprintf(stderr, "! Error creating thread %d\n", i);
-            n_threads = i;
-            break;
-        }
-#else
-        int ret = pthread_create(&threads[i], NULL, trace_pixel_range, &thread_data[i]);
-        if (ret != 0)
-        {
-            fprintf(stderr, "! Error creating thread %d: %s\n", i, strerror(ret));
-            n_threads = i;
-            break;
-        }
-#endif
-    }
-    int threads_failed = 0;
-    for (int i = 0; i < n_threads; ++i)
-    {
-#if defined(_WIN32)
-        DWORD wait_result = WaitForSingleObject(threads[i], INFINITE);
-        if (wait_result != WAIT_OBJECT_0)
-        {
-            fprintf(stderr, "! Error joining thread %d\n", i);
-            threads_failed++;
-        }
-        CloseHandle(threads[i]);
-#else
-        int ret = pthread_join(threads[i], NULL);
-        if (ret != 0)
-        {
-            fprintf(stderr, "! Error joining thread %d: %s\n", i, strerror(ret));
-            threads_failed++;
-        }
-#endif
-    }
+    // Run Parallel
+    bool success = parallel_run(trace_pixel_range, &ctx, num_pixels, n_threads, config->chunk_size, true);
 
     struct timespec ts_end;
     timespec_get(&ts_end, TIME_UTC);
     double total_time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
 
-    // Cleanup thread resources
-    free(threads);
-    free(thread_data);
+    free(seeds);
 
-    if (threads_failed > 0)
+    if (!success)
     {
-        // Let's pretend it's not a failure
-        fprintf(stderr, "  WARNING: %d threads failed to join correctly.\n", threads_failed);
-        // return false;
+        fprintf(stderr, "! Error during parallel execution.\n");
+        return false;
     }
 
-    printf("  All threads finished. Total ray tracing time: %.2f seconds.\n", total_time_spent);
-    printf("  Final image size: %d x %d\n", W, H);
-    printf("  Total pixels processed: %d\n", num_pixels);
+    printf("  Total ray tracing time: %.2f seconds.\n", total_time_spent);
     printf("  Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
     return true;
 }

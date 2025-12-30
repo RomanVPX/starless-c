@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Progress Reporting**: Added a real-time progress percentage indicator to the CLI output during the ray tracing phase.
 - **Example scenes**: Added two example scenes (`simple_nomore_bb_structured_horizontal.scene` and `taglio_blackbody_horizontal.scene`) to the `scenes/new` directory.
 
 ### Changed
 
-- **Airy Bloom Optimization**: Implemented FFT-based convolution for Airy disk bloom. This calculates the OTF directly in the frequency domain, dramatically (order of magnitude) improving performance for large bloom radii compared to the previous spatial convolution method.
+- **Dynamic Load Balancing**: Replaced static thread partitioning with dynamic load balancing for both Ray Tracing and Bloom effects.
+- **Parallelization Infrastructure**: Introduced a unified `parallel_run` module to abstract threading logic and task management, simplifying the codebase.
+- **Airy Bloom Optimization**: Implemented FFT-based convolution for Airy disk bloom. This calculates the OTF directly in the frequency domain, dramatically (order of magnitude) improving performance for large bloom radii compared to the original spatial convolution method.
 - **Gaussian Bloom**: Implemented parallelization for Gaussian bloom.
 - **Performance**: Enabled `-ffast-math` compiler flag and Link Time Optimization (`-flto`) for *significantly* faster rendering.
 - **Math Compatibility**: Refactored blackbody temperature logic to ensure compatibility with `-ffast-math` (replaced `-INFINITY` with `-DBL_MAX`, moved runtime `NaN` checks to the LUT generation script).
