@@ -13,6 +13,14 @@
 
 #define AIRY_VIA_FFT
 
+// --- 2D Kernel (for Airy) ---
+typedef struct {
+    int size;        // Kernel is (2*size+1) x (2*size+1)
+    int width;       // width = 2*size+1
+    int height;      // height = 2*size+1
+    ColorRGB *data;  // Kernel data (RGB), size width*height
+} Kernel2D;
+
 #ifdef AIRY_VIA_FFT
     #define MEOW_FFT_IMPLEMENTATION
     #include "meow_fft.h"
