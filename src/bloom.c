@@ -11,7 +11,7 @@
 #include "core_constants.h"
 #include "parallel.h"
 
-#define AIRY_VIA_FFT
+#define AIRY_VIA_FFT true   // Set to false to use the original method (slow AF)
 
 // --- 2D Kernel (for Airy) ---
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
     ColorRGB *data;  // Kernel data (RGB), size width*height
 } Kernel2D;
 
-#ifdef AIRY_VIA_FFT
+#if AIRY_VIA_FFT
     #define MEOW_FFT_IMPLEMENTATION
     #include "meow_fft.h"
 
@@ -60,7 +60,7 @@ static double airy_disk_func(double x)
 }
 
 
-// --- Generate 2D Kernel ---
+// --- Generate 2D Kernel for Airy Bloom ---
 Kernel2D *generate_airy_kernel(const double scale[3], int size)
 {
     if (size < 0)
@@ -459,7 +459,7 @@ bool apply_airy_bloom(const ImageF *src, ImageF *dst, const double scale[3])
     if (!src || !dst || !src->pixels || !dst->pixels) return false;
     if (src->width != dst->width || src->height != dst->height) return false;
 
-#ifdef AIRY_VIA_FFT
+#if AIRY_VIA_FFT
     int W = src->width;
     int H = src->height;
     
