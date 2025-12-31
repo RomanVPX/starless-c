@@ -170,7 +170,7 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
 }
 
 
-static double calculate_disk_color_pattern(const Vec3d col_point, double R, const Config *cfg)
+static double calculate_disk_temp_factor(const Vec3d col_point, double R, const Config *cfg)
 {
     double phi = atan2(col_point.x, col_point.z);
     double normalized_r = (R - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius);
@@ -272,6 +272,13 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             double temp = exp(log_temp);
             double R = sqrt(col_point_sqr);
 
+            // --- Add structure if enabled ---
+            if (cfg->disk_add_structure) 
+            {
+                double struct_factor = calculate_disk_temp_factor(col_point, R, cfg);
+                temp *= struct_factor;
+            }
+
             if (cfg->redshift > 0.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) // Apply redshift if enabled and outside horizon slightly
             {
                 // Formula from Python code for velocity factor
@@ -304,9 +311,6 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
             // --- Apply multiplier ---
             if (cfg->disk_intensity_do) { disk_color = color_mul_scalar(bb_col, cfg->disk_multiplier); }
             else { disk_color = bb_col; }
-
-            // --- Add structure if enabled ---
-            if (cfg->disk_add_structure) { disk_color = color_mul_scalar(disk_color, calculate_disk_color_pattern(col_point, R, cfg)); }
 
             // --- Alpha calculation ---
             double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
