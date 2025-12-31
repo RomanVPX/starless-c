@@ -79,7 +79,7 @@ FIELD_DEF(blackbody_ramp_data,               "",                                
 FIELD_DEF(blackbody_ramp_size,               "BB ramp size",                     INIT_INT,         0                             );
 
 FIELD_DEF(n_threads,                         "Number of threads",                INIT_INT,         6                             );
-FIELD_DEF(chunk_size,                        "Chunk size",                       INIT_INT,         9000                          );
+FIELD_DEF(chunk_size,                        "Chunk size",                       INIT_INT,         3000                          );
 #endif
 /* ==============================================================================================================================*/
 
