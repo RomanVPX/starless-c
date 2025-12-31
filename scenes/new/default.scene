@@ -96,7 +96,7 @@ Diskstructure_spiral_pitch=0.4
 # Position variation:
 Diskstructure_position_variation=0.3
 # Modulation:
-Diskstructure_modulation=0.6
+Diskstructure_modulation=0.12
 
 # Sky rendering mode
 #   none:       solid black

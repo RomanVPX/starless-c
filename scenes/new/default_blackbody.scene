@@ -71,7 +71,7 @@ Diskstructure_spiral_arms=6
 Diskstructure_rings_freq=2.0,1.0,2.0
 Diskstructure_spiral_pitch=0.4
 Diskstructure_position_variation=0.1
-Diskstructure_modulation=0.6
+Diskstructure_modulation=0.12
 
 #Postprocessing options
 #Bloom (Airy convolution)
