@@ -34,7 +34,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          lfs: true
+          lfs: false
+
+      - name: Create LFS file list
+        shell: bash
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: Restore LFS cache
+        uses: actions/cache@v4
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}-v1
+          restore-keys: |
+            ${{ runner.os }}-lfs-
+
+      - name: Pull LFS files
+        shell: bash
+        run: git lfs pull
 
       - name: Install dependencies (Linux)
         if: matrix.runner_os == 'ubuntu-latest'
