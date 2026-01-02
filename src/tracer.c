@@ -547,12 +547,16 @@ typedef struct
 } TracerContext;
 
 // --- Thread-safe random number generator (LCG) ---
+// Returns a value in [0, 2147483647]
 static unsigned int thread_safe_rand(unsigned int *seed)
 {
     // LCG parameters are taken from POSIX rand_r
     *seed = (*seed * 1103515245u + 12345u) & 0x7fffffff;
     return *seed;
 }
+
+// INT_MAX is different on various platforms; using 2^31 - 1 as the LCG maximum for consistent results
+#define LCG_RAND_MAX 2147483647.0
 
 // --- Trace a range of pixels (parallel task) ---
 static void trace_pixel_range(int start_index, int end_index, void *arg, int thread_id)
@@ -587,8 +591,8 @@ static void trace_pixel_range(int start_index, int end_index, void *arg, int thr
                 for (int sx = 0; sx < num_samples_axis; ++sx)
                 {
                     // Jittered stratified grid
-                    double jitter_x = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
-                    double jitter_y = (double)thread_safe_rand(&local_seed) / (double)RAND_MAX;
+                    double jitter_x = (double)thread_safe_rand(&local_seed) / LCG_RAND_MAX;
+                    double jitter_y = (double)thread_safe_rand(&local_seed) / LCG_RAND_MAX;
 
                     // Sub-pixel offsets
                     double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
