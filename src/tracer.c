@@ -542,14 +542,18 @@ typedef struct
     unsigned int *seeds; // Array of seeds per thread
 } TracerContext;
 
-// INT_MAX is different on various platforms; using 2^31 - 1 as the LCG maximum for consistent results
 #define LCG_RAND_MAX 0x7fffffff
 
 // --- Thread-safe random number generator (LCG) ---
-// Returns a value in [0, 2147483647]
-static unsigned int thread_safe_rand(unsigned int *seed)
+// Returns a value in [0, LCG_RAND_MAX]
+static inline unsigned int thread_safe_rand(unsigned int *seed)
 {
     // LCG parameters are taken from POSIX rand_r
+    // Result is divided by 65536 in standard C implementation to discard lower, very periodic bits.
+    // It's not necessary in this context because the caller will scale the result to [0.0, 1.0] by:
+    // - Casting to double (fitting 32-bit LCG output into 53-bit mantissa precision).
+    // - Dividing by LCG_RAND_MAX to get a value in [0.0, 1.0].
+    // This makes "bad" lower bits contribute very little to the double value (they are far down the mantissa).
     *seed = (*seed * 1103515245u + 12345u) & LCG_RAND_MAX;
     return *seed;
 }
