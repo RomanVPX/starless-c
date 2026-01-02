@@ -57,7 +57,7 @@ FIELD_DEF(disk_structure_spiral_arms,        "Diskstructure_spiral_arms",       
 FIELD_DEF(disk_structure_rings_freq,         "Diskstructure_rings_freq",         INIT_VEC3,        ((Vec3d){1.0, 1.0, 1.0})      );
 FIELD_DEF(disk_structure_spiral_pitch,       "Diskstructure_spiral_pitch",       INIT_DOUBLE,      0.3                           );
 FIELD_DEF(disk_structure_position_variation, "Diskstructure_position_variation", INIT_DOUBLE,      0.15                          );
-FIELD_DEF(disk_structure_modulation,         "Diskstructure_modulation",         INIT_DOUBLE,      0.5                           );
+FIELD_DEF(disk_structure_modulation,         "Diskstructure_modulation",         INIT_DOUBLE,      0.1                           );
 #endif
 
 #ifdef SEC_OTHER

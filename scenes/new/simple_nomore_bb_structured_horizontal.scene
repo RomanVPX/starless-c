@@ -32,7 +32,7 @@ Diskstructure_spiral_arms=6
 Diskstructure_rings_freq=2.0,8.0,2.0
 Diskstructure_spiral_pitch=0.1
 Diskstructure_position_variation=0.1
-Diskstructure_modulation=0.5
+Diskstructure_modulation=0.1
 
 Skytexture=textures/starmap_2020_8k.png
 Skydiskratio=1.0

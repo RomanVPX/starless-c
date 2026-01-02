@@ -33,7 +33,7 @@ Redshift=1.1
 Diskmultiplier=1000
 
 Diskaddstructure=true
-Diskstructure_modulation=0.33
+Diskstructure_modulation=0.12
 Diskstructure_rings_freq=4.0,2.0,8.0
 Diskstructure_position_variation=0.25
 Diskstructure_spiral_pitch=0.4
