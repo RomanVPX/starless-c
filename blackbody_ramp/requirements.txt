@@ -1,6 +1,6 @@
 colour-science==0.4.6
 imageio==2.37.0
 numpy==2.2.6
-pillow==11.3.0
+pillow==12.1.1
 scipy==1.15.3
 typing_extensions==4.13.2
