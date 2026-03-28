@@ -1,5 +1,7 @@
 #include "config.h"
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,11 +29,45 @@
     #define ACCESS     access
 #endif
 
-// --- Helper Functions ---
-bool string_to_bool(const char *str)
+
+// --- Strict Parsing Helpers ---
+static bool strict_parse_int(const char *str, int *out)
 {
-    if (!str) { return false; }
-    if (strcmp(str, "1") == 0 || STRCASECMP(str, "true") == 0 || STRCASECMP(str, "yes") == 0) { return true; }
+    if (!str || *str == '\0') return false;
+    char *end;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (end == str || *end != '\0') return false;
+    if (errno == ERANGE || val < INT_MIN || val > INT_MAX) return false;
+    *out = (int)val;
+    return true;
+}
+
+static bool strict_parse_double(const char *str, double *out)
+{
+    if (!str || *str == '\0') return false;
+    char *end;
+    errno = 0;
+    double val = strtod(str, &end);
+    if (end == str || *end != '\0') return false;
+    if (errno == ERANGE) return false;
+    *out = val;
+    return true;
+}
+
+static bool strict_parse_bool(const char *str, bool *out)
+{
+    if (!str) return false;
+    if (strcmp(str, "1") == 0 || STRCASECMP(str, "true") == 0 || STRCASECMP(str, "yes") == 0)
+    {
+        *out = true;
+        return true;
+    }
+    if (strcmp(str, "0") == 0 || STRCASECMP(str, "false") == 0 || STRCASECMP(str, "no") == 0)
+    {
+        *out = false;
+        return true;
+    }
     return false;
 }
 
@@ -103,15 +139,11 @@ bool parse_resolution(const char *res_str, int resolution[2])
 
 static int parse_positive_int_arg(const char *arg_name, const char *value_str)
 {
-    if (!value_str || !isdigit((unsigned char)value_str[0]))
+    int val;
+    if (!strict_parse_int(value_str, &val) || val <= 0)
     {
-        fprintf(stderr, "! Error: Invalid format for %s. Expected integer.\n", arg_name);
-        return -1;
-    }
-    int val = atoi(value_str);
-    if (val <= 0)
-    {
-        fprintf(stderr, "! Error: Value for %s must be positive.\n", arg_name);
+        fprintf(stderr, "! Error: Invalid or non-positive value '%s' for %s.\n",
+                value_str ? value_str : "(null)", arg_name);
         return -1;
     }
     return val;
@@ -183,9 +215,15 @@ static int scene_ini_callback(void *user, const char *section, const char *name,
     bool *override_res = user_data->override_res_flag;
 
     // --- Define Parsers ---
-    #define INIT_INT_PARSE(field)           cfg->field = atoi(value)
-    #define INIT_DOUBLE_PARSE(field)        cfg->field = atof(value)
-    #define INIT_BOOL_PARSE(field)          cfg->field = string_to_bool(value)
+    #define INIT_INT_PARSE(field) \
+        do { int _v; if (strict_parse_int(value, &_v)) cfg->field = _v; \
+             else fprintf(stderr, "  Warning: Invalid integer '%s' for %s\n", value, #field); } while(0)
+    #define INIT_DOUBLE_PARSE(field) \
+        do { double _v; if (strict_parse_double(value, &_v)) cfg->field = _v; \
+             else fprintf(stderr, "  Warning: Invalid number '%s' for %s\n", value, #field); } while(0)
+    #define INIT_BOOL_PARSE(field) \
+        do { bool _v; if (strict_parse_bool(value, &_v)) cfg->field = _v; \
+             else fprintf(stderr, "  Warning: Invalid boolean '%s' for %s\n", value, #field); } while(0)
     #define INIT_VEC3_PARSE(field)          \
         if (!parse_vec3d(value, &cfg->field)) { fprintf(stderr, "  Warning: Invalid vec3 '%s' for %s\n", value, #field); }
     #define INIT_INT_ARRAY2_PARSE(field)    \
