@@ -25,7 +25,4 @@ typedef struct
     int steps_taken;   // Counter for iterations
 } RayState;
 
-
-
-
 #endif // TRACER_H
