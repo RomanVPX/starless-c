@@ -34,6 +34,25 @@
     #define M_PI 3.14159265358979323846
 #endif
 
+#define PRELINEARIZE_TEXTURE_LOOKUP true   // Use pre-computed sRGB→linear LUT instead of per-sample pow()
+
+#if PRELINEARIZE_TEXTURE_LOOKUP
+    // Pre-computed lookup table: maps uint8 sRGB value directly to linear double.
+    // Covers all 256 possible input values, so no per-sample pow() is needed.
+    static double srgb_to_linear_lut[256];
+    static bool srgb_lut_initialized = false;
+
+    static void ensure_srgb_lut(void)
+    {
+        if (srgb_lut_initialized) return;
+        for (int i = 0; i < 256; ++i)
+        {
+            srgb_to_linear_lut[i] = srgb_to_linear((double)i / 255.0);
+        }
+        srgb_lut_initialized = true;
+    }
+#endif
+
 #define MAX_CONFIG_METADATA_ENTRIES 150
 
 // metadata_array - where we write PngMetadata.
@@ -282,12 +301,26 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
         return COLOR_BLACK;
     }
 
+#if PRELINEARIZE_TEXTURE_LOOKUP
+    if (srgb_in)
+    {
+        ensure_srgb_lut();
+        return (ColorRGB){
+            srgb_to_linear_lut[tex->data[index + 0]],
+            srgb_to_linear_lut[tex->data[index + 1]],
+            srgb_to_linear_lut[tex->data[index + 2]]
+        };
+    }
+#endif
+
     ColorRGB color;
     color.r = tex->data[index + 0] / 255.0;
     color.g = tex->data[index + 1] / 255.0;
     color.b = tex->data[index + 2] / 255.0;
 
+#if !PRELINEARIZE_TEXTURE_LOOKUP
     if (srgb_in) { return color_srgb_to_linear(color); }
+#endif
     return color;
 }
 
