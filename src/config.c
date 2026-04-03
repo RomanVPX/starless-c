@@ -1,3 +1,4 @@
+#include "platform.h"
 #include "config.h"
 #include <ctype.h>
 #include <errno.h>
@@ -9,25 +10,6 @@
 #include "config_default_paths.h"
 #include "image.h"
 #include "ini.h"
-
-#if defined(_WIN32)
-    #include <io.h>
-    #ifndef F_OK
-        #define F_OK 0
-    #endif
-    #define SSCANF     sscanf_s
-    #define STRDUP     _strdup
-    #define STRTOK     strtok_s
-    #define STRCASECMP _stricmp
-    #define ACCESS     _access
-#else
-    #include <unistd.h>
-    #define SSCANF     sscanf
-    #define STRDUP     strdup
-    #define STRTOK     strtok_r
-    #define STRCASECMP strcasecmp
-    #define ACCESS     access
-#endif
 
 
 // --- Strict Parsing Helpers ---
