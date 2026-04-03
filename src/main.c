@@ -1,7 +1,4 @@
-#if defined(_MSC_VER)
-    #define _USE_MATH_DEFINES
-#endif
-#define _GNU_SOURCE
+#include "platform.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h> // For EXIT_SUCCESS
@@ -13,19 +10,6 @@
 #include "image.h"
 #include "postprocess.h"
 #include "tracer.h"
-#if defined(_WIN32)
-    #include <direct.h>
-    #include <io.h>
-    #ifndef F_OK
-        #define F_OK 0
-    #endif
-    #define ACCESS _access
-    #define STRDUP _strdup
-#else
-    #include <unistd.h>
-    #define ACCESS access
-    #define STRDUP strdup
-#endif
 
 
 int main(int argc, char *argv[])

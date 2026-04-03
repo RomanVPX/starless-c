@@ -1,10 +1,7 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-#if defined(_MSC_VER)
-    #define _USE_MATH_DEFINES
-#endif
-#define _GNU_SOURCE
+#include "platform.h"
 #include <math.h>
 #include <stdbool.h>
 

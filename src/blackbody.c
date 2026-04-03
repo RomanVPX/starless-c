@@ -1,13 +1,9 @@
+#include "platform.h"
 #include "blackbody.h"
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "color.h"
-#if defined(_WIN32)
-    #define SSCANF sscanf_s
-#else
-    #define SSCANF sscanf
-#endif
 
 
 // Accretion disk temperature profile in Shakura-Sunyaev disk model: T(r) ∝ r^(-3/4) (or T(r) = const * r^(-3/4))
