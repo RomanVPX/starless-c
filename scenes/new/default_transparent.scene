@@ -9,7 +9,7 @@
 # this settings apply when rendering with the -d option
 [lofi]
 # Output resolution
-Resolution=640,360
+Resolution=540,360
 # Super Sampling Anti Aliasing level, 1 = no SSAA, 2 = 2x2 SSAA, 3 = 3x3 SSAA, etc.
 SSAA=1
 
@@ -22,7 +22,7 @@ Stepsize=0.16
 # Full render options
 # apply when rendering without the -d option
 [hifi]
-Resolution=1280,720
+Resolution=1080,720
 SSAA=3
 Iterations=250
 Stepsize=0.16
@@ -36,14 +36,14 @@ Stepsize=0.16
 Cameraposition=0.0,1.0,-20.0
 
 # Tangent of field of view
-Fieldofview=1.5
+Fieldofview=1.2
 
 # Fixes the view vector
 Lookat=0.0,0.0,0.0
 
 # The vector defining the "up" direction
 # (it's actually projected on the orthogonal subspace to the view vector)
-Upvector=0.2,1.0,0.0
+Upvector=0.0,1.0,0.0
 
 # Disc inner/outer radii
 Diskinner=2.6
@@ -81,13 +81,13 @@ Redshift=1.2
 # Whether to apply disk intensity multiplier (bool)
 Diskintensitydo=true
 # Multiplier for impact of computed planckian brightness in disc colour brightness
-Diskmultiplier=250.0
+Diskmultiplier=350.0
 
 # Radial opacity falloff for blackbody disk (bool):
 # When enabled, outer parts of the disk become more transparent based on relative surface brightness.
-Diskopacityfalloff=false
+Diskopacityfalloff=true
 # Exponent for radial opacity falloff. Higher = more transparent outer regions.
-Diskopacityfalloffexp=2.0
+Diskopacityfalloffexp=3.5
 
 # Disk structure for blackbody (no physical meaning, just for beautification and artistic effect)
 # Add structure to the blackbody disk (bool):
@@ -100,9 +100,9 @@ Diskstructure_rings_freq=2.0,3.0,2.0
 # Pitch of "spiral":
 Diskstructure_spiral_pitch=0.4
 # Position variation:
-Diskstructure_position_variation=0.3
+Diskstructure_position_variation=0.2
 # Modulation:
-Diskstructure_modulation=0.12
+Diskstructure_modulation=0.08
 
 # Sky rendering mode
 #   none:       solid black
@@ -117,7 +117,7 @@ Skydiskratio=1.0
 # Toggle dust (bool)
 Fogdo=true
 # Dust intensity multiplier
-Fogmult=0.025
+Fogmult=0.01
 # Fog applies every Nth ray
 Fogskip=1
 
