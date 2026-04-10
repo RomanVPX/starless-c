@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Radial Opacity Falloff**: Added a new optional setting for the blackbody accretion disk (`Diskopacityfalloff`, `Diskopacityfalloffexp`). When it’s on, the outer parts of the disk gradually become more transparent based on their relative surface brightness (∝ T^n), using the rest-frame temperature. It’s off by default.
+- **Radial Opacity Falloff**: Added a new optional setting for the blackbody accretion disk (`Diskopacityfalloff`, `Diskopacityfalloffexp`). When it’s on, the outer parts of the disk gradually become more transparent based on their relative surface brightness (∝ T^n), using the rest-frame temperature. It’s off by default. Example usage can be found in `scenes/new/default_transparent.scene`.
 
 ### Changed
 
