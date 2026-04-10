@@ -52,6 +52,8 @@ FIELD_DEF(blackbody_ramp_path,               "Blackbodyramp",                   
 FIELD_DEF(disk_multiplier,                   "Diskmultiplier",                   INIT_DOUBLE,      100.0                         );
 FIELD_DEF(disk_intensity_do,                 "Diskintensitydo",                  INIT_BOOL,        true                          );
 FIELD_DEF(redshift,                          "Redshift",                         INIT_DOUBLE,      1.0                           );
+FIELD_DEF(disk_opacity_falloff,              "Diskopacityfalloff",               INIT_BOOL,        false                         );
+FIELD_DEF(disk_opacity_falloff_exp,          "Diskopacityfalloffexp",            INIT_DOUBLE,      2.0                           );
 FIELD_DEF(disk_add_structure,                "Diskaddstructure",                 INIT_BOOL,        false                         );
 FIELD_DEF(disk_structure_spiral_arms,        "Diskstructure_spiral_arms",        INIT_INT,         5                             );
 FIELD_DEF(disk_structure_rings_freq,         "Diskstructure_rings_freq",         INIT_VEC3,        ((Vec3d){1.0, 1.0, 1.0})      );

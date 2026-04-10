@@ -92,6 +92,10 @@ typedef struct Config
     bool disk_intensity_do;
     double redshift;
 
+    // Blackbody Disk Opacity
+    bool disk_opacity_falloff;
+    double disk_opacity_falloff_exp;
+
     // Blackbody Disk Structure
     bool disk_add_structure;
     int disk_structure_spiral_arms;

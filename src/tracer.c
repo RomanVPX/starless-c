@@ -276,6 +276,8 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 temp *= struct_factor;
             }
 
+            double temp_rest = temp;
+
             if (cfg->redshift > 0.0 && R > sqrt(MIN_GRAV_REDSHIFT_R_SQR)) // Apply redshift if enabled and outside horizon slightly
             {
                 // Formula from Python code for velocity factor
@@ -288,8 +290,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double doppler_dot = vec3d_dot(disk_vel, vec3d_normalize(ray->vel));
                 double opz_doppler = gamma * (1.0 - doppler_dot); // 1+z, NOTE: '-' sign used here based on standard physics
 
-                double opz_grav = 1.0 / sqrt(fmax(EPSILON_LOOSE,
-                                                  1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR) / R)); // 1+z grav sqrt(g_tt)
+                double opz_grav = 1.0 / sqrt(fmax(EPSILON_LOOSE, 1.0 - sqrt(SCHWARZSCHILD_RADIUS_SQR) / R)); // 1+z grav sqrt(g_tt)
 
                 double total_opz = opz_doppler * opz_grav * cfg->redshift;
                 temp /= fmax(0.1, total_opz); // Correct temperature
@@ -311,12 +312,22 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
 
             // --- Alpha calculation ---
             double isco_taper = saturate((col_point_sqr - cfg->disk_inner_sqr) * BBODY_ISCO_TAPER_FACTOR);
-            double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
+            if (cfg->disk_opacity_falloff)
+            {
+                // Radial opacity: based on relative surface brightness (Stefan-Boltzmann, ∝ T^4)
+                // Using rest-frame temperature so opacity is an intrinsic disk property, not observer-dependent
+                double T_inner = exp(bb_log_temperature(cfg->disk_inner_sqr, DEFAULT_LOG_T0_ISCO));
+                double radial_opacity = pow(saturate(temp_rest / T_inner), cfg->disk_opacity_falloff_exp);
+                disk_alpha = isco_taper * radial_opacity;
+            }
+            else
+            {
+                double outer_taper = saturate(temp / BBODY_TEMP_TAPER_THRESHOLD);
 #if !USE_ORIGINAL_OUTER_TAPER_CALCULATION
-            // outer_taper *= smoothstep(cfg->disk_outer_sqr, lerp(cfg->disk_inner_sqr, cfg->disk_outer_sqr, 0.75), col_point_sqr);
-            outer_taper *= smoothstep(cfg->disk_outer_sqr * 0.95, cfg->disk_outer_sqr * 0.85, col_point_sqr);
+                outer_taper *= smoothstep(cfg->disk_outer_sqr * 0.95, cfg->disk_outer_sqr * 0.85, col_point_sqr);
 #endif
-            disk_alpha = isco_taper * outer_taper;
+                disk_alpha = isco_taper * outer_taper;
+            }
             if (disk_alpha >= MAX_DISC_ALPHA) { stop_ray = true; }
             break;
         }
