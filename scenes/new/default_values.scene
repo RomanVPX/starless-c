@@ -83,6 +83,12 @@ Diskintensitydo=true
 # Multiplier for impact of computed planckian brightness in disc colour brightness
 Diskmultiplier=100.0
 
+# Radial opacity falloff for blackbody disk (bool):
+# When enabled, outer parts of the disk become more transparent based on relative surface brightness.
+Diskopacityfalloff=false
+# Exponent for radial opacity falloff. Higher = more transparent outer regions.
+Diskopacityfalloffexp=2.0
+
 # Disk structure for blackbody (no physical meaning, just for beautification and artistic effect)
 # Add structure to the blackbody disk (bool):
 Diskaddstructure=false

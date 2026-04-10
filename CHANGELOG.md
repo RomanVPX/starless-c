@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Radial Opacity Falloff**: Added a new optional setting for the blackbody accretion disk (`Diskopacityfalloff`, `Diskopacityfalloffexp`). When it’s on, the outer parts of the disk gradually become more transparent based on their relative surface brightness (∝ T^n), using the rest-frame temperature. It’s off by default. Example usage can be found in `scenes/new/default_transparent.scene`.
+
 ### Changed
 
 - **Disk Structure**: The procedural disk structure pattern is now applied to the blackbody temperature rather than the final color. This results in more physically accurate spectral shifts (reddening/blueing) in structured areas, rather than simple intensity modulation.
@@ -14,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.1] - 2026-01-02
 
 ### Fixed
+
 - **Windows SSAA**: Fixed a critical RNG scaling issue causing black output when SSAA is enabled on Windows (due to `RAND_MAX` mismatch) ([#37](https://github.com/RomanVPX/starless-c/issues/37)).
 
 ## [0.3.0] - 2026-01-01

@@ -35,6 +35,7 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 * **ACES Tonemapping:** Added ACES (Academy Color Encoding System) filmic tonemapping for improved HDR to LDR conversion, providing more cinematic and perceptually accurate results.
 * **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere.
 * **Procedural Disk Structures:** Added an option to procedurally generate structures (rings, spirals, variations) within the accretion disk in Blackbody mode. This enhances visual detail and helps in understanding the disk's geometry without relying on a texture.
+* **Radial Disk Opacity Falloff:** Optional configurable radial opacity falloff for the blackbody accretion disk.
 * **Flexible Textures:** Sky and disk textures are no longer hardcoded and can be specified in scene files.
 
 **Compatibility & Included Assets:**
