@@ -146,7 +146,7 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 ## Acknowledgements
 
 * **Riccardo Antonelli ([rantonels](https://github.com/rantonels))** for creating the original "Starless" and for the insightful [article](http://rantonels.github.io/starless/) explaining the physics and implementation details. This C port would not exist without his foundational work.
-* **stb_image, stb_image_write_ext, stb_image_resize** by Sean Barrett and contributors for image loading, saving, and resizing.
+* **stb_image, stb_image_write_ext** by Sean Barrett and contributors for image loading and saving.
 * **inih (INI Parser)** by Ben Hoyt for INI file parsing.
 * **meow_fft** by [Richard Maxwell](https://github.com/JodiTheTigger) for FFTs.
 * **NASA/Goddard Space Flight Center Scientific Visualization Studio** for the Milky Way panorama texture used in some example scenes.

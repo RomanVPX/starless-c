@@ -10,10 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Radial Opacity Falloff**: Added a new optional setting for the blackbody accretion disk (`Diskopacityfalloff`, `Diskopacityfalloffexp`). When it’s on, the outer parts of the disk gradually become more transparent based on their relative surface brightness (∝ T^n), using the rest-frame temperature. It’s off by default. Example usage can be found in `scenes/new/default_transparent.scene`.
+- **Bicubic Texture Filtering**: In HiFi mode textures (sky and disk) are now sampled with bicubic (Catmull-Rom) filtering with centered sampling. LoFi mode keeps the original nearest-neighbor lookup.
 
 ### Changed
 
 - **Disk Structure**: The procedural disk structure pattern is now applied to the blackbody temperature rather than the final color. This results in more physically accurate spectral shifts (reddening/blueing) in structured areas, rather than simple intensity modulation.
+
+### Removed
+
+- **Sky Texture Upscaling**: The HiFi-mode `resize_texture` pass (2× upscale of the sky texture) and the bundled `stb_image_resize.h` dependency have been removed; smoothness is now provided by the bicubic sampler directly, without any extra memory footprint.
 
 ## [0.3.1] - 2026-01-02
 

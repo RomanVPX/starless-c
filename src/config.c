@@ -406,32 +406,14 @@ bool load_config(int argc, char *argv[], Config *cfg)
     }
 
     // Sky Texture
-    Texture *original_sky_texture = NULL;
     if (cfg->sky_texture_mode == ST_TEXTURE)
     {
         if (cfg->sky_texture_path)
         {
             printf("  Loading sky texture: %s\n", cfg->sky_texture_path);
-            original_sky_texture = load_texture(cfg->sky_texture_path);
+            cfg->sky_texture = load_texture(cfg->sky_texture_path);
         }
         else fprintf(stderr, "  Warning: Sky mode is TEXTURE, but no path configured.\n");
-    }
-
-    // Resize Sky Texture for HiFi mode
-    if (!cfg->lofi && original_sky_texture)
-    {
-        printf("    HiFi mode: Resizing sky texture...\n");
-        cfg->sky_texture = resize_texture(original_sky_texture, 2.0f);
-        if (cfg->sky_texture) free_texture(original_sky_texture);
-        else
-        {
-            cfg->sky_texture = original_sky_texture; // Fallback
-            fprintf(stderr, "    Warning: Resize failed, using original.\n");
-        }
-    }
-    else
-    {
-        cfg->sky_texture = original_sky_texture;
     }
 
     // Blackbody Ramp
