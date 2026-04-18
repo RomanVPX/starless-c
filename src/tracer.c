@@ -237,7 +237,7 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
                 double u = fmod(phi + 2.0 * M_PI, 2.0 * M_PI) / (2.0 * M_PI);                                // Normalize phi [0, 1]
                 double v = (r - cfg->disk_inner_radius) / (cfg->disk_outer_radius - cfg->disk_inner_radius); // Normalize radius
 
-                disk_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in);
+                disk_color = texture_lookup(cfg->disk_texture, u, v, cfg->srgb_in, !cfg->lofi);
                 Vec3d temp;
                 memcpy(&temp, &disk_color, sizeof(Vec3d));
                 double color_norm_sq = vec3d_norm_sqr(temp);
@@ -446,7 +446,7 @@ static ColorRGB get_background_color(const RayState *ray, const Config *cfg)
         case ST_TEXTURE:
             if (cfg->sky_texture)
             {
-                bg_color = texture_lookup(cfg->sky_texture, sky_u, sky_v, cfg->srgb_in);
+                bg_color = texture_lookup(cfg->sky_texture, sky_u, sky_v, cfg->srgb_in, !cfg->lofi);
             } // else bg_color remains black
             break;
         case ST_FINAL: // Debug mode: color based on final direction component magnitudes

@@ -34,9 +34,6 @@ void free_imagef(ImageF *img);
 Texture* load_texture(const char *filename);
 void free_texture(Texture *tex);
 
-// Texture Resizing
-Texture* resize_texture(const Texture* input_tex, float scale_factor);
-
 // Parameters:
 // - img: The floating-point image buffer to save.
 // - filename: The name of the file to save the image to.
@@ -47,6 +44,7 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 // - u: Horizontal coordinate in normalized texture space [0.0, 1.0].
 // - v: Vertical coordinate in normalized texture space [0.0, 1.0].
 // - srgb_in: If true, assumes the texture is in sRGB color space and converts to linear space.
-ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in);
+// - bicubic: If true, uses bicubic (Catmull-Rom) filtering; otherwise nearest-neighbor.
+ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in, bool bicubic);
 
 #endif // IMAGE_H

@@ -9,49 +9,25 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write_ext.h"
 
-// Include stb_image_resize with warnings disabled on Windows:
-#ifdef _WIN32
-#ifdef __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wsign-compare"
-#elif defined(__GNUC__)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wsign-compare"
-#endif
-#endif
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb_image_resize.h"
-#ifdef _WIN32
-#ifdef __clang__
-    #pragma clang diagnostic pop
-#elif defined(__GNUC__)
-    #pragma GCC diagnostic pop
-#endif
-#endif
-
 // For the finicky Linux compiler:
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
 
-#define PRELINEARIZE_TEXTURE_LOOKUP true   // Use pre-computed sRGB→linear LUT instead of per-sample pow()
+// Pre-computed lookup table: maps uint8 sRGB value directly to linear double.
+// Covers all 256 possible input values, so no per-sample pow() is needed.
+static double srgb_to_linear_lut[256];
+static bool srgb_lut_initialized = false;
 
-#if PRELINEARIZE_TEXTURE_LOOKUP
-    // Pre-computed lookup table: maps uint8 sRGB value directly to linear double.
-    // Covers all 256 possible input values, so no per-sample pow() is needed.
-    static double srgb_to_linear_lut[256];
-    static bool srgb_lut_initialized = false;
-
-    static void ensure_srgb_lut(void)
+static void ensure_srgb_lut(void)
+{
+    if (srgb_lut_initialized) return;
+    for (int i = 0; i < 256; ++i)
     {
-        if (srgb_lut_initialized) return;
-        for (int i = 0; i < 256; ++i)
-        {
-            srgb_to_linear_lut[i] = srgb_to_linear((double)i / 255.0);
-        }
-        srgb_lut_initialized = true;
+        srgb_to_linear_lut[i] = srgb_to_linear((double)i / 255.0);
     }
-#endif
+    srgb_lut_initialized = true;
+}
 
 #define MAX_CONFIG_METADATA_ENTRIES 150
 
@@ -205,70 +181,6 @@ Texture *load_texture(const char *filename)
     return tex;
 }
 
-Texture *resize_texture(const Texture *input_tex, float scale_factor)
-{
-    if (!input_tex || !input_tex->data || scale_factor <= 0)
-    {
-        fprintf(stderr, "!   Error: Invalid input to resize_texture.\n");
-        return NULL;
-    }
-    if (scale_factor == 1.0f)
-    {
-        fprintf(stderr, "    Warning: resize_texture called with scale_factor=1.0. No resize needed.\n");
-        return NULL; // Or return a copy if the caller expects a new texture always?
-    }
-
-    int in_w = input_tex->width;
-    int in_h = input_tex->height;
-    int channels = input_tex->channels; // Should be 3 based on our load logic
-
-    // Calculate new dimensions
-    int out_w = (int)(in_w * scale_factor + 0.5f); // Add 0.5 for rounding
-    int out_h = (int)(in_h * scale_factor + 0.5f);
-
-    if (out_w <= 0 || out_h <= 0)
-    {
-        fprintf(stderr, "!   Error: Calculated output dimensions for resize are invalid (%dx%d).\n", out_w, out_h);
-        return NULL;
-    }
-
-    printf("    Resizing texture from %dx%d to %dx%d (scale: %.2f)...\n", in_w, in_h, out_w, out_h, scale_factor);
-
-    // Allocate memory for the output texture data
-    size_t output_size = (size_t)out_w * out_h * channels;
-    unsigned char *output_data = (unsigned char *)malloc(output_size);
-    if (!output_data)
-    {
-        fprintf(stderr, "!   Error: Failed to allocate memory for resized texture data (%zu bytes).\n", output_size);
-        return NULL;
-    }
-    // Use default flags/filter for now (STBIR_FILTER_DEFAULT which is Mitchell-Netravali, good quality)
-    int success = stbir_resize_uint8(input_tex->data, in_w, in_h, 0, // 0 stride means default (in_w * channels)
-                                     output_data, out_w, out_h, 0,   // 0 stride means default (out_w * channels)
-                                     channels);
-    if (!success)
-    {
-        fprintf(stderr, "!   Error: stbir_resize_uint8 failed.\n");
-        free(output_data);
-        return NULL;
-    }
-
-    Texture *output_tex = (Texture *)malloc(sizeof(Texture)); // A new Texture struct for the resized data
-    if (!output_tex)
-    {
-        fprintf(stderr, "!   Error: Failed to allocate memory for resized Texture struct.\n");
-        free(output_data);
-        return NULL;
-    }
-
-    output_tex->width = out_w;
-    output_tex->height = out_h;
-    output_tex->channels = channels;
-    output_tex->data = output_data;
-
-    return output_tex;
-}
-
 void free_texture(Texture *tex)
 {
     if (tex)
@@ -278,50 +190,104 @@ void free_texture(Texture *tex)
     }
 }
 
-// Simple nearest neighbor lookup
-ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in)
+// Fetch a single channel as linear-space double, with edge clamping.
+static inline double fetch_linear_sample(const Texture *tex, int x, int y, int ch, bool srgb_in)
 {
-    if (!tex || !tex->data)
-    {
-        return COLOR_BLACK; // Or some error color
-    }
-    // Clamp UV coordinates
+    if (x < 0) x = 0;
+    else if (x >= tex->width) x = tex->width - 1;
+    if (y < 0) y = 0;
+    else if (y >= tex->height) y = tex->height - 1;
+
+    unsigned char v = tex->data[(y * tex->width + x) * tex->channels + ch];
+    return srgb_in ? srgb_to_linear_lut[v] : (double)v / 255.0;
+}
+
+// Catmull-Rom cubic weight (a = -0.5).
+static inline double cubic_weight(double x)
+{
+    double ax = fabs(x);
+    if (ax < 1.0) return (1.5 * ax - 2.5) * ax * ax + 1.0;
+    if (ax < 2.0) return ((-0.5 * ax + 2.5) * ax - 4.0) * ax + 2.0;
+    return 0.0;
+}
+
+static ColorRGB texture_lookup_nearest(const Texture *tex, double u, double v, bool srgb_in)
+{
     u = fmax(0.0, fmin(0.99999, u));
-    v = fmax(0.0, fmin(0.99999, v)); // Use 1.0 - v if texture origin is bottom-left
+    v = fmax(0.0, fmin(0.99999, v));
 
     int x = (int)(u * tex->width);
-    int y = (int)(v * tex->height); // Python code uses (v * height), assuming top-left origin
+    int y = (int)(v * tex->height);
 
-    int index = (y * tex->width + x) * tex->channels; // Assumes 3 channels (RGB)
+    int index = (y * tex->width + x) * tex->channels;
 
-    // Ensure index is within bounds (should be due to clamping, but belt-and-suspenders)
-    if (index < 0 || index + 2 >= tex->width * tex->height * tex->channels)
-    {
-        fprintf(stderr, "  Warning: Texture lookup out of bounds (%d, %d) -> index %d\n", x, y, index);
-        return COLOR_BLACK;
-    }
-
-#if PRELINEARIZE_TEXTURE_LOOKUP
     if (srgb_in)
     {
-        ensure_srgb_lut();
         return (ColorRGB){
             srgb_to_linear_lut[tex->data[index + 0]],
             srgb_to_linear_lut[tex->data[index + 1]],
             srgb_to_linear_lut[tex->data[index + 2]]
         };
     }
-#endif
+    return (ColorRGB){
+        tex->data[index + 0] / 255.0,
+        tex->data[index + 1] / 255.0,
+        tex->data[index + 2] / 255.0
+    };
+}
 
-    ColorRGB color;
-    color.r = tex->data[index + 0] / 255.0;
-    color.g = tex->data[index + 1] / 255.0;
-    color.b = tex->data[index + 2] / 255.0;
+static ColorRGB texture_lookup_bicubic(const Texture *tex, double u, double v, bool srgb_in)
+{
+    double fx = u * tex->width - 0.5;
+    double fy = v * tex->height - 0.5;
 
-#if !PRELINEARIZE_TEXTURE_LOOKUP
-    if (srgb_in) { return color_srgb_to_linear(color); }
-#endif
-    return color;
+    int ix = (int)floor(fx);
+    int iy = (int)floor(fy);
+    double tx = fx - ix;
+    double ty = fy - iy;
+
+    double wx[4] = {
+        cubic_weight(1.0 + tx),
+        cubic_weight(tx),
+        cubic_weight(1.0 - tx),
+        cubic_weight(2.0 - tx)
+    };
+    double wy[4] = {
+        cubic_weight(1.0 + ty),
+        cubic_weight(ty),
+        cubic_weight(1.0 - ty),
+        cubic_weight(2.0 - ty)
+    };
+
+    ColorRGB out = {0.0, 0.0, 0.0};
+    for (int j = 0; j < 4; ++j)
+    {
+        int sy = iy - 1 + j;
+        double wyj = wy[j];
+        for (int i = 0; i < 4; ++i)
+        {
+            int sx = ix - 1 + i;
+            double w = wx[i] * wyj;
+            out.r += fetch_linear_sample(tex, sx, sy, 0, srgb_in) * w;
+            out.g += fetch_linear_sample(tex, sx, sy, 1, srgb_in) * w;
+            out.b += fetch_linear_sample(tex, sx, sy, 2, srgb_in) * w;
+        }
+    }
+
+    // Catmull-Rom may produce negative lobes, so...
+    if (out.r < 0.0) out.r = 0.0;
+    if (out.g < 0.0) out.g = 0.0;
+    if (out.b < 0.0) out.b = 0.0;
+    return out;
+}
+
+ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in, bool bicubic)
+{
+    if (!tex || !tex->data) { return COLOR_BLACK; }
+    if (srgb_in) ensure_srgb_lut();
+
+    return bicubic ? texture_lookup_bicubic(tex, u, v, srgb_in)
+                   : texture_lookup_nearest(tex, u, v, srgb_in);
 }
 
 bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb, const Config *cfg)
