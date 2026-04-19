@@ -12,10 +12,10 @@ Stepsize=0.08
 
 [geometry]
 
-Cameraposition=0.,1.,-3.
-Fieldofview=.03
+Cameraposition=0.,1.,-10.
+Fieldofview=.4
 
-Lookat=0.,1.79,0.
+Lookat=0.,0.,0.
 
 Upvector=0.,1.,0.
 

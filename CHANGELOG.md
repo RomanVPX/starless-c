@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Sky Texture Upscaling**: The HiFi-mode `resize_texture` pass (2× upscale of the sky texture) and the bundled `stb_image_resize.h` dependency have been removed; smoothness is now provided by the bicubic sampler directly, without any extra memory footprint.
 
+### Fixed
+
+- **`scenes/new/rings.scene`**: Replaced camera setup inherited from the `rantonels/starless` original to avoid a black frame; moved it for a clean edge-on view of the lensed disk.
+
 ## [0.3.1] - 2026-01-02
 
 ### Fixed
