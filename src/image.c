@@ -93,7 +93,7 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
     helper_add_meta_entry(metadata_output, text_buffers_output,
         &current_entry_index, max_metadata_entries, "Software Repo", "https://github.com/RomanVPX/starless-c");
     helper_add_meta_entry(metadata_output, text_buffers_output,
-        &current_entry_index, max_metadata_entries, "Software Version", "0.3.1");
+        &current_entry_index, max_metadata_entries, "Software Version", "0.4.0");
 
     #define INIT_STRING(fieldName, pngKeySuffix) if(cfg->fieldName && pngKeySuffix[0] != '\0') \
         helper_add_meta_entry(metadata_output, text_buffers_output, \
