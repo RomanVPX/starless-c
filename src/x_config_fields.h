@@ -19,6 +19,9 @@
 FIELD_DEF(resolution,                        "Resolution",                       INIT_INT_ARRAY2,  ((int[2]){640, 480})          );
 FIELD_DEF(n_iterations,                      "Iterations",                       INIT_INT,         1000                          );
 FIELD_DEF(ssaa_level,                        "SSAA",                             INIT_INT,         2                             );
+FIELD_DEF(ssaa_adaptive,                     "SSAAAdaptive",                     INIT_BOOL,        false                         );
+FIELD_DEF(ssaa_threshold,                    "SSAAThreshold",                    INIT_DOUBLE,      0.05                          );
+FIELD_DEF(ssaa_debug_mask,                   "SSAADebugMask",                    INIT_BOOL,        false                         );
 FIELD_DEF(step_size,                         "Stepsize",                         INIT_DOUBLE,      0.02                          );
 #endif
 

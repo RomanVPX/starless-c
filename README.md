@@ -33,7 +33,7 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 **New Rendering Features:**
 
 * **ACES Tonemapping:** Added ACES (Academy Color Encoding System) filmic tonemapping for improved HDR to LDR conversion, providing more cinematic and perceptually accurate results.
-* **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere.
+* **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere. Optional adaptive mode renders a cheap 1-spp pass first and refines only pixels with high local luma variance using the full SSAA grid, typically giving a 3–5× speed-up with matching quality.
 * **Procedural Disk Structures:** Added an option to procedurally generate structures (rings, spirals, variations) within the accretion disk in Blackbody mode. This enhances visual detail and helps in understanding the disk's geometry without relying on a texture.
 * **Radial Disk Opacity Falloff:** Optional configurable radial opacity falloff for the blackbody accretion disk.
 * **Flexible Textures:** Sky and disk textures are no longer hardcoded and can be specified in scene files.
@@ -139,7 +139,6 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 ## TODO / Future Work
 
 * Optionally implement saving of intermediate rendering stages.
-* Explore more advanced/efficient anti-aliasing techniques (e.g., adaptive SSAA).
 * Investigate more sophisticated procedural noise/turbulence for disk structures.
 * Further performance optimizations (e.g., SIMD).
 

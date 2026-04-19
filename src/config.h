@@ -43,7 +43,10 @@ typedef struct Config
     int resolution[2];
     int n_iterations;
     double step_size;
-    int ssaa_level; // Raytracer supersampling (1 = no SS, 2 = 2x2, 3 = 3x3...)
+    int ssaa_level;
+    bool ssaa_adaptive;
+    double ssaa_threshold;
+    bool ssaa_debug_mask;
     int n_threads;
     int chunk_size;
     bool lofi;

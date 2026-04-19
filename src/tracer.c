@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include "blackbody.h"
 #include "color.h"
@@ -551,7 +552,8 @@ typedef struct
 {
     Config *config;
     ImageF *image;
-    unsigned int *seeds; // Array of seeds per thread
+    unsigned int *seeds;       // Array of seeds per thread
+    const int *hot_indices;    // If non-NULL, iterate over these pixel indices instead of [start, end)
 } TracerContext;
 
 #define LCG_RAND_MAX 0x7fffffff
@@ -570,7 +572,35 @@ static inline unsigned int thread_safe_rand(unsigned int *seed)
     return *seed;
 }
 
-// --- Trace a range of pixels (parallel task) ---
+// --- Full stratified jittered SSAA for a single pixel ---
+static ColorRGB trace_pixel_ssaa(int px, int py, int num_samples_axis, const Config *cfg, unsigned int *seed)
+{
+    int total_samples = num_samples_axis * num_samples_axis;
+    if (total_samples <= 1)
+    {
+        return trace_pixel(px, py, 0.5, 0.5, cfg, 0);
+    }
+
+    ColorRGB accumulated_color = COLOR_BLACK;
+    for (int sy = 0; sy < num_samples_axis; ++sy)
+    {
+        for (int sx = 0; sx < num_samples_axis; ++sx)
+        {
+            double jitter_x = (double)thread_safe_rand(seed) / LCG_RAND_MAX;
+            double jitter_y = (double)thread_safe_rand(seed) / LCG_RAND_MAX;
+
+            double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
+            double sub_pixel_offset_y = (sy + jitter_y) / num_samples_axis;
+
+            int current_sample_idx = sy * num_samples_axis + sx;
+            ColorRGB sample_color = trace_pixel(px, py, sub_pixel_offset_x, sub_pixel_offset_y, cfg, current_sample_idx);
+            accumulated_color = color_add(accumulated_color, sample_color);
+        }
+    }
+    return color_mul_scalar(accumulated_color, 1.0 / total_samples);
+}
+
+// --- Trace a range of pixels (full SSAA, non-adaptive) ---
 static void trace_pixel_range(int start_index, int end_index, void *arg, int thread_id)
 {
     TracerContext *ctx = (TracerContext *)arg;
@@ -581,47 +611,133 @@ static void trace_pixel_range(int start_index, int end_index, void *arg, int thr
     unsigned int local_seed = ctx->seeds[thread_id];
     
     int W = image->width;
+    int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
 
     for (int idx = start_index; idx < end_index; ++idx)
     {
         int px = idx % W;
         int py = idx / W;
+        image->pixels[idx] = trace_pixel_ssaa(px, py, num_samples_axis, cfg, &local_seed);
+    }
 
-        ColorRGB accumulated_color = COLOR_BLACK;
-        int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
-        int total_samples = num_samples_axis * num_samples_axis;
+    ctx->seeds[thread_id] = local_seed;
+}
 
-        if (total_samples == 1)
-        { // SSAA is 1x1
-            // No jittering, just center sample
-            accumulated_color = trace_pixel(px, py, 0.5, 0.5, cfg, 0);
-        }
-        else
+// --- Adaptive SSAA Pass 1: 1 sample per pixel (center) ---
+static void trace_pixel_range_center(int start_index, int end_index, void *arg, int thread_id)
+{
+    (void)thread_id;
+    TracerContext *ctx = (TracerContext *)arg;
+    const Config *cfg = ctx->config;
+    ImageF *image = ctx->image;
+    int W = image->width;
+
+    for (int idx = start_index; idx < end_index; ++idx)
+    {
+        int px = idx % W;
+        int py = idx / W;
+        image->pixels[idx] = trace_pixel(px, py, 0.5, 0.5, cfg, 0);
+    }
+}
+
+// --- Adaptive SSAA Pass 2: full SSAA for hot pixels ---
+static void trace_pixel_range_refine(int start_hot, int end_hot, void *arg, int thread_id)
+{
+    TracerContext *ctx = (TracerContext *)arg;
+    const Config *cfg = ctx->config;
+    ImageF *image = ctx->image;
+    const int *hot_indices = ctx->hot_indices;
+
+    unsigned int local_seed = ctx->seeds[thread_id];
+    int W = image->width;
+    int num_samples_axis = cfg->ssaa_level > 0 ? cfg->ssaa_level : 1;
+
+    for (int k = start_hot; k < end_hot; ++k)
+    {
+        int idx = hot_indices[k];
+        int px = idx % W;
+        int py = idx / W;
+        image->pixels[idx] = trace_pixel_ssaa(px, py, num_samples_axis, cfg, &local_seed);
+    }
+
+    ctx->seeds[thread_id] = local_seed;
+}
+
+// --- Luma (Rec. 709) ---
+static inline float pixel_luma(ColorRGB c)
+{
+    return (float)(0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b);
+}
+
+// --- Build hot-pixel mask from a 1-spp image using 3x3 max-min luma detector ---
+static int build_hot_mask(const ImageF *image, double threshold, unsigned char *mask)
+{
+    int W = image->width;
+    int H = image->height;
+    int N = W * H;
+
+    // Luma buffer
+    float *luma = (float *)malloc((size_t)N * sizeof(float));
+    if (!luma) { fprintf(stderr, "! Error: Failed to allocate luma buffer.\n"); return -1; }
+
+    for (int i = 0; i < N; ++i) { luma[i] = pixel_luma(image->pixels[i]); }
+
+    // First pass: raw mask via max-min over 3x3.
+    unsigned char *raw = (unsigned char *)calloc((size_t)N, 1);
+    if (!raw) { free(luma); return -1; }
+
+    float tf = (float)threshold;
+    for (int y = 0; y < H; ++y)
+    {
+        int y0 = y > 0 ? y - 1 : y;
+        int y1 = y < H - 1 ? y + 1 : y;
+        for (int x = 0; x < W; ++x)
         {
-            for (int sy = 0; sy < num_samples_axis; ++sy)
+            int x0 = x > 0 ? x - 1 : x;
+            int x1 = x < W - 1 ? x + 1 : x;
+
+            float lmin = luma[y0 * W + x0];
+            float lmax = lmin;
+            for (int yy = y0; yy <= y1; ++yy)
             {
-                for (int sx = 0; sx < num_samples_axis; ++sx)
+                for (int xx = x0; xx <= x1; ++xx)
                 {
-                    // Jittered stratified grid
-                    double jitter_x = (double)thread_safe_rand(&local_seed) / LCG_RAND_MAX;
-                    double jitter_y = (double)thread_safe_rand(&local_seed) / LCG_RAND_MAX;
-
-                    // Sub-pixel offsets
-                    double sub_pixel_offset_x = (sx + jitter_x) / num_samples_axis;
-                    double sub_pixel_offset_y = (sy + jitter_y) / num_samples_axis;
-
-                    int current_sample_idx = sy * num_samples_axis + sx; // For logging of the first sample
-                    ColorRGB sample_color = trace_pixel(px, py, sub_pixel_offset_x, sub_pixel_offset_y, cfg, current_sample_idx);
-                    accumulated_color = color_add(accumulated_color, sample_color);
+                    float v = luma[yy * W + xx];
+                    if (v < lmin) lmin = v;
+                    if (v > lmax) lmax = v;
                 }
             }
-            accumulated_color = color_mul_scalar(accumulated_color, 1.0 / total_samples);
+            if (lmax - lmin > tf) raw[y * W + x] = 1;
         }
-        image->pixels[idx] = accumulated_color;
     }
-    
-    // Write back the updated seed state to global memory
-    ctx->seeds[thread_id] = local_seed;
+
+    // Second pass: 1-ring dilation
+    // TODO: use soft edges for lower SSAA count on edges?
+    int hot_count = 0;
+    for (int y = 0; y < H; ++y)
+    {
+        int y0 = y > 0 ? y - 1 : y;
+        int y1 = y < H - 1 ? y + 1 : y;
+        for (int x = 0; x < W; ++x)
+        {
+            int x0 = x > 0 ? x - 1 : x;
+            int x1 = x < W - 1 ? x + 1 : x;
+            unsigned char hot = 0;
+            for (int yy = y0; yy <= y1 && !hot; ++yy)
+            {
+                for (int xx = x0; xx <= x1 && !hot; ++xx)
+                {
+                    if (raw[yy * W + xx]) hot = 1;
+                }
+            }
+            mask[y * W + x] = hot;
+            hot_count += hot;
+        }
+    }
+
+    free(raw);
+    free(luma);
+    return hot_count;
 }
 
 
@@ -643,8 +759,16 @@ bool run_tracer(Config *config, ImageF *output_image)
 
     int samples_per_axis = (config->ssaa_level > 0) ? config->ssaa_level : 1;
     int total_samples = samples_per_axis * samples_per_axis;
+    bool adaptive = config->ssaa_adaptive && samples_per_axis > 1;
+
     printf("  Image size: %d x %d\n", W, H);
-    printf("  SSAA: %dx%d = %d samples/pixel\n", samples_per_axis, samples_per_axis, total_samples);
+    printf("  SSAA: %dx%d = %d samples/pixel%s\n",samples_per_axis, samples_per_axis, total_samples, adaptive
+        ? " (adaptive)" 
+        : "");
+    if (adaptive)
+    {
+        printf("  Adaptive SSAA threshold (luma range over 3x3): %.4f\n", config->ssaa_threshold);
+    }
     printf("  Total pixels: %d\n", num_pixels);
     printf("  Chunk size: %d\n", config->chunk_size);
     printf("  Starting ray tracing with %d threads...\n", n_threads);
@@ -666,26 +790,117 @@ bool run_tracer(Config *config, ImageF *output_image)
     ctx.config = config;
     ctx.image = output_image;
     ctx.seeds = seeds;
+    ctx.hot_indices = NULL;
 
     struct timespec ts_start;
     timespec_get(&ts_start, TIME_UTC);
 
-    // Run Parallel
-    bool success = parallel_run(trace_pixel_range, &ctx, num_pixels, n_threads, config->chunk_size, true);
+    bool success = true;
 
-    struct timespec ts_end;
-    timespec_get(&ts_end, TIME_UTC);
-    double total_time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
-
-    free(seeds);
-
-    if (!success)
+    if (!adaptive)
     {
-        fprintf(stderr, "! Error during parallel execution.\n");
-        return false;
+        success = parallel_run(trace_pixel_range, &ctx, num_pixels, n_threads, config->chunk_size, true);
+    }
+    else
+    {
+        // --- Pass 1: 1 spp (pixel centers) ---
+        printf("  Pass 1/2: initial sampling (1 spp)...\n");
+        success = parallel_run(trace_pixel_range_center, &ctx, num_pixels, n_threads, config->chunk_size, true);
+        if (!success) goto tracer_done;
+
+        // --- Build hot-pixel mask ---
+        printf("  Building adaptive SSAA mask...\n");
+        unsigned char *mask = (unsigned char *)calloc((size_t)num_pixels, 1);
+        if (!mask)
+        {
+            fprintf(stderr, "! Error: Failed to allocate SSAA mask.\n");
+            success = false;
+            goto tracer_done;
+        }
+
+        int hot_count = build_hot_mask(output_image, config->ssaa_threshold, mask);
+        if (hot_count < 0) { free(mask); success = false; goto tracer_done; }
+
+        double hot_ratio = (double)hot_count / (double)num_pixels * 100.0;
+        printf("    Hot pixels: %d / %d (%.2f%%)\n", hot_count, num_pixels, hot_ratio);
+
+        if (config->ssaa_debug_mask)
+        {
+            // Scale 0/1 -> 0/255 for visibility
+            unsigned char *viz = (unsigned char *)malloc((size_t)num_pixels);
+            if (viz)
+            {
+                for (int i = 0; i < num_pixels; ++i) viz[i] = mask[i] ? 255 : 0;
+                char mask_path[512];
+                const char *base = (config->scene_base_name && config->scene_base_name[0]) 
+                                ? config->scene_base_name
+                                : "output";
+                snprintf(mask_path, sizeof(mask_path), "out/%s_ssaa_mask.png", base);
+#if defined(_WIN32)
+                _mkdir("out");
+#else
+                mkdir("out", 0775);
+#endif
+                if (save_debug_mask_png(viz, W, H, mask_path))
+                {
+                    printf("    Saved adaptive SSAA mask to '%s'\n", mask_path);
+                }
+                free(viz);
+            }
+        }
+
+        // --- Collect hot indices ---
+        int *hot_indices = NULL;
+        if (hot_count > 0)
+        {
+            hot_indices = (int *)malloc((size_t)hot_count * sizeof(int));
+            if (!hot_indices)
+            {
+                fprintf(stderr, "! Error: Failed to allocate hot-indices array.\n");
+                free(mask);
+                success = false;
+                goto tracer_done;
+            }
+            int k = 0;
+            for (int i = 0; i < num_pixels; ++i)
+            {
+                if (mask[i]) hot_indices[k++] = i;
+            }
+        }
+        free(mask);
+
+        // --- Pass 2: full SSAA on hot pixels ---
+        if (hot_count > 0)
+        {
+            printf("  Pass 2/2: refining %d hot pixels with full %dx%d SSAA...\n", hot_count, samples_per_axis, samples_per_axis);
+            ctx.hot_indices = hot_indices;
+            // TODO: lower chunk size when hot_count is small?
+            success = parallel_run(trace_pixel_range_refine, &ctx, hot_count, n_threads, config->chunk_size, true);
+            ctx.hot_indices = NULL;
+            free(hot_indices);
+        }
+        else
+        {
+            printf("  Pass 2/2: skipped (no hot pixels above threshold).\n");
+        }
     }
 
-    printf("  Total ray tracing time: %.2f seconds.\n", total_time_spent);
-    printf("  Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
-    return true;
+    tracer_done:
+    {
+        struct timespec ts_end;
+        timespec_get(&ts_end, TIME_UTC);
+        double total_time_spent = (ts_end.tv_sec - ts_start.tv_sec) + (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
+
+        free(seeds);
+
+        if (!success)
+        {
+            fprintf(stderr, "! Error during parallel execution.\n");
+            return false;
+        }
+
+        printf("  Total ray tracing time: %.2f seconds.\n", total_time_spent);
+        printf("  Average time per pixel: %.6f ms\n", total_time_spent / num_pixels * 1000.0);
+        return true;
+    }
 }

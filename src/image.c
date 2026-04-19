@@ -290,6 +290,14 @@ ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in, bo
                    : texture_lookup_nearest(tex, u, v, srgb_in);
 }
 
+bool save_debug_mask_png(const unsigned char *mask, int width, int height, const char *filename)
+{
+    if (!mask || width <= 0 || height <= 0 || !filename) return false;
+    int ok = stbi_write_png(filename, width, height, 1, mask, width);
+    if (!ok) { fprintf(stderr, "!   Error writing mask PNG '%s'\n", filename); return false; }
+    return true;
+}
+
 bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srgb, const Config *cfg)
 {
     if (!img || !img->pixels) { return false; }

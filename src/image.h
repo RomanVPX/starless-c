@@ -47,4 +47,7 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 // - bicubic: If true, uses bicubic (Catmull-Rom) filtering; otherwise nearest-neighbor.
 ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in, bool bicubic);
 
+// Saves a single-channel 8-bit grayscale PNG (no metadata).
+bool save_debug_mask_png(const unsigned char *mask, int width, int height, const char *filename);
+
 #endif // IMAGE_H
