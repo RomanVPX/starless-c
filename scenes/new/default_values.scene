@@ -10,8 +10,17 @@
 [lofi]
 # Output resolution
 Resolution=640,480
+
 # Super Sampling Anti Aliasing level, 1 = no SSAA, 2 = 2x2 SSAA, 3 = 3x3 SSAA, etc.
 SSAA=2
+# Adaptive SSAA: when enabled (and SSAA > 1), renders a quick 1-sample-per-pixel pass first,
+# then refines only pixels with high local luma variance using the full SSAA grid.
+SSAAAdaptive=false
+# Max-min luma threshold over a 3x3 neighbourhood; pixels above it are refined.
+# Lower = refine more pixels (closer to full SSAA), higher = refine fewer.
+SSAAThreshold=0.05
+# Save a grayscale PNG mask of refined pixels to out/<scene>_ssaa_mask.png.
+SSAADebugMask=false
 
 # Number of raytracing steps
 Iterations=1000
@@ -24,6 +33,10 @@ Stepsize=0.02
 [hifi]
 Resolution=640,480
 SSAA=2
+SSAAAdaptive=false
+SSAAThreshold=0.05
+SSAADebugMask=false
+
 Iterations=1000
 Stepsize=0.02
 

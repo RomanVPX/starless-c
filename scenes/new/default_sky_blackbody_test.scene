@@ -20,6 +20,10 @@ Stepsize=0.32
 [hifi]
 
 Resolution=2048,1572
+SSAA=8
+SSAAAdaptive=true
+SSAAThreshold=0.1
+SSAADebugMask=true
 Iterations=250
 Stepsize=0.16
 
