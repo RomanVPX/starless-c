@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Radial Opacity Falloff**: Added a new optional setting for the blackbody accretion disk (`Diskopacityfalloff`, `Diskopacityfalloffexp`). When it’s on, the outer parts of the disk gradually become more transparent based on their relative surface brightness (∝ T^n), using the rest-frame temperature. It’s off by default. Example usage can be found in `scenes/new/default_transparent.scene`.
 - **Bicubic Texture Filtering**: In HiFi mode textures (sky and disk) are now sampled with bicubic (Catmull-Rom) filtering with centered sampling. LoFi mode keeps the original nearest-neighbor lookup.
+- **Adaptive SSAA**: Optional two-pass adaptive supersampling (`SSAAAdaptive`, `SSAAThreshold`, `SSAADebugMask`). The tracer first renders at 1 sample per pixel, builds a hot-pixel mask from 3×3 luma max−min and a 1-ring dilation, then re-renders only the marked pixels with the full `SSAA`×`SSAA` jittered grid. Typically refines 10–25% of pixels with matching quality for a 3–5× speed-up. Off by default; when enabled, the mask can optionally be saved as `out/<scene>_ssaa_mask.png`.
 
 ### Changed
 
