@@ -32,6 +32,7 @@ The goal is to provide a faster, more extensible, and cross-platform version whi
 
 **New Rendering Features:**
 
+* **Bowie (Binet) Integrator:** An alternative geodesic integrator (`Integrator=bowie`) that reduces each (planar) photon orbit to the Binet equation u'' = 3ku² − u and advances it with the explicit 4th-order Bowie single-step method (NASA, 1963), stepping by the azimuthal angle instead of the affine parameter. Stepping in φ is naturally adaptive in space (fine near the hole, coarse far away), conserves angular momentum exactly by construction, and lets escaped rays terminate themselves. Compared to the default RK4 it is roughly 2× faster at equal quality and far more accurate for near-critical rays around the photon sphere.
 * **ACES Tonemapping:** Added ACES (Academy Color Encoding System) filmic tonemapping for improved HDR to LDR conversion, providing more cinematic and perceptually accurate results.
 * **SSAA (Supersampling Anti-Aliasing):** Implemented Supersampling Anti-Aliasing with jittered samples to reduce aliasing artifacts and improve image quality, especially on fine details like the photon sphere. Optional adaptive mode renders a cheap 1-spp pass first and refines only pixels with high local luma variance using the full SSAA grid, typically giving a 3–5× speed-up with matching quality.
 * **Procedural Disk Structures:** Added an option to procedurally generate structures (rings, spirals, variations) within the accretion disk in Blackbody mode. This enhances visual detail and helps in understanding the disk's geometry without relying on a texture.
@@ -129,6 +130,7 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 
 * **Language & Performance:** C vs. Python/NumPy, resulting in significant speed-ups.
 * **Blackbody Color Source:** Textual LUT generated via Python script vs. hardcoded image ramp.
+* **Integrators:** Alternative Bowie (Binet) geodesic integrator added alongside the original RK4.
 * **Tonemapping:** ACES added.
 * **Anti-Aliasing:** SSAA added.
 * **Disk Detail:** Procedural disk structures added.
@@ -145,6 +147,7 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 ## Acknowledgements
 
 * **Riccardo Antonelli ([rantonels](https://github.com/rantonels))** for creating the original "Starless" and for the insightful [article](http://rantonels.github.io/starless/) explaining the physics and implementation details. This C port would not exist without his foundational work.
+* **Alex Scartazzini ([al-sca](https://github.com/al-sca))**, whose Master's thesis *"3D Visualization of a Schwarzschild Black Hole Environment"* and its accompanying [blackhole-raytracer](https://github.com/al-sca/blackhole-raytracer) explored applying the Bowie and Obrechkoff methods to the relativistic Binet equation, inspiring the Bowie integrator in Starless-C.
 * **stb_image, stb_image_write_ext** by Sean Barrett and contributors for image loading and saving.
 * **inih (INI Parser)** by Ben Hoyt for INI file parsing.
 * **meow_fft** by [Richard Maxwell](https://github.com/JodiTheTigger) for FFTs.
