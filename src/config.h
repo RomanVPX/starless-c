@@ -21,14 +21,20 @@ typedef struct ImageF ImageF;
     X(DT_GRID, "grid") \
     X(DT_BLACKBODY, "blackbody")
 
+#define INTEGRATOR_MODE_TABLE \
+    X(INTEG_RK4, "rk4") \
+    X(INTEG_BOWIE, "bowie")
+
 #define X(a, b) a,
 typedef enum { SKY_TEXTURE_MODE_TABLE } SkyTextureMode;
 typedef enum { DISK_TEXTURE_MODE_TABLE } DiskTextureMode;
+typedef enum { INTEGRATOR_MODE_TABLE } IntegratorMode;
 #undef X
 
 #define X(a, b) [a] = b,
 static const char *sky_texture_mode_names[] = { SKY_TEXTURE_MODE_TABLE };
 static const char *disk_texture_mode_names[] = { DISK_TEXTURE_MODE_TABLE };
+static const char *integrator_mode_names[] = { INTEGRATOR_MODE_TABLE };
 #undef X
 
 
@@ -43,6 +49,8 @@ typedef struct Config
     int resolution[2];
     int n_iterations;
     double step_size;
+    IntegratorMode integrator_mode;
+    double binet_step_size;  // Delta-phi (radians) per step for Binet-based integrators (bowie)
     int ssaa_level;
     bool ssaa_adaptive;
     double ssaa_threshold;
@@ -108,7 +116,9 @@ typedef struct Config
     double disk_structure_modulation;
 
     // Derived / Internal
-    Vec3d view_matrix[3]; // [0]=left, [1]=up, [2]=front
+    Vec3d view_matrix[3];    // [0]=left, [1]=up, [2]=front
+    double binet_cos_dphi;   // Derived: cos(binet_step_size), hoisted out of the hot loop
+    double binet_sin_dphi;   // Derived: sin(binet_step_size)
 } Config;
 
 // --- UserData for ini_parse callbacks ---

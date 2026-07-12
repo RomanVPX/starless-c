@@ -123,6 +123,7 @@ int assemble_png_metadata(const Config *cfg, PngMetadata metadata_output[], char
         const char *enum_name = NULL; \
         if (strcmp(#fieldName, "disk_texture_mode") == 0) enum_name = disk_texture_mode_names[cfg->fieldName]; \
         else if (strcmp(#fieldName, "sky_texture_mode") == 0) enum_name = sky_texture_mode_names[cfg->fieldName]; \
+        else if (strcmp(#fieldName, "integrator") == 0) enum_name = integrator_mode_names[cfg->fieldName]; \
         if (enum_name) helper_add_meta_entry(metadata_output, text_buffers_output, &current_entry_index, max_metadata_entries, pngKeySuffix, enum_name); \
     }
 

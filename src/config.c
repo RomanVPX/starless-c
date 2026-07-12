@@ -189,6 +189,21 @@ static void handle_sky_texture_mode(Config *cfg, const char *value)
                              DEFAULT_SKY_TEXTURE_PATH, ST_TEXTURE);
 }
 
+// Plain enum (no path logic): integration method
+static void handle_integrator_mode(Config *cfg, const char *value)
+{
+    int mode;
+    if (parse_enum_value(value, &mode, integrator_mode_names, sizeof(integrator_mode_names) / sizeof(char*)))
+    {
+        cfg->integrator_mode = (IntegratorMode)mode;
+    }
+    else
+    {
+        fprintf(stderr, "  Warning: Unknown integrator '%s', keeping '%s'\n",
+                value, integrator_mode_names[cfg->integrator_mode]);
+    }
+}
+
 // --- INI Parsing Callback ---
 static int scene_ini_callback(void *user, const char *section, const char *name, const char *value)
 {
@@ -432,6 +447,21 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // --- Compute Derived & Validate ---
     printf("Computing derived values...\n");
     compute_derived_config(cfg);
+    if (cfg->integrator_mode == INTEG_BOWIE && cfg->binet_step_size > 0.0)
+    {
+        // Winding rays sweep up to ~2*pi in phi; if the iteration cap cuts them off,
+        // the lensed far-side disk arcs and the photon ring silently disappear.
+        int min_needed = (int)(2.0 * M_PI / cfg->binet_step_size) + 1;
+        if (cfg->n_iterations < min_needed)
+        {
+            fprintf(stderr,
+                    "  Warning: Iterations=%d is too low for Integrator=bowie with Binetstepsize=%g:\n"
+                    "           rays winding around the hole need up to ~%d steps (missing disk\n"
+                    "           arcs / photon ring otherwise). Raising Iterations to %d.\n",
+                    cfg->n_iterations, cfg->binet_step_size, min_needed, min_needed);
+            cfg->n_iterations = min_needed;
+        }
+    }
     if (vec3d_norm(cfg->camera_pos) <= 1.0)
     {
         fprintf(stderr, "! Error: Camera is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
@@ -448,6 +478,10 @@ void compute_derived_config(Config *cfg)
     // Calculate squared radii for faster checks
     cfg->disk_inner_sqr = cfg->disk_inner_radius * cfg->disk_inner_radius;
     cfg->disk_outer_sqr = cfg->disk_outer_radius * cfg->disk_outer_radius;
+
+    // Rotation step for Binet-based integrators (constant for the whole render)
+    cfg->binet_cos_dphi = cos(cfg->binet_step_size);
+    cfg->binet_sin_dphi = sin(cfg->binet_step_size);
 
     // Create view matrix from camera parameters
     Vec3d front = vec3d_normalize(vec3d_sub(cfg->look_at, cfg->camera_pos));

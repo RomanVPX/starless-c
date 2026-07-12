@@ -29,6 +29,11 @@
 #define MAX_RAY_ALPHA                        (1 - EPSILON_STRICT) // Stop tracing if alpha exceeds this
 #define MAX_DISC_ALPHA                       (1 - EPSILON_LOOSE)  // Set stop ray in disk handling if alpha exceeds this
 
+// --- Bowie Integration Constants ---
+#define BINET_K                              0.5                  // GM/c^2 in units where r_s = 1
+#define BINET_L_FALLBACK                     0.5                  // |L| below which we fall back to RK4 (near-radial rays, phi-parametrization degenerates)
+#define BINET_U_ESCAPE                       1e-6                 // u_next below this => ray escaped to infinity within the step
+
 // --- Grid Constants ---
 #define GRID_PHI_STEP                        (M_PI / 6.0)         // ~0.52359... For disk grid pattern
 #define GRID_HORIZON_PHI_STEP                (M_PI / 3.0)         // ~1.04719... For horizon grid pattern
@@ -47,6 +52,7 @@
 #define TEMP_CUTOFF_HIGH                     15000.0              // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
+#define USE_ORIGINAL_FOG_CALCULATION         false                // Use original fog calculation logic
 #define FOG_TAPER_FACTOR                     0.8                  // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
@@ -133,6 +139,71 @@ static void perform_rk4_step(RayState *ray, double step_size, bool distort)
     ray->steps_taken++;
 }
 
+// --- Bowie / Binet Integrator ---
+// Instead of integrating the 3D "magic potential" ODE by affine parameter, this
+// reduces the (planar) photon orbit to the Binet equation u'' = f(u) = 3k*u^2 - u,
+// u = 1/r, with the azimuthal angle phi as the independent variable, advances it
+// with the 4th-order explicit Bowie single-step method (Taylor series with
+// analytic f', f''; NASA 1963), and reconstructs the 3D state by rotating the
+// radial/tangential basis by delta-phi around the (conserved) orbital axis L_hat.
+// Stepping in phi is naturally adaptive in space (ds ~ r*dphi): fine near the
+// hole, coarse far away. Angular momentum is conserved exactly by construction.
+static void perform_bowie_step(RayState *ray, const Config *cfg)
+{
+    if (!ray->active) return;
+
+    const Vec3d pos = ray->pos;
+    const Vec3d vel = ray->vel;
+    Vec3d L = vec3d_cross(pos, vel);
+    double L_mag = vec3d_norm(L);
+
+    if (L_mag < BINET_L_FALLBACK)
+    {
+        perform_rk4_step(ray, cfg->step_size, true);
+        return;
+    }
+
+    double r = vec3d_norm(pos);
+    double u = 1.0 / r;
+    double u_prime = -vec3d_dot(vel, pos) * u / L_mag; // u' = -v_r / |L|
+
+    // Bowie step for u'' = f(u), f = 3k*u^2 - u, f' = 6k*u - 1, f'' = 6k
+    double h = cfg->binet_step_size;
+    double f = (3.0 * BINET_K) * u * u - u;
+    double fp = (6.0 * BINET_K) * u - 1.0;
+    double g = (6.0 * BINET_K) * u_prime * u_prime + fp * f; // u'''' = f''*u'^2 + f'*f
+    double h_sqr = h * h;
+    double u_next = u + h * u_prime + 0.5 * h_sqr * f
+                    + (h_sqr * h / 6.0) * fp * u_prime + (h_sqr * h_sqr / 24.0) * g;
+    double up_next = u_prime + h * f + 0.5 * h_sqr * fp * u_prime + (h_sqr * h / 6.0) * g;
+
+    ray->steps_taken++;
+
+    if (u_next <= BINET_U_ESCAPE)
+    {   // r -> infinity within this step; velocity is already ~asymptotic (for sky lookup)
+        ray->active = false;
+        return;
+    }
+
+    // Reconstruct 3D state: er is orthogonal to L_hat, so Rodrigues' rotation
+    // reduces to a plain 2D rotation in the orbital plane spanned by (er, et).
+    Vec3d er = vec3d_mul_scalar(pos, u);           // unit radial
+    Vec3d et = vec3d_cross(vec3d_div_scalar(L, L_mag), er); // unit tangential, along motion
+
+    double c = cfg->binet_cos_dphi;
+    double s = cfg->binet_sin_dphi;
+    Vec3d er_new = vec3d_add(vec3d_mul_scalar(er, c), vec3d_mul_scalar(et, s));
+    Vec3d et_new = vec3d_sub(vec3d_mul_scalar(et, c), vec3d_mul_scalar(er, s));
+
+    double r_new = 1.0 / u_next;
+    double v_phi_new = L_mag * u_next;  // |L| / r_new: exact angular momentum conservation
+    double v_r_new = -up_next * L_mag;  // from u' = -v_r / |L|
+
+    ray->pos = vec3d_mul_scalar(er_new, r_new);
+    ray->vel = vec3d_add(vec3d_mul_scalar(er_new, v_r_new), vec3d_mul_scalar(et_new, v_phi_new));
+}
+
+
 // --- Helper: Calculate initial ray direction in world space ---
 static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg)
 {
@@ -166,7 +237,6 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
     Vec3d initial_momentum = vec3d_cross(ray->pos, ray->vel);
     ray->h2 = vec3d_norm_sqr(initial_momentum);
 }
-
 
 static double calculate_disk_temp_factor(const Vec3d col_point, double R, const Config *cfg)
 {
@@ -355,7 +425,6 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     return stop_ray;
 }
 
-
 // --- Helper: Handle Event Horizon Hit ---
 static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_pos_sqr, const Config *cfg, bool log_this_pixel)
 {
@@ -406,15 +475,28 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }        // Opaque – prevent further blending
 }
 
-
 // --- Helper: Apply Fog ---
-static void apply_fog(RayState *ray, double current_pos_sqr, const Config *cfg)
+// step_len: path length covered this step (constant for RK4, varies with r for Binet stepping)
+static void apply_fog(RayState *ray, double current_pos_sqr, double step_len, const Vec3d old_pos, const Config *cfg)
 {
     if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0)) { return; } // Fog disabled or skip this step
+
+#if (USE_ORIGINAL_FOG_CALCULATION)
+    if (cfg->distort && cfg->integrator_mode == INTEG_BOWIE)
+#endif
+    {
+        // Binet stepping produces long radial segments near the hole, so the fog
+        // integrand (~1/r^2) is sampled at the segment midpoint with the actual
+        // segment length; endpoint sampling overestimates fog on plunging rays.
+        Vec3d mid = vec3d_mul_scalar(vec3d_add(ray->pos, old_pos), 0.5);
+        current_pos_sqr = vec3d_norm_sqr(mid);
+        step_len = vec3d_norm(vec3d_sub(ray->pos, old_pos));
+    }
+
     if (current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR) { return; } // No fog inside horizon
 
     double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
-    double fog_int_base = cfg->fog_mult * cfg->fog_skip * cfg->step_size / fmax(1e-6, current_pos_sqr);
+    double fog_int_base = cfg->fog_mult * cfg->fog_skip * step_len / fmax(1e-6, current_pos_sqr);
     double fog_alpha_step = fmax(0.0, fmin(1.0, fog_int_base)) * phsphtaper;
     ColorRGB fog_col = COLOR_WHITE; // Fog color is white
 
@@ -479,6 +561,7 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
     // 2. Integration Loop
     Vec3d old_pos;
     double old_pos_sqr;
+    const bool use_binet = cfg->distort && cfg->integrator_mode == INTEG_BOWIE;
 
     for (int it = 0; it < cfg->n_iterations; ++it)
     {
@@ -487,7 +570,8 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
         old_pos = ray.pos;
         old_pos_sqr = vec3d_norm_sqr(old_pos);
         // --- Step ---
-        perform_rk4_step(&ray, cfg->step_size, cfg->distort);
+        if (use_binet) { perform_bowie_step(&ray, cfg); }
+        else { perform_rk4_step(&ray, cfg->step_size, cfg->distort); }
         double current_pos_sqr = vec3d_norm_sqr(ray.pos);
         // --- Check for Horizon Hit ---
         if (old_pos_sqr > SCHWARZSCHILD_RADIUS_SQR && current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR)
@@ -522,8 +606,9 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
         }
 
         // --- Apply Fog ---
-        // Apply fog *after* disk/horizon checks for this step
-        apply_fog(&ray, current_pos_sqr, cfg);
+        // Apply fog *after* disk/horizon checks for this step.
+        double step_len = cfg->step_size;
+        apply_fog(&ray, current_pos_sqr, step_len, old_pos, cfg);
     } // End integration loop
 
     if (log_this_pixel)
@@ -545,7 +630,6 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 
     return ray.color;
 }
-
 
 // --- Tracer Context for Parallel Execution ---
 typedef struct
