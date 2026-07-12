@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bowie (Binet) Integrator**: New optional geodesic integrator (`Integrator=bowie`, default remains `rk4`). Roughly 2× faster than RK4 at equal quality and ~50× more accurate for near-critical rays at the photon sphere with production step sizes. Near-radial rays (|L| < 0.5) fall back to RK4, where the φ-parametrization degenerates. See `Integrator` and `Binetstepsize` in [default_values.scene](scenes/new/default_values.scene).
 Inspired by Alex Scartazzini's Master's thesis and [blackhole-raytracer](https://github.com/al-sca/blackhole-raytracer).
 
+## Changed
+- **Fog Sampling**: Fog is now sampled at the segment midpoint with the actual segment length, rather than at the endpoint. Old behavior can be restored by defining `USE_ORIGINAL_FOG_CALCULATION` to `true` in the `src/tracer.c`.
+
 ## [0.4.0] - 2026-04-19
 
 ### Added
