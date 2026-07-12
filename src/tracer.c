@@ -202,6 +202,7 @@ static void perform_bowie_step(RayState *ray, const Config *cfg)
     ray->vel = vec3d_add(vec3d_mul_scalar(er_new, v_r_new), vec3d_mul_scalar(et_new, v_phi_new));
 }
 
+
 // --- Helper: Calculate initial ray direction in world space ---
 static Vec3d calculate_initial_view_vector(int px, int py, double sub_pixel_offset_x, double sub_pixel_offset_y, const Config *cfg)
 {
@@ -235,7 +236,6 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
     Vec3d initial_momentum = vec3d_cross(ray->pos, ray->vel);
     ray->h2 = vec3d_norm_sqr(initial_momentum);
 }
-
 
 static double calculate_disk_temp_factor(const Vec3d col_point, double R, const Config *cfg)
 {
@@ -424,7 +424,6 @@ static bool handle_disk_hit(RayState *ray, const Vec3d col_point, double col_poi
     return stop_ray;
 }
 
-
 // --- Helper: Handle Event Horizon Hit ---
 static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_pos_sqr, const Config *cfg, bool log_this_pixel)
 {
@@ -474,7 +473,6 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
     ray->active = false;                                       // Stop tracing this ray
     if (OPAQUE_RAY_ALPHA_ON_STOP) { ray->alpha = 1.0; }        // Opaque – prevent further blending
 }
-
 
 // --- Helper: Apply Fog ---
 // step_len: path length covered this step (constant for RK4, varies with r for Binet stepping)
@@ -618,7 +616,6 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 
     return ray.color;
 }
-
 
 // --- Tracer Context for Parallel Execution ---
 typedef struct
