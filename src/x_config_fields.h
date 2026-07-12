@@ -23,6 +23,8 @@ FIELD_DEF(ssaa_adaptive,                     "SSAAAdaptive",                    
 FIELD_DEF(ssaa_threshold,                    "SSAAThreshold",                    INIT_DOUBLE,      0.05                          );
 FIELD_DEF(ssaa_debug_mask,                   "SSAADebugMask",                    INIT_BOOL,        false                         );
 FIELD_DEF(step_size,                         "Stepsize",                         INIT_DOUBLE,      0.02                          );
+FIELD_DEF(integrator,                        "Integrator",                       INIT_SMART_ENUM,  INTEG_RK4                     );
+FIELD_DEF(binet_step_size,                   "Binetstepsize",                    INIT_DOUBLE,      0.01                          );
 #endif
 
 #ifdef SEC_GEOMETRY
