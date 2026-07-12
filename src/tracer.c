@@ -52,6 +52,7 @@
 #define TEMP_CUTOFF_HIGH                     15000.0              // Temperature high cutoff for blackbody visibility (K)
 
 // --- Fog Constants ---
+#define USE_ORIGINAL_FOG_CALCULATION         false                // Use original fog calculation logic
 #define FOG_TAPER_FACTOR                     0.8                  // Factor for fog intensity taper near horizon
 
 // --- Debug Single Pixel ---
@@ -476,9 +477,22 @@ static void handle_horizon_hit(RayState *ray, const Vec3d old_pos, double old_po
 
 // --- Helper: Apply Fog ---
 // step_len: path length covered this step (constant for RK4, varies with r for Binet stepping)
-static void apply_fog(RayState *ray, double current_pos_sqr, double step_len, const Config *cfg)
+static void apply_fog(RayState *ray, double current_pos_sqr, double step_len, const Vec3d old_pos, const Config *cfg)
 {
     if (!cfg->fog_do || (ray->steps_taken % cfg->fog_skip != 0)) { return; } // Fog disabled or skip this step
+
+#if (USE_ORIGINAL_FOG_CALCULATION)
+    if (cfg->distort && cfg->integrator_mode == INTEG_BOWIE)
+#endif
+    {
+        // Binet stepping produces long radial segments near the hole, so the fog
+        // integrand (~1/r^2) is sampled at the segment midpoint with the actual
+        // segment length; endpoint sampling overestimates fog on plunging rays.
+        Vec3d mid = vec3d_mul_scalar(vec3d_add(ray->pos, old_pos), 0.5);
+        current_pos_sqr = vec3d_norm_sqr(mid);
+        step_len = vec3d_norm(vec3d_sub(ray->pos, old_pos));
+    }
+
     if (current_pos_sqr <= SCHWARZSCHILD_RADIUS_SQR) { return; } // No fog inside horizon
 
     double phsphtaper = fmax(0.0, fmin(1.0, FOG_TAPER_FACTOR * (current_pos_sqr - SCHWARZSCHILD_RADIUS_SQR)));
@@ -593,18 +607,8 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
 
         // --- Apply Fog ---
         // Apply fog *after* disk/horizon checks for this step.
-        double fog_r_sqr = current_pos_sqr;
         double step_len = cfg->step_size;
-        if (use_binet && cfg->fog_do)
-        {
-            // Binet stepping produces long radial segments near the hole, so the fog
-            // integrand (~1/r^2) is sampled at the segment midpoint with the actual
-            // segment length; endpoint sampling overestimates fog on plunging rays.
-            Vec3d mid = vec3d_mul_scalar(vec3d_add(ray.pos, old_pos), 0.5);
-            fog_r_sqr = vec3d_norm_sqr(mid);
-            step_len = vec3d_norm(vec3d_sub(ray.pos, old_pos));
-        }
-        apply_fog(&ray, fog_r_sqr, step_len, cfg);
+        apply_fog(&ray, current_pos_sqr, step_len, old_pos, cfg);
     } // End integration loop
 
     if (log_this_pixel)
