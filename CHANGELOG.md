@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Blackbody ramp range header**: `.ramp` files can now declare their temperature range via a `# range <min> <max>` header line. `generate_ramp.py` writes it, the loader parses it, and the bundled ramps have been updated. Files without the header fall back to the hardcoded 1000–50000K (with a note in the log), so custom-range ramps now just work without touching the C code.
+
 ### Fixed
 
 - **sRGB LUT data race**: The sRGB→linear lookup table was lazily initialized from tracer threads (benign in practice, but formally a data race / UB). It is now initialized eagerly at texture load time, while still single-threaded.
