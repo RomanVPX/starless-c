@@ -447,6 +447,21 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // --- Compute Derived & Validate ---
     printf("Computing derived values...\n");
     compute_derived_config(cfg);
+    if (cfg->integrator == INTEG_BOWIE && cfg->binet_step_size > 0.0)
+    {
+        // Winding rays sweep up to ~2*pi in phi; if the iteration cap cuts them off,
+        // the lensed far-side disk arcs and the photon ring silently disappear.
+        int min_needed = (int)(2.0 * M_PI / cfg->binet_step_size) + 1;
+        if (cfg->n_iterations < min_needed)
+        {
+            fprintf(stderr,
+                    "  Warning: Iterations=%d is too low for Integrator=bowie with Binetstepsize=%g:\n"
+                    "           rays winding around the hole need up to ~%d steps (missing disk\n"
+                    "           arcs / photon ring otherwise). Raising Iterations to %d.\n",
+                    cfg->n_iterations, cfg->binet_step_size, min_needed, min_needed);
+            cfg->n_iterations = min_needed;
+        }
+    }
     if (vec3d_norm(cfg->camera_pos) <= 1.0)
     {
         fprintf(stderr, "! Error: Camera is inside the event horizon (r <= 1.0). Set Cameraposition further out.\n");
