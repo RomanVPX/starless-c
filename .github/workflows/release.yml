@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: false
 
@@ -41,7 +41,7 @@ jobs:
         run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
 
       - name: Restore LFS cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: lfs-cache
         with:
           path: .git/lfs
@@ -89,7 +89,7 @@ jobs:
           cd ../..
 
       - name: Upload build artifact (archive)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.archive_names.outputs.basename }}
           path: ${{ steps.archive_names.outputs.full_name }}
@@ -107,10 +107,10 @@ jobs:
           echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: downloaded-artifacts
 
@@ -126,7 +126,7 @@ jobs:
           path: ./CHANGELOG.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           body: ${{ steps.changelog.outputs.changes }}
