@@ -592,9 +592,19 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
         }
 
         // --- Apply Fog ---
-        // Apply fog *after* disk/horizon checks for this step
-        double step_len = (use_binet && cfg->fog_do) ? vec3d_norm(vec3d_sub(ray.pos, old_pos)) : cfg->step_size;
-        apply_fog(&ray, current_pos_sqr, step_len, cfg);
+        // Apply fog *after* disk/horizon checks for this step.
+        double fog_r_sqr = current_pos_sqr;
+        double step_len = cfg->step_size;
+        if (use_binet && cfg->fog_do)
+        {
+            // Binet stepping produces long radial segments near the hole, so the fog
+            // integrand (~1/r^2) is sampled at the segment midpoint with the actual
+            // segment length; endpoint sampling overestimates fog on plunging rays.
+            Vec3d mid = vec3d_mul_scalar(vec3d_add(ray.pos, old_pos), 0.5);
+            fog_r_sqr = vec3d_norm_sqr(mid);
+            step_len = vec3d_norm(vec3d_sub(ray.pos, old_pos));
+        }
+        apply_fog(&ray, fog_r_sqr, step_len, cfg);
     } // End integration loop
 
     if (log_this_pixel)
