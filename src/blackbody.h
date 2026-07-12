@@ -11,13 +11,19 @@
 *
 * Reads a file, auto-detects the number of samples, allocates memory,
 * and stores the ramp data and size via output parameters.
+* If the file carries a "# range <min> <max>" header line, the declared
+* temperature range (K) is written to temp_min_io/temp_max_io; otherwise
+* the values passed in are left untouched (caller provides fallbacks).
 *
 * @param filename Path to the .ramp text file.
 * @param ramp_data_out Pointer to store the address of the allocated ramp data array.
 * @param ramp_size_out Pointer to store the number of samples loaded.
+* @param temp_min_io In: fallback min temperature (K). Out: value from file header, if present.
+* @param temp_max_io In: fallback max temperature (K). Out: value from file header, if present.
 * @return true if loading was successful, false otherwise.
 */
-bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out);
+bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out,
+                                   double *temp_min_io, double *temp_max_io);
 
 // Global variable for the color ramp texture (or pass it around)
 extern Texture *color_temp_ramp;
