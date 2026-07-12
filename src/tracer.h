@@ -15,7 +15,6 @@ typedef struct
 {
     Vec3d pos;         // Current position (r)
     Vec3d vel;         // Current velocity (dr/d_lambda)
-    Vec3d initial_vel; // Initial normalized view vector (for sky lookup)
     double h2;         // Squared specific angular momentum (constant of motion)
 
     ColorRGB color;    // Accumulated color

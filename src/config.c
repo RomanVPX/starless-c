@@ -339,7 +339,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
                 printf("  Found -c: Setting chunk size to %d (default: %d)\n", val, cfg->chunk_size);
                 cfg->chunk_size = val;
             }
-            else return false;
+            else { free_config_textures(cfg); return false; }
         }
         else if (strncmp(arg, "-j", 2) == 0)
         {
@@ -349,7 +349,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
                 printf("  Found -j: Setting threads number to %d (default: %d)\n", val, cfg->n_threads);
                 cfg->n_threads = val;
             }
-            else return false;
+            else { free_config_textures(cfg); return false; }
         }
         else if (strncmp(arg, "-r", 2) == 0)
         {
@@ -361,6 +361,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
             else
             {
                 fprintf(stderr, "! Error: Invalid resolution format in '%s'. Use -rWxH with positive integers.\n", arg);
+                free_config_textures(cfg);
                 return false;
             }
         }
@@ -381,6 +382,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     if (ACCESS(scene_filename, F_OK) == -1)
     {
         fprintf(stderr, "! Error: Scene file \"%s\" not found.\n", scene_filename);
+        free_config_textures(cfg);
         return false;
     }
 
