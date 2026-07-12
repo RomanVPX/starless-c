@@ -49,7 +49,7 @@ typedef struct Config
     int resolution[2];
     int n_iterations;
     double step_size;
-    IntegratorMode integrator;
+    IntegratorMode integrator_mode;
     double binet_step_size;  // Delta-phi (radians) per step for Binet-based integrators (bowie)
     int ssaa_level;
     bool ssaa_adaptive;

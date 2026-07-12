@@ -547,7 +547,7 @@ static ColorRGB trace_pixel(int px, int py, double sub_pixel_offset_x, double su
     // 2. Integration Loop
     Vec3d old_pos;
     double old_pos_sqr;
-    const bool use_binet = cfg->distort && cfg->integrator == INTEG_BOWIE;
+    const bool use_binet = cfg->distort && cfg->integrator_mode == INTEG_BOWIE;
 
     for (int it = 0; it < cfg->n_iterations; ++it)
     {

@@ -190,17 +190,17 @@ static void handle_sky_texture_mode(Config *cfg, const char *value)
 }
 
 // Plain enum (no path logic): integration method
-static void handle_integrator(Config *cfg, const char *value)
+static void handle_integrator_mode(Config *cfg, const char *value)
 {
     int mode;
     if (parse_enum_value(value, &mode, integrator_mode_names, sizeof(integrator_mode_names) / sizeof(char*)))
     {
-        cfg->integrator = (IntegratorMode)mode;
+        cfg->integrator_mode = (IntegratorMode)mode;
     }
     else
     {
         fprintf(stderr, "  Warning: Unknown integrator '%s', keeping '%s'\n",
-                value, integrator_mode_names[cfg->integrator]);
+                value, integrator_mode_names[cfg->integrator_mode]);
     }
 }
 
@@ -447,7 +447,7 @@ bool load_config(int argc, char *argv[], Config *cfg)
     // --- Compute Derived & Validate ---
     printf("Computing derived values...\n");
     compute_derived_config(cfg);
-    if (cfg->integrator == INTEG_BOWIE && cfg->binet_step_size > 0.0)
+    if (cfg->integrator_mode == INTEG_BOWIE && cfg->binet_step_size > 0.0)
     {
         // Winding rays sweep up to ~2*pi in phi; if the iteration cap cuts them off,
         // the lensed far-side disk arcs and the photon ring silently disappear.
