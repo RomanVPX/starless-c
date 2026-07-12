@@ -228,7 +228,6 @@ static void initialize_ray_state(RayState *ray, Vec3d initial_velocity, const Co
 {
     ray->pos = cfg->camera_pos;
     ray->vel = initial_velocity;
-    ray->initial_vel = initial_velocity; // Store for sky lookup
     ray->color = COLOR_BLACK;
     ray->alpha = 0.0;
     ray->active = true;

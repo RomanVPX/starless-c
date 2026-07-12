@@ -109,7 +109,7 @@ double linear_to_srgb(double x)
 {
     if (x <= 0.0) { return 0.0; }
     if (x >= 1.0) { return 1.0; }
-    if (x <= 0.0031308f) { return x * 12.92; }
+    if (x <= 0.0031308) { return x * 12.92; }
     return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }
 

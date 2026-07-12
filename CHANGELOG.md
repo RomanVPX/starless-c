@@ -5,6 +5,14 @@ All notable changes to the Starless-C project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **sRGB LUT data race**: The sRGB→linear lookup table was lazily initialized from tracer threads (benign in practice, but formally a data race / UB). It is now initialized eagerly at texture load time, while still single-threaded.
+- **Integrator in PNG metadata**: Restored after the `integrator` → `integrator_mode` field rename.
+- **Minor cleanups**: Removed the dead `RayState.initial_vel` field; image buffer allocation sizes are computed in `size_t`; `load_config` now frees allocated paths on all early error returns; dropped a stray float literal suffix in `linear_to_srgb`.
+
 ## [0.5.0] - 2026-07-13
 
 ### Added
