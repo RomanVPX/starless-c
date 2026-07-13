@@ -19,7 +19,7 @@
 static double srgb_to_linear_lut[256];
 static bool srgb_lut_initialized = false;
 
-static void ensure_srgb_lut(void)
+static void init_srgb_lut(void)
 {
     if (srgb_lut_initialized) return;
     for (int i = 0; i < 256; ++i)
@@ -143,13 +143,13 @@ ImageF *create_imagef(int width, int height)
     if (!img) return NULL;
     img->width = width;
     img->height = height;
-    img->pixels = (ColorRGB *)malloc(width * height * sizeof(ColorRGB));
+    img->pixels = (ColorRGB *)malloc((size_t)width * height * sizeof(ColorRGB));
     if (!img->pixels)
     {
         free(img);
         return NULL;
     }
-    memset(img->pixels, 0, width * height * sizeof(ColorRGB)); // Initialize pixels to black
+    memset(img->pixels, 0, (size_t)width * height * sizeof(ColorRGB)); // Initialize pixels to black
     return img;
 }
 
@@ -178,6 +178,8 @@ Texture *load_texture(const char *filename)
     }
     tex->channels = 3; // Always set channels to 3 since we requested 3 components.
     printf("  Loaded texture '%s' (%dx%d, %d channels reported by STB, forced to 3)\n", filename, tex->width, tex->height, tex->channels);
+
+    init_srgb_lut(); // Eager init while still single-threaded
 
     return tex;
 }
@@ -285,7 +287,6 @@ static ColorRGB texture_lookup_bicubic(const Texture *tex, double u, double v, b
 ColorRGB texture_lookup(const Texture *tex, double u, double v, bool srgb_in, bool bicubic)
 {
     if (!tex || !tex->data) { return COLOR_BLACK; }
-    if (srgb_in) ensure_srgb_lut();
 
     return bicubic ? texture_lookup_bicubic(tex, u, v, srgb_in)
                    : texture_lookup_nearest(tex, u, v, srgb_in);
@@ -305,7 +306,7 @@ bool save_image_png(const ImageF *img, const char *filename, bool convert_to_srg
 
     int width = img->width;
     int height = img->height;
-    unsigned char *output_data = (unsigned char *)malloc(width * height * 3); // 3 channels (RGB)
+    unsigned char *output_data = (unsigned char *)malloc((size_t)width * height * 3); // 3 channels (RGB)
     if (!output_data) return false;
 
     for (int i = 0; i < width * height; ++i)
