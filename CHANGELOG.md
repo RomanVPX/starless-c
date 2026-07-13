@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Blackbody ramp range header**: `.ramp` files can now declare their temperature range via a `# range <min> <max>` header line. `generate_ramp.py` writes it, the loader parses it, and the bundled ramps have been updated. Files without the header fall back to the hardcoded 1000–50000K (with a note in the log), so custom-range ramps now just work without touching the C code.
+- **Blackbody ramp range header**: `.ramp` files can now declare their temperature range via a `# range <min> <max>` header line. `generate_ramp.py` writes it, the loader parses it, and the bundled ramps have been updated. Files without the header fall back to the hardcoded 1000–50000 K (with a note in the log), so custom-range ramps now just work without touching the C code.
 - **Ramp format precision**: `generate_ramp.py` now writes values in scientific notation (`%.9e`, 10 significant digits at any magnitude), the normalization factor is recorded in an informational `# max <val>` header.
+- **Example scenes**: Added `simple.scene` (a copy of the original `simple.scene`) and `simple_bowie.scene` (a copy of `simple.scene` with `Integrator=bowie`) to showcase different integrator modes.
+
+### Changed
+
+- **Example scenes**: Revised example and default scenes to showcase new features (Bowie integrator, adaptive SSAA) and improved visuals.
 
 ### Removed
 
 - **Raw blackbody ramp files**: Raw (non-normalized) ramps are no longer generated — the normalized ramp plus `# max` carries the same information.
+- **Old example scene**: Removed outdated example scene that is no longer relevant.
 
 ### Fixed
 
