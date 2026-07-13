@@ -155,5 +155,5 @@ The `.scene` file format is a simple INI-style configuration file that defines t
 
 ## License
 
-Copyright (c) 2025 Riccardo Antonelli ([original](https://github.com/rantonels/starless) Python project), RomanVPX ([this](https://github.com/RomanVPX/starless-c) C port development).
+Copyright (c) 2026 Riccardo Antonelli ([original](https://github.com/rantonels/starless) Python project), RomanVPX ([this](https://github.com/RomanVPX/starless-c) C port development).
 Licensed under the GNU GPL v3.0. See [LICENSE](LICENSE) for details.
