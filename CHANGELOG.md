@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Blackbody ramp range header**: `.ramp` files can now declare their temperature range via a `# range <min> <max>` header line. `generate_ramp.py` writes it, the loader parses it, and the bundled ramps have been updated. Files without the header fall back to the hardcoded 1000–50000K (with a note in the log), so custom-range ramps now just work without touching the C code.
+- **Ramp format precision**: `generate_ramp.py` now writes values in scientific notation (`%.9e`, 10 significant digits at any magnitude), the normalization factor is recorded in an informational `# max <val>` header.
+
+### Removed
+
+- **Raw blackbody ramp files**: Raw (non-normalized) ramps are no longer generated — the normalized ramp plus `# max` carries the same information.
 
 ### Fixed
 

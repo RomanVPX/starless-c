@@ -65,7 +65,7 @@ def compute_blackbody_ramp(temp_min: float, temp_max: float, num_samples: int) -
             spd = colour.sd_blackbody(float(temp), cmfs.shape)
             xyz = colour.sd_to_XYZ(spd, cmfs, illuminant_to_xyz) / 100.0
             rgb = colour.XYZ_to_RGB(xyz, output_colourspace, source_xyz_illuminant)
-            
+
             if np.isnan(rgb).any():
                 print(f"Warning: NaN detected at {temp:.2f}K (before clip). Using black.")
                 rgb = np.zeros(3)
@@ -83,14 +83,20 @@ def compute_blackbody_ramp(temp_min: float, temp_max: float, num_samples: int) -
     return ramp, max_val
 
 
-def save_ramp(filepath: Path, ramp: np.ndarray, temp_min: float, temp_max: float) -> None:
-    """Save ramp data to a text file with a range header."""
+def save_ramp(filepath: Path, ramp: np.ndarray, temp_min: float, temp_max: float, norm_factor: float) -> None:
+    """Save ramp data to a text file with range and normalization headers.
+
+    Values are written in scientific notation (10 significant digits at any
+    magnitude), so the dim low-temperature tail survives normalization intact.
+    """
     try:
         with filepath.open('w') as f:
-            # Header parsed by the C loader (load_blackbody_ramp_from_file):
+            # "# range" header is parsed by the C loader (load_blackbody_ramp_from_file);
+            # "# max" is informational: raw (absolute) value = stored value * max.
             f.write(f"# range {temp_min:g} {temp_max:g}\n")
+            f.write(f"# max {norm_factor:.9e}\n")
             for rgb in ramp:
-                f.write(f"{rgb[0]:.9f} {rgb[1]:.9f} {rgb[2]:.9f}\n")
+                f.write(f"{rgb[0]:.9e} {rgb[1]:.9e} {rgb[2]:.9e}\n")
         print(f"  Saved: {filepath}")
     except IOError as e:
         print(f"Error writing {filepath}: {e}")
@@ -135,14 +141,12 @@ def main() -> None:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_path = output_dir / f"{base}.ramp"
     norm_path = output_dir / f"{base}_normalized.ramp"
     png_path = output_dir / f"{base}_preview.png"
 
     # Save files
     print(f"\nSaving {args.num_samples} colors...")
-    save_ramp(raw_path, ramp_raw, args.temp_min, args.temp_max)
-    save_ramp(norm_path, ramp_normalized, args.temp_min, args.temp_max)
+    save_ramp(norm_path, ramp_normalized, args.temp_min, args.temp_max, max_val)
 
     print(f"\nGenerating PNG preview ({args.num_samples}x{PNG_HEIGHT})...")
     save_png_preview(png_path, ramp_normalized, PNG_HEIGHT)
