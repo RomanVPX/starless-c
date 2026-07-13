@@ -3,19 +3,30 @@
 [lofi]
 # output resolution
 Resolution=1024,658
-#number of raytracing steps
+
+# Integration method:
+#   rk4:    classic Runge-Kutta 4 on the 3D "magic potential" ODE. The original Starless behaviour.
+#   bowie:  4th-order Bowie single-step method. Much faster and more accurate near the photon sphere. Near-radial rays fall back to RK4.
+Integrator=bowie
+# Number of raytracing steps; extra iterations are nearly free with the Bowie integrator since escaped rays deactivate themselves.
 Iterations=125
 #size of integration step
 Stepsize=0.32
+# Azimuthal step (radians) for the Bowie integrator; ignored by RK4.
+Binetstepsize=0.05
+
 
 # Full render options
 # apply when rendering without the -d option
 [hifi]
 # From now on, settings apply to both tests and full renders
 Resolution=2048,1316
+SSAA=3
+
+Integrator=bowie
 Iterations=250
 Stepsize=0.16
-SSAA=3
+Binetstepsize=0.04
 
 [geometry]
 #Position of the camera in units of r_S

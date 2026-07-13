@@ -3,16 +3,20 @@
 Resolution=800,200
 SSAA=1
 
+Integrator=bowie
 Iterations=500
 Stepsize=0.16
+Binetstepsize=0.06
 
 
 [hifi]
 
 Resolution=1800,450
+SSAA=3
+Integrator=bowie
 Iterations=500
 Stepsize=0.16
-SSAA=3
+Binetstepsize=0.06
 
 [geometry]
 
