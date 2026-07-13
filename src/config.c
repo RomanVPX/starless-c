@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "blackbody.h"
-#include "config_default_paths.h"
+#include "config_defaults.h"
 #include "image.h"
 #include "ini.h"
 
@@ -438,7 +438,8 @@ bool load_config(int argc, char *argv[], Config *cfg)
     {
         if (!cfg->blackbody_ramp_path) cfg->blackbody_ramp_path = STRDUP(DEFAULT_BLACKBODY_RAMP_PATH);
         printf("  Loading blackbody ramp: %s...\n", cfg->blackbody_ramp_path);
-        if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size))
+        if (!load_blackbody_ramp_from_file(cfg->blackbody_ramp_path, &cfg->blackbody_ramp_data, &cfg->blackbody_ramp_size,
+                                           &cfg->blackbody_ramp_temp_min, &cfg->blackbody_ramp_temp_max))
         {
             fprintf(stderr, "! Error: Failed to load blackbody ramp.\n");
             free_config_textures(cfg);

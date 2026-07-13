@@ -20,10 +20,6 @@
 // ln(T0) + 3/4 * ln(3) = ln(T0) + 0.823959216501 — this is our LOGSHIFT
 #define LOGSHIFT 0.823959216501
 
-// Should match values in ramp file:
-#define RAMP_TEMP_MIN            1000.0  // Minimum temperature for blackbody ramp (K)
-#define RAMP_TEMP_MAX            50000.0 // Maximum temperature for blackbody ramp (K)
-
 
 // --- Function to count valid data lines in a file ---
 static int count_ramp_samples(const char *filename)
@@ -43,7 +39,8 @@ static int count_ramp_samples(const char *filename)
 }
 
 
-bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out)
+bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_out, int *ramp_size_out,
+                                   double *temp_min_io, double *temp_max_io)
 {
     *ramp_data_out = NULL;
     *ramp_size_out = 0;
@@ -75,10 +72,30 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
 
     char line_buffer[256];
     int smp_read = 0;
+    bool range_from_header = false;
     while (smp_read < smp_to_load && fgets(line_buffer, sizeof(line_buffer), file))
     {
-        // Skip empty lines or comment lines again during actual read
-        if (line_buffer[0] == '\n' || line_buffer[0] == '#' || line_buffer[0] == '\0') continue;
+        // Comment lines may carry metadata: "# range <min> <max>" declares the temperature range (K) the ramp was generated for.
+        if (line_buffer[0] == '#')
+        {
+            double t_min, t_max;
+            if (!range_from_header && SSCANF(line_buffer, "# range %lf %lf", &t_min, &t_max) == 2)
+            {
+                if (t_max > t_min && t_min >= 0.0)
+                {
+                    *temp_min_io = t_min;
+                    *temp_max_io = t_max;
+                    range_from_header = true;
+                }
+                else
+                {
+                    fprintf(stderr, "  Warning: Ignoring invalid range header in '%s'.\n", filename);
+                }
+            }
+            continue;
+        }
+
+        if (line_buffer[0] == '\n' || line_buffer[0] == '\0') continue;
 
         if (SSCANF(line_buffer, "%lf %lf %lf", &loaded_data[smp_read].r, &loaded_data[smp_read].g, &loaded_data[smp_read].b) == 3)
         {
@@ -102,6 +119,14 @@ bool load_blackbody_ramp_from_file(const char *filename, ColorRGB **ramp_data_ou
     *ramp_data_out = loaded_data;
     *ramp_size_out = smp_read;
     printf("    Ok! (%d samples loaded).\n", *ramp_size_out);
+    if (range_from_header)
+    {
+        printf("    Ramp temperature range: %g-%gK (from file header).\n", *temp_min_io, *temp_max_io);
+    }
+    else
+    {
+        printf("    No range header in ramp file, assuming %g-%gK.\n", *temp_min_io, *temp_max_io);
+    }
     return true;
 }
 
@@ -128,10 +153,10 @@ ColorRGB bb_color_from_temp(const Config *cfg, double temperature)
         return COLOR_BLACK;
     }
 
-    double temp_range = RAMP_TEMP_MAX - RAMP_TEMP_MIN;
+    double temp_range = cfg->blackbody_ramp_temp_max - cfg->blackbody_ramp_temp_min;
     if (temp_range <= 0) return COLOR_BLACK;
 
-    double normalized_temp = (temperature - RAMP_TEMP_MIN) / temp_range;
+    double normalized_temp = (temperature - cfg->blackbody_ramp_temp_min) / temp_range;
     normalized_temp = fmax(0.0, fmin(1.0, normalized_temp));
 
     int index = (int)(normalized_temp * (cfg->blackbody_ramp_size - 1));

@@ -83,10 +83,12 @@ def compute_blackbody_ramp(temp_min: float, temp_max: float, num_samples: int) -
     return ramp, max_val
 
 
-def save_ramp(filepath: Path, ramp: np.ndarray) -> None:
-    """Save ramp data to a text file."""
+def save_ramp(filepath: Path, ramp: np.ndarray, temp_min: float, temp_max: float) -> None:
+    """Save ramp data to a text file with a range header."""
     try:
         with filepath.open('w') as f:
+            # Header parsed by the C loader (load_blackbody_ramp_from_file):
+            f.write(f"# range {temp_min:g} {temp_max:g}\n")
             for rgb in ramp:
                 f.write(f"{rgb[0]:.9f} {rgb[1]:.9f} {rgb[2]:.9f}\n")
         print(f"  Saved: {filepath}")
@@ -139,8 +141,8 @@ def main() -> None:
 
     # Save files
     print(f"\nSaving {args.num_samples} colors...")
-    save_ramp(raw_path, ramp_raw)
-    save_ramp(norm_path, ramp_normalized)
+    save_ramp(raw_path, ramp_raw, args.temp_min, args.temp_max)
+    save_ramp(norm_path, ramp_normalized, args.temp_min, args.temp_max)
 
     print(f"\nGenerating PNG preview ({args.num_samples}x{PNG_HEIGHT})...")
     save_png_preview(png_path, ramp_normalized, PNG_HEIGHT)

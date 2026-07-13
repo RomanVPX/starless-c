@@ -9,4 +9,7 @@
 // This scene is used if no scene file provided in command line:
 #define DEFAULT_SCENE_PATH "scenes/new/default.scene"
 
+#define DEFAULT_RAMP_TEMP_MIN 1000.0
+#define DEFAULT_RAMP_TEMP_MAX 50000.0
+
 #endif

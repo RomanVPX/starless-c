@@ -2,7 +2,7 @@
     #error "FIELD_DEF must be defined before including x_config_fields.h"
 #endif
 
-#include "config_default_paths.h"
+#include "config_defaults.h"
 
 #ifdef SEC_ALL
     #define SEC_LOFIHIFI
@@ -84,6 +84,8 @@ FIELD_DEF(sky_texture,                       "",                                
 
 FIELD_DEF(blackbody_ramp_data,               "",                                 INIT_NULL,        NULL                          );
 FIELD_DEF(blackbody_ramp_size,               "BB ramp size",                     INIT_INT,         0                             );
+FIELD_DEF(blackbody_ramp_temp_min,           "BB ramp Tmin",                     INIT_DOUBLE,      DEFAULT_RAMP_TEMP_MIN         );
+FIELD_DEF(blackbody_ramp_temp_max,           "BB ramp Tmax",                     INIT_DOUBLE,      DEFAULT_RAMP_TEMP_MAX         );
 
 FIELD_DEF(n_threads,                         "Number of threads",                INIT_INT,         6                             );
 FIELD_DEF(chunk_size,                        "Chunk size",                       INIT_INT,         3000                          );

@@ -99,6 +99,8 @@ typedef struct Config
     char *blackbody_ramp_path;
     ColorRGB *blackbody_ramp_data;
     int blackbody_ramp_size;
+    double blackbody_ramp_temp_min; // Ramp temperature range (K); read from the .ramp
+    double blackbody_ramp_temp_max; // "# range" header, or fallback defaults
     double disk_multiplier;
     bool disk_intensity_do;
     double redshift;
