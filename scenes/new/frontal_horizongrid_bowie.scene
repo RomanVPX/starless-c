@@ -1,14 +1,18 @@
 [lofi]
 
-Resolution=320,240
+Resolution=640,480
+Integrator=bowie
 Iterations=150
 Stepsize=0.08
+Binetstepsize=0.045
 
 [hifi]
 
 Resolution=1920,1080
+Integrator=bowie
 Iterations=300
 Stepsize=0.04
+Binetstepsize=0.025
 
 [geometry]
 
@@ -19,8 +23,8 @@ Upvector=-0.,1.,0.
 
 [materials]
 
-Horizongrid=0
-Disktexture=solid
+Horizongrid=1
+Disktexture=texture
 Skytexture=texture
 Skydiskratio=0.05
 Fogdo=1

@@ -4,24 +4,32 @@
 # Test specifications
 # this settings apply when rendering with the -d option
 [lofi]
-
 # output resolution
-Resolution=160,120
-
+Resolution=1024,786
+# Integration method:
+#   rk4:    classic Runge-Kutta 4 on the 3D "magic potential" ODE. The original Starless behaviour.
+#   bowie:  4th-order Bowie single-step method. Much faster and more accurate near the photon sphere. Near-radial rays fall back to RK4.
+Integrator=bowie
 #number of raytracing steps
-Iterations=250
-
+Iterations=125
 #size of integration step
-Stepsize=0.16
+Stepsize=0.32
+# Azimuthal step (radians) for the Bowie integrator; ignored by RK4.
+Binetstepsize=0.05
 
 
 # Full render options
 # apply when rendering without the -d option
 [hifi]
-
 Resolution=2048,1572
-Iterations=250
+SSAA=8
+SSAAAdaptive=true
+SSAAThreshold=0.3
+SSAADebugMask=true
+Integrator=bowie
+Iterations=1000
 Stepsize=0.16
+Binetstepsize=0.03
 
 
 # From now on, settings apply to both tests and full renders
@@ -78,14 +86,22 @@ Redshift=1
 Diskmultiplier=1500.
 #multiplier for impact of computed planckian brightness in disc alpha
 
+#Disk structure for blackbody
+Diskaddstructure=true
+Diskstructure_spiral_arms=6
+Diskstructure_rings_freq=2.0,1.0,2.0
+Diskstructure_spiral_pitch=0.4
+Diskstructure_position_variation=0.1
+Diskstructure_modulation=0.12
+
 #Sky rendering mode
 #	none:		solid black
 #	texture:	use texture bgedit.png
 #	final:		normalized final ray direction
-Skytexture=textures/Gradient_8bit_0-255.png
+Skytexture=texture
 
 #Ratio of sky brightness / disk brightness
-Skydiskratio=0.33
+Skydiskratio=1.0
 
 #Toggle dust (0/1)
 Fogdo=0
@@ -115,10 +131,6 @@ Airy_radius=0.5
 Blurdo=0
 
 ACESExposure = 0.75
-
-
-#Deprecated option
-Bloomcut=0.8
 
 #Gain
 Gain=1

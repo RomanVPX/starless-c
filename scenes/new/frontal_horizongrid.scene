@@ -1,6 +1,6 @@
 [lofi]
 
-Resolution=320,240
+Resolution=640,480
 Iterations=150
 Stepsize=0.08
 

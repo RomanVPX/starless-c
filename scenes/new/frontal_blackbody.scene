@@ -1,15 +1,19 @@
 [lofi]
 
 Resolution=960,540
+Integrator=bowie
 Iterations=150
 Stepsize=0.08
+Binetstepsize=0.05
 
 [hifi]
 
 Resolution=1920,1080
+SSAA=3
+Integrator=bowie
 Iterations=300
 Stepsize=0.04
-SSAA=3
+Binetstepsize=0.04
 
 [geometry]
 
